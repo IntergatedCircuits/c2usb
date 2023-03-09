@@ -1,0 +1,9 @@
+[submodule "modules/etl"]
+	path = modules/etl
+	url = https://github.com/ETLCPP/etl.git
+[submodule "modules/hid-rp"]
+	path = modules/hid-rp
+	url = https://github.com/IntergatedCircuits/hid-rp.git
+[submodule "modules/magic_enum"]
+	path = modules/magic_enum
+	url = https://github.com/Neargye/magic_enum.git

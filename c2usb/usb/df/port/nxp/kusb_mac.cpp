@@ -12,84 +12,11 @@
 #include "usb/standard/requests.hpp"
 #include <chrono>
 
-#if C2USB_HAS_KSDK_HEADERS
-
-#if ((defined(USB_DEVICE_CONFIG_KHCI)) && (USB_DEVICE_CONFIG_KHCI > 0U))
-#include "usb_device_khci.h"
-#endif
-#if ((defined(USB_DEVICE_CONFIG_EHCI)) && (USB_DEVICE_CONFIG_EHCI > 0U))
-#include "usb_device_ehci.h"
-#endif
-#if (((defined(USB_DEVICE_CONFIG_LPCIP3511FS)) && (USB_DEVICE_CONFIG_LPCIP3511FS > 0U)) || \
-     ((defined(USB_DEVICE_CONFIG_LPCIP3511HS)) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U)))
-#include "usb_device_lpcip3511.h"
-#endif
-#if ((defined(USB_DEVICE_CONFIG_DWC3)) && (USB_DEVICE_CONFIG_DWC3 > 0U))
-#include "usb_device_dwc3.h"
-#endif
+#if C2USB_HAS_NXP_HEADERS
 
 using namespace usb::df::nxp;
 using namespace usb::df;
 using namespace usb;
-
-const kusb_mac::controller_interface* kusb_mac::kusb_index_to_if(usb_controller_index_t kusb_id)
-{
-    // allow USB controller to read from Flash
-#ifdef FMC_PFAPR_M3AP_SHIFT
-    FMC->PFAPR |= (1 << FMC_PFAPR_M3AP_SHIFT);
-#endif
-#ifdef FMC_PFAPR_M4AP_SHIFT
-    FMC->PFAPR |= (1 << FMC_PFAPR_M4AP_SHIFT);
-#endif
-
-#if ((defined(USB_DEVICE_CONFIG_KHCI)) && (USB_DEVICE_CONFIG_KHCI > 0U))
-    static const controller_interface khci_interface = {
-        USB_DeviceKhciInit, USB_DeviceKhciDeinit, USB_DeviceKhciSend,
-        USB_DeviceKhciRecv, USB_DeviceKhciCancel, USB_DeviceKhciControl,
-        USB_DeviceKhciIsrFunction
-    };
-    if ((kusb_id & (~1)) == kUSB_ControllerKhci0)
-    {
-        return &khci_interface;
-    }
-#endif
-#if ((defined(USB_DEVICE_CONFIG_EHCI)) && (USB_DEVICE_CONFIG_EHCI > 0U))
-    static const controller_interface ehci_interface = {
-        USB_DeviceEhciInit, USB_DeviceEhciDeinit, USB_DeviceEhciSend,
-        USB_DeviceEhciRecv, USB_DeviceEhciCancel, USB_DeviceEhciControl,
-        USB_DeviceEhciIsrFunction
-    };
-    if ((kusb_id & (~1)) == kUSB_ControllerEhci0)
-    {
-        return &ehci_interface;
-    }
-#endif
-#if (((defined(USB_DEVICE_CONFIG_LPCIP3511FS)) && (USB_DEVICE_CONFIG_LPCIP3511FS > 0U)) || \
-     ((defined(USB_DEVICE_CONFIG_LPCIP3511HS)) && (USB_DEVICE_CONFIG_LPCIP3511HS > 0U)))
-    static const controller_interface lpc3511ip_interface = {
-        USB_DeviceLpc3511IpInit, USB_DeviceLpc3511IpDeinit, USB_DeviceLpc3511IpSend,
-        USB_DeviceLpc3511IpRecv, USB_DeviceLpc3511IpCancel, USB_DeviceLpc3511IpControl,
-        USB_DeviceLpcIp3511IsrFunction
-    };
-    if ((kusb_id & (~3)) == kUSB_ControllerLpcIp3511Fs0)
-    {
-        return &lpc3511ip_interface;
-    }
-#endif
-#if ((defined(USB_DEVICE_CONFIG_DWC3)) && (USB_DEVICE_CONFIG_DWC3 > 0U))
-    static const controller_interface dwc3_interface = {
-        USB_DeviceDwc3Init, USB_DeviceDwc3Deinit, USB_DeviceDwc3Send,
-        USB_DeviceDwc3Recv, USB_DeviceDwc3Cancel, USB_DeviceDwc3Control,
-        USB_DeviceDwc3IsrFunction
-    };
-    if ((kusb_id & (~1)) == kUSB_ControllerDwc30)
-    {
-        return &dwc3_interface;
-    }
-#endif
-    assert(false);
-    return nullptr;
-}
 
 IRQn_Type kusb_mac::kusb_irqn() const
 {
@@ -103,6 +30,14 @@ void kusb_mac::init(const speeds& speeds)
     assert(status == kStatus_USB_Success);
 
     EnableIRQ(kusb_irqn());
+
+    // allow USB controller to read from Flash
+#ifdef FMC_PFAPR_M3AP_SHIFT
+    FMC->PFAPR |= (1 << FMC_PFAPR_M3AP_SHIFT);
+#endif
+#ifdef FMC_PFAPR_M4AP_SHIFT
+    FMC->PFAPR |= (1 << FMC_PFAPR_M4AP_SHIFT);
+#endif
 }
 
 void kusb_mac::deinit()
@@ -358,4 +293,4 @@ extern "C" usb_status_t USB_DeviceNotificationTrigger(void* handle, void* msg)
     }
 }
 
-#endif // C2USB_HAS_KSDK_HEADERS
+#endif // C2USB_HAS_NXP_HEADERS

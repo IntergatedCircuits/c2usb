@@ -11,12 +11,13 @@
 #ifndef __USB_DF_PORT_NXP_USB_MAC_HPP_
 #define __USB_DF_PORT_NXP_USB_MAC_HPP_
 
-#define C2USB_HAS_KSDK_HEADERS  (__has_include("usb.h") and \
+#define C2USB_HAS_NXP_HEADERS   (__has_include("usb.h") and \
                                  __has_include("usb_device_config.h") and \
                                  __has_include("usb_device.h") and \
                                  __has_include("usb_device_dci.h") and \
                                  __has_include("fsl_common.h"))
-#if C2USB_HAS_KSDK_HEADERS
+#if C2USB_HAS_NXP_HEADERS
+
 #include "usb/df/mac.hpp"
 #include <atomic>
 
@@ -27,6 +28,15 @@ extern "C"
 #include "usb_device_config.h"
 #include "usb_device.h"
 #include "usb_device_dci.h"
+
+#define C2USB_HAS_NXP_KHCI      (__has_include("usb_device_khci.h") and \
+                                 (USB_DEVICE_CONFIG_KHCI))
+#define C2USB_HAS_NXP_EHCI      (__has_include("usb_device_ehci.h") and \
+                                 (USB_DEVICE_CONFIG_EHCI))
+#define C2USB_HAS_NXP_LPCIP3511 (__has_include("usb_device_lpcip3511.h") and \
+                                 ((USB_DEVICE_CONFIG_LPCIP3511FS) or (USB_DEVICE_CONFIG_LPCIP3511HS)))
+#define C2USB_HAS_NXP_DWC3      (__has_include("usb_device_dwc3.h") and \
+                                 (USB_DEVICE_CONFIG_DWC3))
 }
 
 namespace usb::df::nxp
@@ -35,20 +45,21 @@ namespace usb::df::nxp
     class kusb_mac : public df::address_handle_mac
     {
     public:
-        kusb_mac(usb_controller_index_t kusb_id)
-                : usb::df::address_handle_mac(), kusb_if_(*kusb_index_to_if(kusb_id)), kusb_id_(kusb_id)
-        {}
-
         void process_kusb_notification(const usb_device_callback_message_struct_t& message);
 
         void handle_irq();
 
-    private:
+    protected:
         struct controller_interface : public ::_usb_device_controller_interface_struct
         {
             void (*isr)(void* param);
         };
 
+        constexpr kusb_mac(usb_controller_index_t kusb_id, const controller_interface& kusb_if)
+                : usb::df::address_handle_mac(), kusb_if_(kusb_if), kusb_id_(kusb_id)
+        {}
+
+    private:
         void* kusb_handle_ { nullptr };
         const controller_interface& kusb_if_;
         usb_controller_index_t kusb_id_;
@@ -66,8 +77,6 @@ namespace usb::df::nxp
             assert((addr.number() != 0) and (addr.number() <= MAX_EP_COUNT));
             return ep_flags[static_cast<size_t>(addr.direction())][addr.number() - 1];
         }
-
-        static const controller_interface* kusb_index_to_if(usb_controller_index_t kusb_id);
 
         IRQn_Type kusb_irqn() const;
 
@@ -110,8 +119,58 @@ namespace usb::df::nxp
         bool ep_is_stalled(usb::df::ep_handle eph) const override;
         usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
     };
+
+#if C2USB_HAS_NXP_KHCI
+    class khci_mac : public kusb_mac
+    {
+        static const controller_interface interface;
+    public:
+        constexpr khci_mac()
+                : kusb_mac(kUSB_ControllerKhci0, interface)
+        {}
+    };
+#endif // C2USB_HAS_NXP_KHCI
+
+#if C2USB_HAS_NXP_EHCI
+    class ehci_mac : public kusb_mac
+    {
+        static const controller_interface interface;
+    public:
+        constexpr ehci_mac()
+                : kusb_mac(kUSB_ControllerEhci0, interface)
+        {}
+    };
+#endif // C2USB_HAS_NXP_EHCI
+
+#if C2USB_HAS_NXP_LPCIP3511
+    class lpcip3511_mac : public kusb_mac
+    {
+        static const controller_interface interface;
+        constexpr lpcip3511_mac(usb_controller_index_t kusb_id)
+                : kusb_mac(kusb_id, interface)
+        {}
+    public:
+        constexpr static lpcip3511_mac fs()
+                : kusb_mac(kUSB_ControllerLpcIp3511Fs0, interface)
+        {}
+        constexpr static lpcip3511_mac hs()
+                : kusb_mac(kUSB_ControllerLpcIp3511Hs0, interface)
+        {}
+    };
+#endif // C2USB_HAS_NXP_LPCIP3511
+
+#if C2USB_HAS_NXP_DWC3
+    class dwc3_mac : public kusb_mac
+    {
+        static const controller_interface interface;
+    public:
+        constexpr dwc3_mac()
+                : kusb_mac(kUSB_ControllerDwc30, interface)
+        {}
+    };
+#endif // C2USB_HAS_NXP_DWC3
 }
 
-#endif // C2USB_HAS_KSDK_HEADERS
+#endif // C2USB_HAS_NXP_HEADERS
 
 #endif // __USB_DF_PORT_NXP_USB_MAC_HPP_

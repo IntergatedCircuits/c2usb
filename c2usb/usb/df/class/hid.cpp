@@ -254,9 +254,29 @@ df::config::elements<2> usb::df::hid::config(function& fn, const df::config::end
     return config::to_elements({ df::config::interface { fn }, in_ep });
 }
 
+df::config::elements<2> usb::df::hid::config(function& fn, usb::speed speed,
+        endpoint::address in_ep_addr, uint8_t in_interval)
+{
+    const size_t in_mps = std::min(fn.app().report_info().max_input_size,
+            endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+    return config(fn, config::endpoint::interrupt(in_ep_addr, in_mps, in_interval));
+}
+
 df::config::elements<3> usb::df::hid::config(function& fn, const df::config::endpoint& in_ep,
         const df::config::endpoint& out_ep)
 {
     assert((in_ep.address().direction() == direction::IN) and (out_ep.address().direction() == direction::OUT));
     return config::to_elements({ df::config::interface { fn }, in_ep, out_ep });
+}
+
+df::config::elements<3> usb::df::hid::config(function& fn, usb::speed speed,
+        endpoint::address in_ep_addr, uint8_t in_interval,
+        endpoint::address out_ep_addr, uint8_t out_interval)
+{
+    const size_t in_mps = std::min(fn.app().report_info().max_input_size,
+            endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+    const size_t out_mps = std::min(fn.app().report_info().max_output_size,
+            endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+    return config(fn, config::endpoint::interrupt(in_ep_addr, in_mps, in_interval),
+            config::endpoint::interrupt(out_ep_addr, out_mps, out_interval));
 }

@@ -23,11 +23,14 @@ usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::
     return desc;
 }
 
+#if not C2USB_STATIC_CONSTEXPR
 const element& footer()
 {
     static const element cf;
     return cf;
 }
+#endif
+
 }
 
 interface_endpoint_view interface::endpoints() const

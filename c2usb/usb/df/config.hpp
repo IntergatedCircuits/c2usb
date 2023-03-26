@@ -174,7 +174,15 @@ namespace usb::df::config
     static_assert(sizeof(header) == sizeof(element));
 
     /// @brief Terminating element of a configuration.
+#if C2USB_STATIC_CONSTEXPR
+    constexpr inline const element& footer()
+    {
+        static const element cf;
+        return cf;
+    }
+#else
     const element& footer();
+#endif
 
     template <size_t SIZE>
     using elements = std::array<element, SIZE>;
@@ -509,10 +517,10 @@ namespace usb::df::config
         template <size_t N>
         constexpr view(const elements<N>& config)
                 : base(config.data())
-        {}/*
-        constexpr view(const element& config)
-                : base(&config)
-        {}*/
+        {}
+#if C2USB_STATIC_CONSTEXPR
+        constexpr
+#endif
         view()
                 : base(&footer())
         {}

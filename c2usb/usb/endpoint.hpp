@@ -41,13 +41,19 @@ namespace usb::endpoint
         };
     }
 
-    constexpr static uint16_t packet_size_limit(type t, speed s)
+#if C2USB_STATIC_CONSTEXPR
+    constexpr
+#endif
+    inline uint16_t packet_size_limit(type t, speed s)
     {
         if (s == speed::NONE)
         {
             return 0;
         }
-        constexpr uint16_t sizes[4][3] = {
+#if C2USB_STATIC_CONSTEXPR
+        constexpr
+#endif
+        static const uint16_t sizes[4][3] = {
             //LS    FS    HS
             {    8,   64,   64 }, // CONTROL
             {    0, 1023, 1024 }, // ISOCHRONOUS

@@ -12,9 +12,25 @@
 #define __REFERENCE_ARRAY_VIEW_HPP_
 
 #include <array>
+#include <type_traits>
 
 inline namespace utilities
 {
+    template <typename T>
+    struct array_to_ref_decay
+    {
+    private:
+        typedef typename std::remove_reference<T>::type U;
+    public:
+        typedef typename std::conditional<
+            std::is_array<U>::value,
+            typename std::add_lvalue_reference<typename std::remove_extent<U>::type>::type,
+            T
+        >::type type;
+    };
+    template< class T >
+    using array_to_ref_decay_t = typename array_to_ref_decay<T>::type;
+
     /// @brief  Creates an array that stores the pointers in a nullptr terminated array.
     /// @tparam T: shared type of all pointed arguments
     /// @tparam Args: argument types (deduced)
@@ -23,7 +39,8 @@ inline namespace utilities
     template <typename T, typename ... Args>
     constexpr inline auto make_reference_array(Args&&... args)
     {
-        return std::array<T*, sizeof...(args) + 1> { &args..., nullptr };
+        return std::array<T*, sizeof...(args) + 1> {
+            (&array_to_ref_decay_t<Args>(args))..., nullptr };
     }
 
     class reference_array_view_base
@@ -43,7 +60,6 @@ inline namespace utilities
     template <typename T, typename TView = T*>
     class reference_array_view : public reference_array_view_base
     {
-        static_assert(sizeof(TView) == sizeof(T*));
     public:
         class iterator
         {

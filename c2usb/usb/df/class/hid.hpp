@@ -27,6 +27,9 @@ namespace usb::df::hid
         constexpr app_base_function(::hid::application& app, const char_t* name = {})
                 : df::named_function(name), app_(app)
         {}
+
+        constexpr const ::hid::application& app() const { return app_; }
+
     protected:
         void start(const config::interface& iface, ::hid::protocol prot);
         void stop(const config::interface& iface) override;
@@ -68,8 +71,11 @@ namespace usb::df::hid
     };
 
     config::elements<2> config(function& fn, const config::endpoint& in_ep);
-    config::elements<3> config(function& fn, const config::endpoint& in_ep,
-            const config::endpoint& out_ep);
+    config::elements<2> config(function& fn, usb::speed speed, endpoint::address in_ep_addr, uint8_t in_interval);
+
+    config::elements<3> config(function& fn, const config::endpoint& in_ep, const config::endpoint& out_ep);
+    config::elements<3> config(function& fn, usb::speed speed, endpoint::address in_ep_addr, uint8_t in_interval,
+            endpoint::address out_ep_addr, uint8_t out_interval);
 }
 
 #endif // __USB_DF_CLASS_HID_HPP_

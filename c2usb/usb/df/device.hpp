@@ -87,7 +87,7 @@ namespace usb::df
 
         virtual config::view_list configs_by_speed(usb::speed speed) = 0;
 
-        virtual constexpr version usb_spec_version()
+        constexpr version usb_spec_version()
         {
             return version("2.0.1");
         }

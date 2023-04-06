@@ -18,7 +18,7 @@ namespace hid
 {
     using namespace c2usb;
 
-    class report_protocol;
+    struct report_protocol;
 
     /// @brief  Helper class to manage FEATURE and OUTPUT buffers.
     class reports_receiver

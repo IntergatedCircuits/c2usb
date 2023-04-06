@@ -46,11 +46,13 @@ inline namespace utilities
     class reference_array_view_base
     {
     protected:
+#if not C2USB_STATIC_CONSTEXPR
         static std::nullptr_t const* nullptr_ptr()
         {
             static const std::nullptr_t ptr {};
             return &ptr;
         }
+#endif
         constexpr reference_array_view_base()
         {}
     };
@@ -60,6 +62,13 @@ inline namespace utilities
     template <typename T, typename TView = T*>
     class reference_array_view : public reference_array_view_base
     {
+#if C2USB_STATIC_CONSTEXPR
+        static T* const* nullptr_ptr()
+        {
+            static const T* ptr {};
+            return &ptr;
+        }
+#endif
     public:
         class iterator
         {
@@ -88,11 +97,11 @@ inline namespace utilities
             }
             constexpr auto operator*()
             {
-                return (TView&)(*ptr_);
+                return (const TView&)(*ptr_);
             }
             constexpr auto operator->()
             {
-                return &(TView&)(*ptr_);
+                return &(const TView&)(*ptr_);
             }
             constexpr bool operator==(const iterator& rhs) const
             {
@@ -107,7 +116,6 @@ inline namespace utilities
         using const_reference = const T&;
         using pointer = T*;
         using reference = T&;
-        using const_iterator = const iterator;
 
         template <std::size_t SIZE>
         constexpr reference_array_view(const std::array<T*, SIZE>& arr)
@@ -116,13 +124,8 @@ inline namespace utilities
         constexpr reference_array_view()
                 : data_((decltype(data_))(nullptr_ptr()))
         {}
-        constexpr iterator begin() { return data_; }
-        constexpr const_iterator begin() const { return data_; }
-        constexpr iterator end()
-        {
-            return (decltype(data_))(nullptr_ptr());
-        }
-        constexpr const_iterator end() const
+        constexpr iterator begin() const { return data_; }
+        constexpr iterator end() const
         {
             return (decltype(data_))(nullptr_ptr());
         }

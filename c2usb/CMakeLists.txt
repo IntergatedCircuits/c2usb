@@ -1,0 +1,63 @@
+set(NXP_PORT_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/kusb_mac.hpp
+)
+
+set(NXP_PORT_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/dwc3_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/ehci_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/khci_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/kusb_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/lpcip3511_mac.cpp
+)
+
+set(PUBLIC_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/hid/application.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/standard.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/base.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/slave.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/class/hid.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/function.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/transfer.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/requests.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/vendor/microsoft_os.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/vendor/microsoft_xusb.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/base.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/control.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/endpoint.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/product_info.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/speeds.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/version.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/c2usb.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reference_array_view.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/single_elem_queue.hpp
+    ${NXP_PORT_PUBLIC_HEADERS}
+    PARENT_SCOPE
+)
+
+set(PRIVATE_HEADERS
+    PARENT_SCOPE
+)
+
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/function.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.cpp
+    ${NXP_PORT_SOURCES}
+    PARENT_SCOPE
+)

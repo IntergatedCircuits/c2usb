@@ -427,7 +427,13 @@ namespace usb::df::config
             }
             else
             {
-                return std::distance(begin(), end());
+                size_t s = 0;
+                for (auto& i : *this)
+                {
+                    C2USB_UNUSED(i);
+                    s++;
+                }
+                return s;
             }
         }
 

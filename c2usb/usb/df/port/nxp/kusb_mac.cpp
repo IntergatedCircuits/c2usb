@@ -133,7 +133,6 @@ void kusb_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
 
 usb::df::ep_handle kusb_mac::ep_open(const config::endpoint& ep)
 {
-    assert(ep.address().number() < MAX_EP_COUNT);
     usb_device_endpoint_init_struct_t ep_init {};
     ep_init.zlt = false;
     ep_init.transferType = static_cast<uint8_t>(ep.type());
@@ -147,7 +146,7 @@ usb::df::ep_handle kusb_mac::ep_open(const config::endpoint& ep)
 usb::result kusb_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& data)
 {
     auto addr = ep_handle_to_address(eph);
-    if (ep_flag(addr).test_and_set())
+    if (busy_flags_.test_and_set(addr))
     {
         return usb::result::BUSY;
     }
@@ -158,7 +157,7 @@ usb::result kusb_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& dat
 usb::result kusb_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
 {
     auto addr = ep_handle_to_address(eph);
-    if (ep_flag(addr).test_and_set())
+    if (busy_flags_.test_and_set(addr))
     {
         return usb::result::BUSY;
     }
@@ -170,7 +169,7 @@ usb::result kusb_mac::ep_cancel(ep_handle eph)
 {
     auto addr = ep_handle_to_address(eph);
     auto status = kusb_if_.deviceCancel(kusb_handle(), addr);
-    ep_flag(addr).clear();
+    busy_flags_.clear(addr);
     return (status == kStatus_USB_Success) ? usb::result::OK : usb::result::NO_CONNECTION;
 }
 
@@ -178,7 +177,7 @@ usb::result kusb_mac::ep_close(ep_handle eph)
 {
     auto addr = ep_handle_to_address(eph);
     auto status = device_control(kUSB_DeviceControlEndpointDeinit, &addr);
-    ep_flag(addr).clear();
+    busy_flags_.clear(addr);
     return (status == kStatus_USB_Success) ? usb::result::OK : usb::result::NO_CONNECTION;
 }
 
@@ -238,7 +237,7 @@ void kusb_mac::process_kusb_ep_notification(const usb_device_callback_message_st
     }
     else
     {
-        ep_flag(addr).clear();
+        busy_flags_.clear(addr);
         ep_transfer_complete(create_ep_handle(addr), transfer(message.buffer, message.length));
     }
 }

@@ -19,7 +19,7 @@
 #if C2USB_HAS_NXP_HEADERS
 
 #include "usb/df/mac.hpp"
-#include <atomic>
+#include "usb/df/ep_flags.hpp"
 
 extern "C"
 {
@@ -56,27 +56,16 @@ namespace usb::df::nxp
         };
 
         constexpr kusb_mac(usb_controller_index_t kusb_id, const controller_interface& kusb_if)
-                : usb::df::address_handle_mac(), kusb_if_(kusb_if), kusb_id_(kusb_id)
+                : address_handle_mac(), kusb_if_(kusb_if), kusb_id_(kusb_id)
         {}
 
     private:
         void* kusb_handle_ { nullptr };
         const controller_interface& kusb_if_;
         usb_controller_index_t kusb_id_;
-#ifdef USB_DEVICE_CONFIG_ENDPOINTS
-        static constexpr size_t MAX_EP_COUNT = USB_DEVICE_CONFIG_ENDPOINTS;
-#else
-        static constexpr size_t MAX_EP_COUNT = 16;
-#endif
-        std::array<std::array<std::atomic_flag, MAX_EP_COUNT - 1>, 2> ep_flags {};
+        ep_flags busy_flags_ {};
 
         void* kusb_handle() const { return kusb_handle_; }
-
-        std::atomic_flag& ep_flag(usb::endpoint::address addr)
-        {
-            assert((addr.number() != 0) and (addr.number() <= MAX_EP_COUNT));
-            return ep_flags[static_cast<size_t>(addr.direction())][addr.number() - 1];
-        }
 
         IRQn_Type kusb_irqn() const;
 

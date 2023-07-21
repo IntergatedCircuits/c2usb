@@ -23,14 +23,6 @@ usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::
     return desc;
 }
 
-#if not C2USB_STATIC_CONSTEXPR
-const element& footer()
-{
-    static const element cf;
-    return cf;
-}
-#endif
-
 }
 
 interface_endpoint_view interface::endpoints() const
@@ -78,6 +70,11 @@ endpoint_view::reference endpoint_view::operator[](endpoint::index n) const
 {
     assert((n < size()) and ptr()[n].valid());
     return ptr()[n];
+}
+
+size_t endpoint_view::active_count() const
+{
+    return count([](const_reference ep){ return !ep.unused(); });
 }
 
 interface_view view::interfaces() const

@@ -175,14 +175,13 @@ namespace usb::df::config
 
     /// @brief Terminating element of a configuration.
 #if C2USB_STATIC_CONSTEXPR
-    constexpr inline const element& footer()
+    constexpr
+#endif
+    inline const element& footer()
     {
         static const element cf;
         return cf;
     }
-#else
-    const element& footer();
-#endif
 
     template <size_t SIZE>
     using elements = std::array<element, SIZE>;
@@ -419,6 +418,24 @@ namespace usb::df::config
             return { *this->ptr_ };
         }
 
+        template <class Predicate>
+        size_t count(Predicate p) const
+        {
+            size_t s = 0;
+            for (auto& i : *this)
+            {
+                if (p(i))
+                {
+                    s++;
+                }
+            }
+            return s;
+        }
+        size_t count() const
+        {
+            return count([](const_reference x){ return true; });
+        }
+
         size_t size() const
         {
             if constexpr (CONTINUE_ON_INVALID)
@@ -427,13 +444,7 @@ namespace usb::df::config
             }
             else
             {
-                size_t s = 0;
-                for (auto& i : *this)
-                {
-                    C2USB_UNUSED(i);
-                    s++;
-                }
-                return s;
+                return count();
             }
         }
 
@@ -492,6 +503,8 @@ namespace usb::df::config
 
         endpoint::index indexof(reference& ep) const;
         reference operator[](endpoint::index n) const;
+
+        size_t active_count() const;
     };
 
     /// @brief  Allows iterating through an interface's configured endpoints.

@@ -1,8 +1,8 @@
-set(NXP_PORT_PUBLIC_HEADERS
+set(C2USB_NXP_PORT_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/kusb_mac.hpp
 )
 
-set(NXP_PORT_SOURCES
+set(C2USB_NXP_PORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/dwc3_mac.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/ehci_mac.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/khci_mac.cpp
@@ -10,7 +10,7 @@ set(NXP_PORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/lpcip3511_mac.cpp
 )
 
-set(PUBLIC_HEADERS
+set(C2USB_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/hid/application.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/standard.hpp
@@ -22,6 +22,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/ep_flags.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/function.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.hpp
@@ -39,15 +40,15 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/c2usb.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/reference_array_view.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/single_elem_queue.hpp
-    ${NXP_PORT_PUBLIC_HEADERS}
+    ${C2USB_NXP_PORT_PUBLIC_HEADERS}
     PARENT_SCOPE
 )
 
-set(PRIVATE_HEADERS
+set(C2USB_PRIVATE_HEADERS
     PARENT_SCOPE
 )
 
-set(SOURCES
+set(C2USB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.cpp
@@ -58,6 +59,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.cpp
-    ${NXP_PORT_SOURCES}
+    ${C2USB_NXP_PORT_SOURCES}
     PARENT_SCOPE
 )

@@ -27,9 +27,9 @@ add_subdirectory(modules/hid-rp)
 add_subdirectory(${PROJECT_NAME})
 
 add_library(${PROJECT_NAME}
-    ${PUBLIC_HEADERS}
-    ${PRIVATE_HEADERS}
-    ${SOURCES}
+    ${C2USB_PUBLIC_HEADERS}
+    ${C2USB_PRIVATE_HEADERS}
+    ${C2USB_SOURCES}
 )
 
 target_link_libraries(${PROJECT_NAME}

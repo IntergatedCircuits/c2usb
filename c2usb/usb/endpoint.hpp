@@ -88,7 +88,7 @@ namespace usb::endpoint
     private:
         uint8_t value_;
     };
-
+#if 0
     enum class state : uint8_t
     {
         CLOSED = 0, /// The endpoint is closed -> NAK
@@ -98,6 +98,7 @@ namespace usb::endpoint
         DATA   = 4, /// The endpoint is performing data transfer
         STATUS = 5, /// The endpoint is performing ZLP transfer
     };
+#endif
 }
 
 #endif // __USB_ENDPOINT_HPP_

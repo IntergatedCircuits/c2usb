@@ -90,12 +90,14 @@ namespace usb::df
     protected:
         control::request& request() { return request_; }
         using message::stage;
+        using message::set_control_buffer;
 
         virtual void allocate_endpoints(config::view config = {}) {}
 
         virtual endpoint::address ep_handle_to_address(ep_handle eph) const = 0;
         //virtual void control_reply(direction dir, const transfer& t) override {};
 
+        auto control_stall() { return message::reject(); }
         void control_ep_setup();
         void control_ep_data(direction ep_dir, const transfer& t);
         void ep_transfer_complete(ep_handle eph, const transfer& t);

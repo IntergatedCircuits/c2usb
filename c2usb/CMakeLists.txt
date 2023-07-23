@@ -10,6 +10,14 @@ set(C2USB_NXP_PORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/lpcip3511_mac.cpp
 )
 
+set(C2USB_ZEPHYR_PORT_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/zephyr/udc_mac.hpp
+)
+
+set(C2USB_ZEPHYR_PORT_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/zephyr/udc_mac.cpp
+)
+
 set(C2USB_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/hid/application.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.hpp
@@ -41,6 +49,7 @@ set(C2USB_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/reference_array_view.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/single_elem_queue.hpp
     ${C2USB_NXP_PORT_PUBLIC_HEADERS}
+    ${C2USB_ZEPHYR_PORT_PUBLIC_HEADERS}
     PARENT_SCOPE
 )
 
@@ -60,5 +69,6 @@ set(C2USB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.cpp
     ${C2USB_NXP_PORT_SOURCES}
+    ${C2USB_ZEPHYR_PORT_SOURCES}
     PARENT_SCOPE
 )

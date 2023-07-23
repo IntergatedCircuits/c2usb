@@ -42,6 +42,7 @@ C libraries of similar functionality.
 ### Platforms
 
 * NXP MCUs supported via `kusb_mac`
+* Zephyr OS supported via `udc_mac`
 * support the project to see more!
 
 [project-structure]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1204r0.html

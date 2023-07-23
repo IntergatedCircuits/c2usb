@@ -13,10 +13,7 @@ These are the list of steps to take to get the library compiled into your projec
 
 ## 2. Configuration
 
-While this library doesn't use preprocessor macros for configuration,
-some of the options in the SDK's `usb_device_config.h` header are still relevant.
-Adjust `USB_DEVICE_CONFIG_ENDPOINTS` according to your project's needs (or simply remove it),
-and check that the symbols used by the hardware-specific driver are correct.
+No port-specific configuration options.
 
 ## 3. Integrate the MAC
 

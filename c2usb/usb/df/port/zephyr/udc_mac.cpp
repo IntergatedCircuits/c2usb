@@ -290,13 +290,17 @@ void udc_mac::process_ep_event(net_buf* buf, int err)
                 while (ctrl_buf_ == nullptr)
                 {
                     alloc_size_tuned -= sizeof(std::intptr_t);
+                    assert(alloc_size_tuned > ep_bufs_.size_bytes());
                     ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
                             alloc_size_tuned - ep_bufs_.size_bytes());
                 }
 #endif
                 assert(ctrl_buf_ != nullptr);
                 udc_get_buf_info(ctrl_buf_)->data = true;
-                net_buf_frag_add(ctrl_buf_, status);
+                if (status != nullptr)
+                {
+                    net_buf_frag_add(ctrl_buf_, status);
+                }
             }
 
             // set up the buf as ctrl data target

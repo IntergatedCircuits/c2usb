@@ -220,10 +220,7 @@ namespace usb::standard::descriptor
         {
             return endpoint(addr, mps, usb::endpoint::type::BULK);
         }
-#if C2USB_STATIC_CONSTEXPR
-    constexpr
-#endif
-        static endpoint bulk(usb::endpoint::address addr, usb::speed speed)
+        C2USB_STATIC_CONSTEXPR static endpoint bulk(usb::endpoint::address addr, usb::speed speed)
         {
             return endpoint(addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed), usb::endpoint::type::BULK);
         }
@@ -232,10 +229,7 @@ namespace usb::standard::descriptor
         {
             return endpoint(addr, mps, usb::endpoint::type::INTERRUPT, interval);
         }
-#if C2USB_STATIC_CONSTEXPR
-    constexpr
-#endif
-        static endpoint interrupt(usb::endpoint::address addr, usb::speed speed, uint8_t interval)
+        C2USB_STATIC_CONSTEXPR static endpoint interrupt(usb::endpoint::address addr, usb::speed speed, uint8_t interval)
         {
             return endpoint(addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed), usb::endpoint::type::INTERRUPT, interval);
         }

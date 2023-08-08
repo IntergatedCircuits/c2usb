@@ -174,10 +174,7 @@ namespace usb::df::config
     static_assert(sizeof(header) == sizeof(element));
 
     /// @brief Terminating element of a configuration.
-#if C2USB_STATIC_CONSTEXPR
-    constexpr
-#endif
-    inline const element& footer()
+    C2USB_STATIC_CONSTEXPR inline const element& footer()
     {
         static const element cf;
         return cf;
@@ -323,19 +320,20 @@ namespace usb::df::config
             }
             size_t size() const
             {
-                return reinterpret_cast<const config::header*>(ptr_)->config_size();
+                return reinterpret_cast<const config::header*>(ptr())->config_size();
             }
 
         private:
             friend class view_base;
-            constexpr reverse_view(const element& config)
-                : ptr_(&config)
+            constexpr reverse_view(const_pointer ptr)
+                : ptr_(ptr)
             {}
+
             const_pointer ptr() const
             {
-                return reinterpret_cast<const_pointer>(ptr_);
+                return ptr_;
             }
-            const element* ptr_;
+            const_pointer ptr_;
         };
 
         class iterator
@@ -405,17 +403,17 @@ namespace usb::df::config
 
         const_iterator begin() const
         {
-            return ptr() + not reinterpret_cast<const element*>(ptr_)->is_footer();
+            return safe_ptr(1);
         }
         const_iterator end() const
         {
-            return reinterpret_cast<decltype(ptr())>(&footer());
+            return reinterpret_cast<decltype(safe_ptr())>(&footer());
         }
 
         reverse_view reverse() const
             requires(CONTINUE_ON_INVALID)
         {
-            return { *this->ptr_ };
+            return reverse_view(safe_ptr());
         }
 
         template <class Predicate>
@@ -461,12 +459,17 @@ namespace usb::df::config
         const config::header& info() const
             requires(CONTINUE_ON_INVALID)
         {
-            return *reinterpret_cast<const config::header*>(ptr_);
+            return *reinterpret_cast<const config::header*>(safe_ptr());
         }
 
-        const_pointer ptr() const
+        const_pointer safe_ptr(size_t offset = 0) const
         {
-            return reinterpret_cast<const_pointer>(ptr_);
+            if (ptr_ != nullptr)
+            {
+                assert(not ptr_->is_footer());
+                return reinterpret_cast<const_pointer>(ptr_ + offset);
+            }
+            return reinterpret_cast<const_pointer>(&footer());
         }
 
         const element* ptr_;
@@ -537,11 +540,8 @@ namespace usb::df::config
         constexpr view(const elements<N>& config)
                 : base(config.data())
         {}
-#if C2USB_STATIC_CONSTEXPR
-        constexpr
-#endif
-        view()
-                : base(&footer())
+        constexpr view()
+                : base(nullptr)
         {}
 
         template <typename ... Args>

@@ -26,7 +26,12 @@
 #define C2USB_USB_TRANSFER_ALIGN(TYPE, ID)  alignas(std::uintptr_t) TYPE ID
 #endif
 
-#define C2USB_STATIC_CONSTEXPR              (__cpp_constexpr >= 202211L)
+#define C2USB_HAS_STATIC_CONSTEXPR          (__cpp_constexpr >= 202211L)
+#if C2USB_HAS_STATIC_CONSTEXPR
+#define C2USB_STATIC_CONSTEXPR              constexpr
+#else
+#define C2USB_STATIC_CONSTEXPR
+#endif
 
 namespace c2usb
 {

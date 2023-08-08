@@ -46,7 +46,7 @@ inline namespace utilities
     class reference_array_view_base
     {
     protected:
-#if not C2USB_STATIC_CONSTEXPR
+#if not C2USB_HAS_STATIC_CONSTEXPR
         static std::nullptr_t const* nullptr_ptr()
         {
             static const std::nullptr_t ptr {};
@@ -62,8 +62,8 @@ inline namespace utilities
     template <typename T, typename TView = T*>
     class reference_array_view : public reference_array_view_base
     {
-#if C2USB_STATIC_CONSTEXPR
-        static T* const* nullptr_ptr()
+#if C2USB_HAS_STATIC_CONSTEXPR
+        C2USB_STATIC_CONSTEXPR static T* const* nullptr_ptr()
         {
             static const T* ptr {};
             return &ptr;

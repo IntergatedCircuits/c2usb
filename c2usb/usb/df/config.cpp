@@ -33,7 +33,7 @@ interface_endpoint_view interface::endpoints() const
 interface_endpoint_view::reference interface_endpoint_view::operator[](size_t n) const
 {
     assert(n < size());
-    return ptr()[n + 1];
+    return *safe_ptr(n + 1);
 }
 
 const config::interface& endpoint::interface() const
@@ -61,15 +61,15 @@ interface_view::reference interface_view::operator[](size_t n) const
 
 endpoint::index endpoint_view::indexof(reference& ep) const
 {
-    auto ptrdiff = std::distance(ptr(), &ep);
+    auto ptrdiff = std::distance(reinterpret_cast<pointer>(ptr_), &ep);
     assert((0 < ptrdiff) and (ptrdiff < info().config_size()));
     return ptrdiff;
 }
 
 endpoint_view::reference endpoint_view::operator[](endpoint::index n) const
 {
-    assert((n < size()) and ptr()[n].valid());
-    return ptr()[n];
+    assert((n < size()) and safe_ptr(n)->valid());
+    return *safe_ptr(n);
 }
 
 size_t endpoint_view::active_count() const

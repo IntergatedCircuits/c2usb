@@ -104,15 +104,14 @@ namespace usb::df
         template <bool DUAL_SPEED>
         void get_descriptor_by_speed_support(message& msg);
 
-        device(usb::df::mac& mac, const product_info& prodinfo,
-            const std::span<uint8_t>& control_buffer, usb::speeds speeds,
+        device(usb::df::mac& mac, const product_info& prodinfo, usb::speeds speeds,
             uint8_t max_configs_count, extension& ext)
                 : mac::device_interface(), mac_(mac), product_info_(prodinfo),
                   extension_(ext), speeds_(speeds),
                   max_config_count_(max_configs_count),
                   istr_config_base_(ISTR_GLOBAL_BASE + max_configs_count * speeds.count())
         {
-            mac_.init(*this, speeds, control_buffer);
+            mac_.init(*this, speeds);
         }
         ~device() override
         {
@@ -180,40 +179,23 @@ namespace usb::df
     /// @tparam SPEEDS: Select which bus speeds may have an active configuration associated with it.
     ///         If only a single speed is supported, @ref set_configs API is available.
     ///
-    /// @tparam CONTROL_BUFFER_SIZE:
-    ///         If set to non-zero, the object allocates this many bytes for the control message buffers.
-    ///         This buffer must be large enough to fit the largest control message that is exchanged.
-    ///         If set to zero, the buffer must be passed in the device's constructor.
-    /// 
     /// @tparam MAX_CONFIG_LIST_SIZE: The maximum allowed size of a config_list that is passed
     ///         through the set_configs and set_configs_for_speed methods.
     ///         When set to 1, local buffer is allocated so the @ref set_config_for_speed()
     ///         and @ref set_config() simplified APIs are available.
     ///         Most USB devices have a single configuration (per speed), therefore it defaults to 1.
     ///
-    template<usb::speeds SPEEDS, size_t CONTROL_BUFFER_SIZE = 0, size_t MAX_CONFIG_LIST_SIZE = 1>
+    template<usb::speeds SPEEDS, size_t MAX_CONFIG_LIST_SIZE = 1>
     class device_instance : public device
     {
         static_assert(not SPEEDS.includes(speed::NONE) and (SPEEDS.min <= SPEEDS.max));
         static_assert(MAX_CONFIG_LIST_SIZE > 0);
-        // it's hard to set global limits, make sure that assert()s are enabled for development
-        // and check in buffer::allocate()
-        static_assert((CONTROL_BUFFER_SIZE == 0) or (CONTROL_BUFFER_SIZE >= 32));
-
-        using control_buffer_t = std::array<uint8_t, CONTROL_BUFFER_SIZE>;
         static constexpr bool single_config() { return MAX_CONFIG_LIST_SIZE == 1; }
 
     public:
         device_instance(usb::df::mac& mac, const product_info& prodinfo,
             extension& ext = extension::instance())
-            requires(CONTROL_BUFFER_SIZE > 0)
-                : device(mac, prodinfo, control_buffer_, SPEEDS, MAX_CONFIG_LIST_SIZE, ext)
-        {}
-
-        device_instance(usb::df::mac& mac, const product_info& prodinfo, const std::span<uint8_t> buffer,
-            extension& ext = extension::instance())
-            requires(CONTROL_BUFFER_SIZE == 0)
-                : device(mac, prodinfo, buffer, SPEEDS, MAX_CONFIG_LIST_SIZE, ext)
+                : device(mac, prodinfo,  SPEEDS, MAX_CONFIG_LIST_SIZE, ext)
         {}
 
         /// @brief  Sets the configuration list for a given bus speed. The device performs soft-detach
@@ -286,7 +268,6 @@ namespace usb::df
         using conditional_store_t = std::conditional_t<single_config(),
                 std::array<std::array<config::view, 2>, SPEEDS.count()>, std::monostate>;
         [[no_unique_address]] conditional_store_t config_list_store_ {};
-        C2USB_USB_TRANSFER_ALIGN(control_buffer_t, control_buffer_) {};
     };
 }
 

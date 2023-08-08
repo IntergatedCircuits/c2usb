@@ -43,6 +43,10 @@ namespace usb::df
 
         void set_config(config::view config);
 
+        /// @brief  Sets the buffer used for control transfers to the passed span.
+        /// @note   The buffer must be aligned with @ref C2USB_USB_TRANSFER_ALIGN()
+        /// @param  buffer: the buffer span available for control transfers
+        using message::set_control_buffer;
 
         virtual void control_ep_open() {}
 
@@ -61,7 +65,7 @@ namespace usb::df
         virtual result ep_change_stall(ep_handle eph, bool stall) { return result::NO_TRANSPORT; }
 
 
-        void init(device_interface& dev_if, const usb::speeds& speeds, const std::span<uint8_t>& buffer);
+        void init(device_interface& dev_if, const usb::speeds& speeds);
         void deinit(device_interface& dev_if);
         virtual void soft_attach() {}
         virtual void soft_detach() {}
@@ -90,7 +94,6 @@ namespace usb::df
     protected:
         control::request& request() { return request_; }
         using message::stage;
-        using message::set_control_buffer;
 
         virtual void allocate_endpoints(config::view config = {}) {}
 

@@ -13,10 +13,9 @@
 
 using namespace usb::df;
 
-void mac::init(device_interface& dev_if, const usb::speeds& speeds, const std::span<uint8_t>& buffer)
+void mac::init(device_interface& dev_if, const usb::speeds& speeds)
 {
     dev_if_ = &dev_if;
-    message::set_control_buffer(buffer);
     init(speeds);
 }
 

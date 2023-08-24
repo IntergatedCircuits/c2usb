@@ -8,8 +8,8 @@
 ///         If a copy of the MPL was not distributed with this file, You can obtain one at
 ///         https://mozilla.org/MPL/2.0/.
 ///
-#ifndef __USB_DF_PORT_NXP_USB_MAC_HPP_
-#define __USB_DF_PORT_NXP_USB_MAC_HPP_
+#ifndef __USB_DF_PORT_NXP_KUSB_MAC_HPP_
+#define __USB_DF_PORT_NXP_KUSB_MAC_HPP_
 
 #define C2USB_HAS_NXP_HEADERS   (__has_include("usb.h") and \
                                  __has_include("usb_device_config.h") and \
@@ -162,4 +162,4 @@ namespace usb::df::nxp
 
 #endif // C2USB_HAS_NXP_HEADERS
 
-#endif // __USB_DF_PORT_NXP_USB_MAC_HPP_
+#endif // __USB_DF_PORT_NXP_KUSB_MAC_HPP_

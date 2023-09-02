@@ -160,6 +160,10 @@ namespace usb::df::config
         constexpr static bool is_header(const header& c)       { return false; }
         constexpr static bool is_interface(const interface& c) { return c.valid(); }
         constexpr static bool is_endpoint(const endpoint& c)   { return c.valid(); }
+        constexpr static bool is_active_endpoint(const endpoint& c)
+        {
+            return c.valid() and not c.unused();
+        }
         constexpr bool is_footer() const { return *this == element(); }
         constexpr bool operator==(const element&) const = default;
     private:
@@ -491,24 +495,53 @@ namespace usb::df::config
     };
 
     /// @brief  Allows iterating through a configuration's all endpoints.
-    class endpoint_view : public view_base<endpoint, &element::is_endpoint, true>
+    template<bool(*valid_test)(const endpoint&)>
+    class endpoint_view_base : public view_base<endpoint, valid_test, true>
     {
-        using base = view_base<endpoint, element::is_endpoint, true>;
+        using base = view_base<endpoint, valid_test, true>;
         friend class view;
-        constexpr endpoint_view(const element& elem)
+        constexpr endpoint_view_base(const element& elem)
                 : base(&elem)
         {}
+        using pointer = base::pointer;
+        using base::info;
+        using base::safe_ptr;
+        using base::ptr_;
     public:
         using iterator = base::iterator;
         using reference = base::reference;
+        using base::begin;
+        using base::end;
+        using base::size;
 
-        reference& at(usb::endpoint::address addr) const;
+        endpoint::index indexof(reference& ep) const
+        {
+            auto ptrdiff = std::distance(reinterpret_cast<pointer>(ptr_), &ep);
+            assert((0 < ptrdiff) and (ptrdiff < info().config_size()));
+            return ptrdiff;
+        }
 
-        endpoint::index indexof(reference& ep) const;
-        reference operator[](endpoint::index n) const;
+        reference operator[](endpoint::index n) const
+        {
+            assert((n < size()) and safe_ptr(n)->valid());
+            return *safe_ptr(n);
+        }
 
-        size_t active_count() const;
+        reference at(usb::endpoint::address addr) const
+        {
+            for (auto& ep : *this)
+            {
+                if (ep.address() == addr)
+                {
+                    return ep;
+                }
+            }
+            return *reinterpret_cast<pointer>(&footer());
+        }
     };
+
+    using endpoint_view = endpoint_view_base<&element::is_endpoint>;
+    using active_endpoint_view = endpoint_view_base<&element::is_active_endpoint>;
 
     /// @brief  Allows iterating through an interface's configured endpoints.
     class interface_endpoint_view : public view_base<endpoint, &element::is_endpoint, false>
@@ -535,6 +568,7 @@ namespace usb::df::config
         using base::info;
         interface_view interfaces() const;
         endpoint_view endpoints() const;
+        active_endpoint_view active_endpoints() const;
 
         template <size_t N>
         constexpr view(const elements<N>& config)

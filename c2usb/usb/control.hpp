@@ -85,6 +85,14 @@ namespace usb::control
     ///         of the Setup packet over the control pipe.
     struct request : public request_id
     {
+        using request_id::request_id;
+
+        template <typename T>
+        constexpr request(usb::direction dir, request_base::type t, request_base::recipient rec,
+            T code, uint16_t value, uint16_t len = 0, uint16_t index = 0)
+            : request_id(dir, t, rec, code), wValue(value), wIndex(index), wLength(len)
+        {}
+
         struct splittable_uint16_t : public le_uint16_t
         {
             constexpr uint8_t high_byte() const { return this->storage[1]; }

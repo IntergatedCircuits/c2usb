@@ -59,24 +59,6 @@ interface_view::reference interface_view::operator[](size_t n) const
     return *reinterpret_cast<pointer>(&footer());
 }
 
-endpoint::index endpoint_view::indexof(reference& ep) const
-{
-    auto ptrdiff = std::distance(reinterpret_cast<pointer>(ptr_), &ep);
-    assert((0 < ptrdiff) and (ptrdiff < info().config_size()));
-    return ptrdiff;
-}
-
-endpoint_view::reference endpoint_view::operator[](endpoint::index n) const
-{
-    assert((n < size()) and safe_ptr(n)->valid());
-    return *safe_ptr(n);
-}
-
-size_t endpoint_view::active_count() const
-{
-    return count([](const_reference ep){ return !ep.unused(); });
-}
-
 interface_view view::interfaces() const
 {
     return interface_view(*this->ptr_);
@@ -87,14 +69,7 @@ endpoint_view view::endpoints() const
     return endpoint_view(*this->ptr_);
 }
 
-endpoint_view::reference endpoint_view::at(usb::endpoint::address addr) const
+active_endpoint_view view::active_endpoints() const
 {
-    for (auto& ep : *this)
-    {
-        if (ep.address() == addr)
-        {
-            return ep;
-        }
-    }
-    return *reinterpret_cast<pointer>(&footer());
+    return active_endpoint_view(*this->ptr_);
 }

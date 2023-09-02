@@ -375,7 +375,7 @@ void udc_mac::allocate_endpoints(config::view config)
     ep_bufs_ = {};
 
     // allocate new buffers
-    auto ep_bufs_count = config.endpoints().active_count();
+    auto ep_bufs_count = config.active_endpoints().count();
     if (ep_bufs_count > 0)
     {
         constexpr size_t ctrl_ep_buf_demand = 3; // setup + data + status
@@ -385,7 +385,7 @@ void udc_mac::allocate_endpoints(config::view config)
         // on the first buffer
         size_t alloc_size = ep_bufs_count * sizeof(void*);
         uint8_t i = 0;
-        for (auto& ep : config.endpoints())
+        for (auto& ep : config.active_endpoints())
         {
             auto* buf = udc_ep_buf_alloc(dev_, ep.address(), alloc_size);
             assert(buf != nullptr);

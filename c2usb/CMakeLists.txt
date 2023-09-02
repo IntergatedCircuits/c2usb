@@ -25,6 +25,8 @@ set(C2USB_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/base.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/slave.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/class/hid.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc_acm.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.hpp
@@ -59,6 +61,8 @@ set(C2USB_PRIVATE_HEADERS
 
 set(C2USB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc_acm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.cpp

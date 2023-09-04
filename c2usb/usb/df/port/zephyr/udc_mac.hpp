@@ -64,7 +64,7 @@ namespace usb::df::zephyr
         void control_reply(usb::direction dir, const usb::df::transfer& t) override;
 
         int process_event(const udc_event& event);
-        void process_ep_event(net_buf* buf, int err);
+        void process_ep_event(net_buf* buf);
 
         usb::result ep_set_stall(endpoint::address addr);
         usb::result ep_clear_stall(endpoint::address addr);

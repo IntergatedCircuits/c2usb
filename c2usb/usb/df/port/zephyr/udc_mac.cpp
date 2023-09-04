@@ -225,7 +225,7 @@ int udc_mac::process_event(const udc_event& event)
     switch (event.type)
     {
         case UDC_EVT_EP_REQUEST:
-            process_ep_event(event.buf, event.status);
+            process_ep_event(event.buf);
             break;
         case UDC_EVT_RESET:
             bus_reset();
@@ -248,10 +248,11 @@ int udc_mac::process_event(const udc_event& event)
 
 static size_t alloc_size_tuned = 0;
 
-void udc_mac::process_ep_event(net_buf* buf, int err)
+void udc_mac::process_ep_event(net_buf* buf)
 {
     auto& info = *udc_get_buf_info(buf);
     endpoint::address addr {info.ep};
+    int err = info.err;
     if (addr.number() == 0)
     {
         // control bufs are allocated by the UDC driver

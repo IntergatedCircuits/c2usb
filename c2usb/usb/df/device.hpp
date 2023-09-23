@@ -205,17 +205,9 @@ namespace usb::df
         void set_configs_for_speed(const config::view_list& configs, usb::speed speed)
         {
             assert(SPEEDS.includes(speed));
-            bool to_open = is_open();
-            if (to_open)
-            {
-                close();
-            }
+            assert(not is_open());
             configs_store_[SPEEDS.offset(speed)] = configs;
             assign_function_istrings();
-            if (to_open)
-            {
-                open();
-            }
         }
 
         /// @brief  Simplification of @ref set_configs_for_speed() when only one speed is supported.

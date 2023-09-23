@@ -163,9 +163,10 @@ void alternate_enumeration_base::assign_istrings(device& dev, istring* index)
 
 bool alternate_enumeration_base::send_owned_string(device& dev, istring index, string_message& smsg)
 {
+    const auto ss = speeds();
     // first try to match the index to a configuration
     uint8_t config_index = index - 1;
-    if (max_config_count_ < config_index)
+    if (config_index < (max_config_count_ * ss.count()))
     {
         speed s = speeds().at(config_index / max_config_count_);
         auto config = alt_configs_by_speed(s)[config_index % max_config_count_];
@@ -180,7 +181,7 @@ bool alternate_enumeration_base::send_owned_string(device& dev, istring index, s
         return true;
     }
     // otherwise to a function
-    for (speed s : speeds())
+    for (speed s : ss)
     {
         if (alt_configs_by_speed(s).until_any(&function::send_owned_string, index, smsg))
         {

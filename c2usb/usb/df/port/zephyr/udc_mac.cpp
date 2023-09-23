@@ -111,16 +111,19 @@ void udc_mac::deinit()
     assert(ret == 0);
 }
 
-void udc_mac::soft_attach()
+bool udc_mac::set_attached(bool attached)
 {
-    auto ret = udc_enable(dev_);
-    assert(ret == 0);
-}
-
-void udc_mac::soft_detach()
-{
-    auto ret = udc_disable(dev_);
-    assert(ret == 0);
+    if (attached)
+    {
+        auto ret = udc_enable(dev_);
+        assert(ret == 0);
+    }
+    else
+    {
+        auto ret = udc_disable(dev_);
+        assert(ret == 0);
+    }
+    return udc_is_enabled(dev_);
 }
 
 void udc_mac::signal_remote_wakeup()

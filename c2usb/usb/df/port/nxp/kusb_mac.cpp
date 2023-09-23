@@ -49,14 +49,10 @@ void kusb_mac::deinit()
     assert(status == kStatus_USB_Success);
 }
 
-void kusb_mac::soft_attach()
+bool kusb_mac::set_attached(bool attached)
 {
-    device_control(kUSB_DeviceControlRun);
-}
-
-void kusb_mac::soft_detach()
-{
-    device_control(kUSB_DeviceControlStop);
+    device_control(attached ? kUSB_DeviceControlRun : kUSB_DeviceControlStop);
+    return attached;
 }
 
 void kusb_mac::signal_remote_wakeup()

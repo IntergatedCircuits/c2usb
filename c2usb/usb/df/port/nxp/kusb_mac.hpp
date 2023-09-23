@@ -93,8 +93,7 @@ namespace usb::df::nxp
 
         void init(const usb::speeds& speeds) override;
         void deinit() override;
-        void soft_attach() override;
-        void soft_detach() override;
+        bool set_attached(bool attached) override;
         void signal_remote_wakeup() override;
 
         usb::speed speed() const override;

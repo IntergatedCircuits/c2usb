@@ -64,11 +64,8 @@ namespace usb::df
         virtual bool ep_is_stalled(ep_handle eph) const { return false; }
         virtual result ep_change_stall(ep_handle eph, bool stall) { return result::NO_TRANSPORT; }
 
-
         void init(device_interface& dev_if, const usb::speeds& speeds);
         void deinit(device_interface& dev_if);
-        virtual void soft_attach() {}
-        virtual void soft_detach() {}
         void start();
         void stop();
         bool running() const { return running_; }
@@ -84,7 +81,6 @@ namespace usb::df
 
         void set_remote_wakeup(bool enabled);
         void set_power_source(usb::power::source src);
-
 
         virtual const config::endpoint& ep_address_to_config(endpoint::address addr) const;
         virtual ep_handle ep_address_to_handle(endpoint::address addr) const = 0;
@@ -106,6 +102,7 @@ namespace usb::df
         void ep_transfer_complete(ep_handle eph, const transfer& t);
         virtual void init(const usb::speeds& speeds) {}
         virtual void deinit() {}
+        virtual bool set_attached(bool attached) { return attached; }
         virtual void signal_remote_wakeup() {}
 
         static ep_handle create_ep_handle(uint8_t raw) { return ep_handle(raw); }

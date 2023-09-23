@@ -29,14 +29,18 @@ void mac::deinit(device_interface& dev_if)
 
 void mac::start()
 {
-    soft_attach();
-    running_ = true;
+    if (!running())
+    {
+        running_ = set_attached(true);
+    }
 }
 
 void mac::stop()
 {
-    running_ = false;
-    soft_detach();
+    if (running())
+    {
+        running_ = set_attached(false);
+    }
 }
 
 void mac::bus_reset()

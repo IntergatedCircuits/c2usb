@@ -2,7 +2,6 @@
 #define __USB_DF_CLASS_CDC_ACM_HPP_
 
 #include "usb/df/class/cdc.hpp"
-#include "usb/class/cdc.hpp"
 
 namespace usb::df::cdc::acm
 {

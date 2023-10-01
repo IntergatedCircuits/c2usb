@@ -90,6 +90,8 @@ void function::control_data_complete(message& msg, const config::interface& ifac
             // TODO: init
             break;
     }
+
+    return msg.confirm();
 }
 
 void function::start(const config::interface& iface, uint8_t alt_sel)

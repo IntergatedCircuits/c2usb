@@ -212,7 +212,10 @@ namespace usb::df::config
             return std::distance(begin, out);
         }
 
-        constexpr static void assign_element_array(const header& info, const uint8_t* chunk_sizes,
+#ifdef __cpp_lib_bit_cast
+        constexpr
+#endif
+        static void assign_element_array(const header& info, const uint8_t* chunk_sizes,
                 const element** chunks, element* out)
         {
             // add the {interface, endpoint} chunks
@@ -250,7 +253,10 @@ namespace usb::df::config
     ///                   bound to sub-arrays by calling @ref std::to_array<element>(...)
     /// @return The finished configuration array that can be used via @ref view
     template <size_t... SIZES>
-    constexpr elements<1 + (SIZES + ...) + 1> make_config(const header& info, elements<SIZES>... chunks)
+#ifdef __cpp_lib_bit_cast
+    constexpr
+#endif
+    elements<1 + (SIZES + ...) + 1> make_config(const header& info, elements<SIZES>... chunks)
         requires((1 + (SIZES + ...) + 1) <= std::numeric_limits<uint8_t>::max())
     {
         constexpr uint8_t array_count = sizeof...(chunks);

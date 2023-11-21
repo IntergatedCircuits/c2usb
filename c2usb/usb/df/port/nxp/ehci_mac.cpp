@@ -5,9 +5,7 @@
 using namespace usb::df::nxp;
 
 const kusb_mac::controller_interface ehci_mac::interface = {
-    USB_DeviceEhciInit, USB_DeviceEhciDeinit, USB_DeviceEhciSend,
-    USB_DeviceEhciRecv, USB_DeviceEhciCancel, USB_DeviceEhciControl,
-    USB_DeviceEhciIsrFunction
-};
+    USB_DeviceEhciInit,   USB_DeviceEhciDeinit,  USB_DeviceEhciSend,       USB_DeviceEhciRecv,
+    USB_DeviceEhciCancel, USB_DeviceEhciControl, USB_DeviceEhciIsrFunction};
 
 #endif

@@ -103,7 +103,8 @@ void string_message::send_as_hex_string(std::span<const uint8_t> data)
     auto* string_desc = safe_allocate(trimmed_size, 2);
     data = data.subspan(0, trimmed_size);
 
-    auto convert = [](uint8_t v) {
+    auto convert = [](uint8_t v)
+    {
         if (v < 10)
         {
             return '0' + v;
@@ -153,8 +154,8 @@ void message::receive_data(const std::span<uint8_t>& data)
 
 void message::receive_to_buffer()
 {
-    receive_data(std::span<uint8_t>(buffer().begin(),
-        std::min(buffer::size_type(request().wLength), buffer().max_size())));
+    receive_data(std::span<uint8_t>(
+        buffer().begin(), std::min(buffer::size_type(request().wLength), buffer().max_size())));
 }
 
 void message::enter_setup()

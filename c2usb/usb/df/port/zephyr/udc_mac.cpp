@@ -8,7 +8,7 @@
 ///         If a copy of the MPL was not distributed with this file, You can obtain one at
 ///         https://mozilla.org/MPL/2.0/.
 ///
-#include "udc_mac.hpp"
+#include "usb/df/port/zephyr/udc_mac.hpp"
 
 #if C2USB_HAS_ZEPHYR_HEADERS
 
@@ -24,8 +24,7 @@
 
 using namespace usb::df::zephyr;
 
-K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event),
-        C2USB_ZEPHYR_MSGQ_SIZE, sizeof(uint32_t));
+K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), C2USB_ZEPHYR_MSGQ_SIZE, sizeof(uint32_t));
 
 K_MUTEX_DEFINE(udc_mac_mutex);
 
@@ -43,19 +42,18 @@ static int udc_mac_preinit(const device* unused)
         }
     };
 
-    k_thread_create(&thread_data, stack, K_THREAD_STACK_SIZEOF(stack),
-            worker, nullptr, nullptr, nullptr,
-            K_PRIO_COOP(8), 0, K_NO_WAIT);
+    k_thread_create(&thread_data, stack, K_THREAD_STACK_SIZEOF(stack), worker, nullptr, nullptr,
+                    nullptr, K_PRIO_COOP(8), 0, K_NO_WAIT);
     k_thread_name_set(&thread_data, "c2usb");
     return 0;
 }
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, C2USB_ZEPHYR_THREAD_INIT_PRIO);
 
-udc_mac* udc_mac::list_head {};
+udc_mac* udc_mac::list_head{};
 
 udc_mac::udc_mac(const ::device* dev)
-        : mac(), dev_(dev)
+    : mac(), dev_(dev)
 {
     k_mutex_lock(&udc_mac_mutex, K_FOREVER);
     auto*& ref = list_head;
@@ -98,9 +96,7 @@ udc_mac* udc_mac::lookup(const device* dev)
 void udc_mac::init(const usb::speeds& speeds)
 {
     auto dispatch = [](const device*, const udc_event* event)
-    {
-        return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT);
-    };
+    { return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT); };
     auto ret = udc_init(dev_, dispatch);
     assert(ret == 0);
 }
@@ -136,14 +132,14 @@ usb::speed udc_mac::speed() const
 {
     switch (udc_device_speed(dev_))
     {
-        case UDC_BUS_SPEED_FS:
-            return usb::speed::FULL;
-        case UDC_BUS_SPEED_HS:
-            return usb::speed::HIGH;
-        case UDC_BUS_SPEED_SS:
-            // TODO
-        default:
-            return usb::speed::NONE;
+    case UDC_BUS_SPEED_FS:
+        return usb::speed::FULL;
+    case UDC_BUS_SPEED_HS:
+        return usb::speed::HIGH;
+    case UDC_BUS_SPEED_SS:
+        // TODO
+    default:
+        return usb::speed::NONE;
     }
 }
 
@@ -227,24 +223,24 @@ int udc_mac::process_event(const udc_event& event)
 {
     switch (event.type)
     {
-        case UDC_EVT_EP_REQUEST:
-            process_ep_event(event.buf);
-            break;
-        case UDC_EVT_RESET:
-            bus_reset();
-            break;
-        case UDC_EVT_SUSPEND:
-            set_power_state(power::state::L2_SUSPEND);
-            break;
-        case UDC_EVT_RESUME:
-            set_power_state(power::state::L0_ON);
-            break;
-        case UDC_EVT_SOF:
-        case UDC_EVT_ERROR:
-        case UDC_EVT_VBUS_REMOVED:
-        case UDC_EVT_VBUS_READY:
-        default:
-            break;
+    case UDC_EVT_EP_REQUEST:
+        process_ep_event(event.buf);
+        break;
+    case UDC_EVT_RESET:
+        bus_reset();
+        break;
+    case UDC_EVT_SUSPEND:
+        set_power_state(power::state::L2_SUSPEND);
+        break;
+    case UDC_EVT_RESUME:
+        set_power_state(power::state::L0_ON);
+        break;
+    case UDC_EVT_SOF:
+    case UDC_EVT_ERROR:
+    case UDC_EVT_VBUS_REMOVED:
+    case UDC_EVT_VBUS_READY:
+    default:
+        break;
     }
     return 0;
 }
@@ -254,7 +250,7 @@ static size_t alloc_size_tuned = 0;
 void udc_mac::process_ep_event(net_buf* buf)
 {
     auto& info = *udc_get_buf_info(buf);
-    endpoint::address addr {info.ep};
+    endpoint::address addr{info.ep};
     int err = info.err;
     if (addr.number() == 0)
     {
@@ -274,8 +270,8 @@ void udc_mac::process_ep_event(net_buf* buf)
             ctrl_buf_ = net_buf_frag_del(nullptr, buf);
             if (ctrl_buf_ == nullptr)
             {
-                 control_stall();
-                 return;
+                control_stall();
+                return;
             }
             if (request().direction() == direction::IN)
             {
@@ -288,7 +284,7 @@ void udc_mac::process_ep_event(net_buf* buf)
                 static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 96;
                 static_assert(CONFIG_UDC_BUF_POOL_SIZE > 128);
                 ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
-                        max_alloc_size - ep_bufs_.size_bytes());
+                                             max_alloc_size - ep_bufs_.size_bytes());
 #if 0
                 alloc_size_tuned = max_alloc_size;
                 while (ctrl_buf_ == nullptr)
@@ -346,8 +342,7 @@ void udc_mac::process_ep_event(net_buf* buf)
             {
                 if (ep_bufs_[i] == buf)
                 {
-                    ep_transfer_complete(create_ep_handle(i + 1),
-                            transfer(buf->data, buf->len));
+                    ep_transfer_complete(create_ep_handle(i + 1), transfer(buf->data, buf->len));
                     return;
                 }
             }
@@ -396,7 +391,7 @@ void udc_mac::allocate_endpoints(config::view config)
             if (alloc_size != 0)
             {
                 assert(alignof(buf->__buf) == alignof(void*));
-                ep_bufs_ = { reinterpret_cast<::net_buf**>(buf->__buf), ep_bufs_count };
+                ep_bufs_ = {reinterpret_cast<::net_buf**>(buf->__buf), ep_bufs_count};
                 alloc_size = 0;
             }
 
@@ -447,8 +442,7 @@ usb::endpoint::address udc_mac::ep_handle_to_address(ep_handle eph) const
 
 usb::df::ep_handle udc_mac::ep_open(const usb::df::config::endpoint& ep)
 {
-    auto ret = udc_ep_enable(dev_, ep.address(), ep.bmAttributes,
-            ep.wMaxPacketSize, ep.bInterval);
+    auto ret = udc_ep_enable(dev_, ep.address(), ep.bmAttributes, ep.wMaxPacketSize, ep.bInterval);
     if (ret != 0)
     {
         return {};

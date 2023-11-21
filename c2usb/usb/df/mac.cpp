@@ -77,19 +77,19 @@ uint32_t mac::granted_bus_current_uA() const
 {
     switch (power_state())
     {
-        case power::state::L3_OFF:
-            return 0;
-        case power::state::L2_SUSPEND:
-            return 2'500;
-        default:
-            if (configured())
-            {
-                return active_config().info().max_power_mA() * 1'000;
-            }
-            else
-            {
-                return 100'000;
-            }
+    case power::state::L3_OFF:
+        return 0;
+    case power::state::L2_SUSPEND:
+        return 2'500;
+    default:
+        if (configured())
+        {
+            return active_config().info().max_power_mA() * 1'000;
+        }
+        else
+        {
+            return 100'000;
+        }
     }
 }
 
@@ -137,8 +137,8 @@ void mac::ep_transfer_complete(ep_handle eph, const transfer& t)
 message* mac::get_pending_message(function* caller)
 {
     assert((caller == nullptr) or
-       (configured() and (request().recipient() == control::request::recipient::INTERFACE) and
-        (&(active_config().interfaces()[request().wIndex].function()) == caller)));
+           (configured() and (request().recipient() == control::request::recipient::INTERFACE) and
+            (&(active_config().interfaces()[request().wIndex].function()) == caller)));
     return pending_reply() ? this : nullptr;
 }
 

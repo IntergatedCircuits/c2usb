@@ -13,8 +13,8 @@
 
 using namespace usb::df::microsoft;
 
-void descriptors::get_msos2_function_subset(const config::interface& iface,
-        uint8_t iface_index, df::buffer& buffer)
+void descriptors::get_msos2_function_subset(const config::interface& iface, uint8_t iface_index,
+                                            df::buffer& buffer)
 {
     // the only interesting thing is the compatible ID
     auto* compat_id = iface.function().ms_compatible_id();
@@ -26,10 +26,12 @@ void descriptors::get_msos2_function_subset(const config::interface& iface,
     func_header->bFirstInterface = iface_index;
 
     auto* comp_id_desc = buffer.allocate<usb::microsoft::compatible_id>();
-    std::string_view(compat_id).copy(comp_id_desc->CompatibleID, sizeof(comp_id_desc->CompatibleID));
+    std::string_view(compat_id).copy(comp_id_desc->CompatibleID,
+                                     sizeof(comp_id_desc->CompatibleID));
 
     // When finished with the contents, save the total size of the subset
-    func_header->wSubsetLength = std::distance(reinterpret_cast<uint8_t*>(func_header), buffer.end());
+    func_header->wSubsetLength =
+        std::distance(reinterpret_cast<uint8_t*>(func_header), buffer.end());
 #if 0
     if (func_header->wSubsetLength <= func_header->size())
     {
@@ -39,7 +41,8 @@ void descriptors::get_msos2_function_subset(const config::interface& iface,
 #endif
 }
 
-void descriptors::get_msos2_config_subset(const config::view& config, uint8_t config_index, df::buffer& buffer)
+void descriptors::get_msos2_config_subset(const config::view& config, uint8_t config_index,
+                                          df::buffer& buffer)
 {
     auto* conf_header = buffer.allocate<usb::microsoft::config_subset_header>();
     conf_header->bConfigurationValue = config_index;
@@ -55,7 +58,8 @@ void descriptors::get_msos2_config_subset(const config::view& config, uint8_t co
     }
 
     // When finished with the contents, save the total size of the subset
-    conf_header->wTotalLength = std::distance(reinterpret_cast<uint8_t*>(conf_header), buffer.end());
+    conf_header->wTotalLength =
+        std::distance(reinterpret_cast<uint8_t*>(conf_header), buffer.end());
     if (conf_header->wTotalLength <= conf_header->size())
     {
         // If no features are added, roll back this subset
@@ -89,21 +93,22 @@ void descriptors::control_setup_request(device& dev, message& msg)
 
     switch (msg.request())
     {
-        case GET_DESCRIPTOR:
-            //assert(msg.request().wIndex == 0x0007);
-            get_msos2_descriptor(dev, msg.buffer());
-            if (msg.buffer().used_length() > 0)
-            {
-                return msg.send_buffer();
-            }
-            break;
-        default:
-            break;
+    case GET_DESCRIPTOR:
+        // assert(msg.request().wIndex == 0x0007);
+        get_msos2_descriptor(dev, msg.buffer());
+        if (msg.buffer().used_length() > 0)
+        {
+            return msg.send_buffer();
+        }
+        break;
+    default:
+        break;
     }
     return msg.reject();
 }
 
-usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(device& dev, df::buffer& buffer)
+usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(device& dev,
+                                                                          df::buffer& buffer)
 {
     // the only way to get the MSOS descriptor total length is to assemble it temporarily
     size_t offset = buffer.used_length();
@@ -128,13 +133,13 @@ void alternate_enumeration_base::control_setup_request(device& dev, message& msg
 
     switch (msg.request())
     {
-        case SET_ALT_ENUM:
-            //assert(msg.request().wIndex == 0x0008);
-            using_alt_enum_ = msg.request().wValue.high_byte();
-            return msg.confirm();
+    case SET_ALT_ENUM:
+        // assert(msg.request().wIndex == 0x0008);
+        using_alt_enum_ = msg.request().wValue.high_byte();
+        return msg.confirm();
 
-        default:
-            return descriptors::control_setup_request(dev, msg);
+    default:
+        return descriptors::control_setup_request(dev, msg);
     }
 }
 

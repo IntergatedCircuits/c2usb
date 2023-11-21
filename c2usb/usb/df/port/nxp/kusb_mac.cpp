@@ -10,7 +10,6 @@
 ///
 #include "usb/df/port/nxp/kusb_mac.hpp"
 #include "usb/standard/requests.hpp"
-#include <chrono>
 
 #if C2USB_HAS_NXP_HEADERS
 
@@ -76,23 +75,23 @@ usb::speed kusb_mac::speed() const
     device_control(kUSB_DeviceControlGetSpeed, &sp);
     switch (sp)
     {
-        case USB_SPEED_LOW:
-            return usb::speed::LOW;
-        case USB_SPEED_HIGH:
-            return usb::speed::HIGH;
-            //case USB_SPEED_SUPER:
-        case USB_SPEED_FULL:
-        default:
-            return usb::speed::FULL;
+    case USB_SPEED_LOW:
+        return usb::speed::LOW;
+    case USB_SPEED_HIGH:
+        return usb::speed::HIGH;
+        // case USB_SPEED_SUPER:
+    case USB_SPEED_FULL:
+    default:
+        return usb::speed::FULL;
     }
 }
 
 void kusb_mac::control_ep_open()
 {
-    usb_device_endpoint_init_struct_t ep_init {};
-    ep_init.zlt             = true;
-    ep_init.transferType    = USB_ENDPOINT_CONTROL;
-    ep_init.maxPacketSize   = control_ep_max_packet_size(speed());
+    usb_device_endpoint_init_struct_t ep_init{};
+    ep_init.zlt = true;
+    ep_init.transferType = USB_ENDPOINT_CONTROL;
+    ep_init.maxPacketSize = control_ep_max_packet_size(speed());
     ep_init.endpointAddress = endpoint::address::control_out();
     auto status = device_control(kUSB_DeviceControlEndpointInit, &ep_init);
     assert(status == kStatus_USB_Success);
@@ -122,14 +121,13 @@ void kusb_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
     else
     {
         auto status = device_recv(addr, t.data(), t.size());
-        assert((status == kStatus_USB_Success)
-                or (t.size() == 0)); // work around bug in NXP code
+        assert((status == kStatus_USB_Success) or (t.size() == 0)); // work around bug in NXP code
     }
 }
 
 usb::df::ep_handle kusb_mac::ep_open(const config::endpoint& ep)
 {
-    usb_device_endpoint_init_struct_t ep_init {};
+    usb_device_endpoint_init_struct_t ep_init{};
     ep_init.zlt = false;
     ep_init.transferType = static_cast<uint8_t>(ep.type());
     ep_init.interval = ep.interval();
@@ -179,7 +177,7 @@ usb::result kusb_mac::ep_close(ep_handle eph)
 
 bool kusb_mac::ep_is_stalled(ep_handle eph) const
 {
-    usb_device_endpoint_status_struct_t ep_status {};
+    usb_device_endpoint_status_struct_t ep_status{};
     ep_status.endpointAddress = ep_handle_to_address(eph);
     auto status = device_control(kUSB_DeviceControlGetEndpointStatus, &ep_status);
     assert(status == kStatus_USB_Success);
@@ -203,7 +201,7 @@ usb::result kusb_mac::ep_change_stall(ep_handle eph, bool stall)
 
 void kusb_mac::process_kusb_ep_notification(const usb_device_callback_message_struct_t& message)
 {
-    endpoint::address addr { static_cast<uint8_t>(message.code) };
+    endpoint::address addr{static_cast<uint8_t>(message.code)};
     if (not addr.valid())
     {
         // wrong mapping
@@ -214,8 +212,8 @@ void kusb_mac::process_kusb_ep_notification(const usb_device_callback_message_st
     }
     else if (addr.number() == 0)
     {
-        if (message.isSetup
-            and (stage() != usb::control::stage::DATA)) // work around bug in NXP code
+        if (message.isSetup and
+            (stage() != usb::control::stage::DATA)) // work around bug in NXP code
         {
             assert((message.buffer != nullptr) and (message.length == sizeof(request())));
             std::memcpy(&request(), message.buffer, sizeof(request()));
@@ -240,7 +238,8 @@ void kusb_mac::process_kusb_ep_notification(const usb_device_callback_message_st
 
 void kusb_mac::handle_irq()
 {
-    void* device_handle = reinterpret_cast<char*>(&kusb_handle_) - offsetof(usb_device_struct_t, controllerHandle);
+    void* device_handle =
+        reinterpret_cast<char*>(&kusb_handle_) - offsetof(usb_device_struct_t, controllerHandle);
     kusb_if_.isr(device_handle);
 }
 
@@ -248,28 +247,28 @@ void kusb_mac::process_kusb_notification(const usb_device_callback_message_struc
 {
     switch (message.code)
     {
-        case kUSB_DeviceNotifyBusReset:
-            device_control(kUSB_DeviceControlSetDefaultStatus);
-            bus_reset();
-            break;
-        case kUSB_DeviceNotifySuspend:
-            set_power_state(power::state::L2_SUSPEND);
-            break;
-        case kUSB_DeviceNotifyResume:
-            set_power_state(power::state::L0_ON);
-            break;
-        case kUSB_DeviceNotifyLPMSleep:
-            set_power_state(power::state::L1_SLEEP);
-            break;
+    case kUSB_DeviceNotifyBusReset:
+        device_control(kUSB_DeviceControlSetDefaultStatus);
+        bus_reset();
+        break;
+    case kUSB_DeviceNotifySuspend:
+        set_power_state(power::state::L2_SUSPEND);
+        break;
+    case kUSB_DeviceNotifyResume:
+        set_power_state(power::state::L0_ON);
+        break;
+    case kUSB_DeviceNotifyLPMSleep:
+        set_power_state(power::state::L1_SLEEP);
+        break;
 
-        case kUSB_DeviceNotifyDetach:
-        case kUSB_DeviceNotifyAttach:
-            //case kUSB_DeviceNotifyDcdDetectFinished:
-        case kUSB_DeviceNotifyError:
-            break;
-        default:
-            process_kusb_ep_notification(message);
-            break;
+    case kUSB_DeviceNotifyDetach:
+    case kUSB_DeviceNotifyAttach:
+        // case kUSB_DeviceNotifyDcdDetectFinished:
+    case kUSB_DeviceNotifyError:
+        break;
+    default:
+        process_kusb_ep_notification(message);
+        break;
     }
 }
 
@@ -283,7 +282,8 @@ extern "C" usb_status_t USB_DeviceNotificationTrigger(void* handle, void* msg)
     else
     {
         auto* mac = reinterpret_cast<kusb_mac*>(handle);
-        mac->process_kusb_notification(*reinterpret_cast<const usb_device_callback_message_struct_t*>(msg));
+        mac->process_kusb_notification(
+            *reinterpret_cast<const usb_device_callback_message_struct_t*>(msg));
         return kStatus_USB_Success;
     }
 }

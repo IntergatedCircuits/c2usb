@@ -15,72 +15,72 @@
 
 inline namespace utilities
 {
-    // a simplified single element queue
-    template<typename T>
-    class single_elem_queue
+// a simplified single element queue
+template <typename T>
+class single_elem_queue
+{
+  public:
+    constexpr single_elem_queue() {}
+    constexpr std::size_t size() const { return 1; }
+    constexpr bool empty() const { return !set_; }
+    constexpr bool full() const { return set_; }
+    constexpr void clear() { set_ = false; }
+    constexpr bool push(const T& value)
     {
-    public:
-        constexpr single_elem_queue()
-        {}
-        constexpr std::size_t size() const { return 1; }
-        constexpr bool empty()       const { return !set_; }
-        constexpr bool full()        const { return set_; }
-        constexpr void clear()             { set_ = false; }
-        constexpr bool push(const T& value)
+        if (full())
         {
-            if (full())
-            {
-                return false;
-            }
-            else
-            {
-                _value = value;
-                set_ = true;
-                return true;
-            }
+            return false;
         }
-        constexpr bool front(T& value)
+        else
         {
-            if (empty())
-            {
-                return false;
-            }
-            else
-            {
-                value = _value;
-                return true;
-            }
+            _value = value;
+            set_ = true;
+            return true;
         }
-        constexpr bool peek(T& value) { return front(value); }
-        constexpr bool pop(T& value)
+    }
+    constexpr bool front(T& value)
+    {
+        if (empty())
         {
-            if (empty())
-            {
-                return false;
-            }
-            else
-            {
-                value = _value;
-                set_ = false;
-                return true;
-            }
+            return false;
         }
-        constexpr bool pop()
+        else
         {
-            if (empty())
-            {
-                return false;
-            }
-            else
-            {
-                set_ = false;
-                return true;
-            }
+            value = _value;
+            return true;
         }
-    private:
-        T _value {};
-        bool set_ {};
-    };
-}
+    }
+    constexpr bool peek(T& value) { return front(value); }
+    constexpr bool pop(T& value)
+    {
+        if (empty())
+        {
+            return false;
+        }
+        else
+        {
+            value = _value;
+            set_ = false;
+            return true;
+        }
+    }
+    constexpr bool pop()
+    {
+        if (empty())
+        {
+            return false;
+        }
+        else
+        {
+            set_ = false;
+            return true;
+        }
+    }
+
+  private:
+    T _value{};
+    bool set_{};
+};
+} // namespace utilities
 
 #endif // __SINGLE_ELEM_QUEUE_HPP_

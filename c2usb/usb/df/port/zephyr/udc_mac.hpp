@@ -15,8 +15,9 @@
                                      __has_include("zephyr/device.h"))
 #if C2USB_HAS_ZEPHYR_HEADERS
 
-#include "usb/df/mac.hpp"
 #include "usb/df/ep_flags.hpp"
+#include "usb/df/mac.hpp"
+
 extern "C"
 {
 #include <zephyr/drivers/usb/udc.h>
@@ -24,60 +25,60 @@ extern "C"
 
 namespace usb::df::zephyr
 {
-    /// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
-    class udc_mac : public mac
-    {
-    public:
-        udc_mac(const ::device* dev);
-        ~udc_mac() override;
+/// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
+class udc_mac : public mac
+{
+  public:
+    udc_mac(const ::device* dev);
+    ~udc_mac() override;
 
-        static int event_callback(const device* dev, const udc_event* event);
+    static int event_callback(const device* dev, const udc_event* event);
 
-    private:
-        static udc_mac* list_head;
-        const ::device* dev_;
-        udc_mac* list_next_ {};
-        ::net_buf* ctrl_buf_ {};
-        usb::df::ep_flags stall_flags_ {};
-        usb::df::ep_flags busy_flags_ {};
-        std::span<::net_buf*> ep_bufs_ {};
+  private:
+    static udc_mac* list_head;
+    const ::device* dev_;
+    udc_mac* list_next_{};
+    ::net_buf* ctrl_buf_{};
+    usb::df::ep_flags stall_flags_{};
+    usb::df::ep_flags busy_flags_{};
+    std::span<::net_buf*> ep_bufs_{};
 
-        void allocate_endpoints(config::view config) override;
-        ep_handle ep_address_to_handle(endpoint::address addr) const override;
-        const config::endpoint& ep_handle_to_config(ep_handle eph) const override;
-        endpoint::address ep_handle_to_address(ep_handle eph) const override;
-        ep_handle ep_config_to_handle(const config::endpoint& ep) const override;
-        ::net_buf* const& ep_handle_to_buf(ep_handle eph) const;
-        static void buf_load_data(::net_buf* buf, const transfer& t);
+    void allocate_endpoints(config::view config) override;
+    ep_handle ep_address_to_handle(endpoint::address addr) const override;
+    const config::endpoint& ep_handle_to_config(ep_handle eph) const override;
+    endpoint::address ep_handle_to_address(ep_handle eph) const override;
+    ep_handle ep_config_to_handle(const config::endpoint& ep) const override;
+    ::net_buf* const& ep_handle_to_buf(ep_handle eph) const;
+    static void buf_load_data(::net_buf* buf, const transfer& t);
 
-        static udc_mac* lookup(const device* dev);
+    static udc_mac* lookup(const device* dev);
 
-        void init(const usb::speeds& speeds) override;
-        void deinit() override;
-        bool set_attached(bool attached) override;
-        void signal_remote_wakeup() override;
-        usb::speed speed() const override;
+    void init(const usb::speeds& speeds) override;
+    void deinit() override;
+    bool set_attached(bool attached) override;
+    void signal_remote_wakeup() override;
+    usb::speed speed() const override;
 
-        void control_ep_open() override;
-        void control_transfer();
-        void control_reply(usb::direction dir, const usb::df::transfer& t) override;
+    void control_ep_open() override;
+    void control_transfer();
+    void control_reply(usb::direction dir, const usb::df::transfer& t) override;
 
-        int process_event(const udc_event& event);
-        void process_ep_event(net_buf* buf);
+    int process_event(const udc_event& event);
+    void process_ep_event(net_buf* buf);
 
-        usb::result ep_set_stall(endpoint::address addr);
-        usb::result ep_clear_stall(endpoint::address addr);
-        usb::result ep_transfer(usb::df::ep_handle eph, const transfer& t);
+    usb::result ep_set_stall(endpoint::address addr);
+    usb::result ep_clear_stall(endpoint::address addr);
+    usb::result ep_transfer(usb::df::ep_handle eph, const transfer& t);
 
-        usb::df::ep_handle ep_open(const usb::df::config::endpoint& ep) override;
-        usb::result ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data) override;
-        usb::result ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data) override;
-        usb::result ep_close(usb::df::ep_handle eph) override;
-        usb::result ep_cancel(usb::df::ep_handle eph);
-        bool ep_is_stalled(usb::df::ep_handle eph) const override;
-        usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
-    };
-}
+    usb::df::ep_handle ep_open(const usb::df::config::endpoint& ep) override;
+    usb::result ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data) override;
+    usb::result ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data) override;
+    usb::result ep_close(usb::df::ep_handle eph) override;
+    usb::result ep_cancel(usb::df::ep_handle eph);
+    bool ep_is_stalled(usb::df::ep_handle eph) const override;
+    usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
+};
+} // namespace usb::df::zephyr
 
 #endif // C2USB_HAS_ZEPHYR_HEADERS
 

@@ -16,14 +16,14 @@ using namespace usb::df::config;
 namespace usb::df::config
 {
 usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::configuration* desc,
-        const power& p)
+                                                     const power& p)
 {
     desc->bMaxPower = p.value_ >> 8;
     desc->bmAttributes = 0x80 | p.value_;
     return desc;
 }
 
-}
+} // namespace usb::df::config
 
 interface_endpoint_view interface::endpoints() const
 {

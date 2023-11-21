@@ -1,3 +1,13 @@
+/// @file
+///
+/// @author Benedek Kupper
+/// @date   2023
+///
+/// @copyright
+///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+///         If a copy of the MPL was not distributed with this file, You can obtain one at
+///         https://mozilla.org/MPL/2.0/.
+///
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/message.hpp"
 
@@ -13,15 +23,15 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
 
         struct acm_desc_set
         {
-            usb::cdc::descriptor::call_management call_mgmt {};
-            usb::cdc::descriptor::abstract_control_management acm {};
+            usb::cdc::descriptor::call_management call_mgmt{};
+            usb::cdc::descriptor::abstract_control_management acm{};
         };
         auto* iface_desc = get_base_functional_descriptors(acm::class_info(), if_index, buffer);
         auto* acm_descs = buffer.allocate<acm_desc_set>();
 
         acm_descs->call_mgmt.bDataInterface = if_index + 1;
 
-        capabilities caps {};
+        capabilities caps{};
         caps.line_control = true;
         caps.network_connection = not iface.endpoints()[0].unused();
         // TODO: add logic for the rest of the capabilities
@@ -29,7 +39,7 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
 
         iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
         assert((iface_desc->bNumEndpoints == 1) and
-            (iface.endpoints()[0].address().direction() == direction::IN));
+               (iface.endpoints()[0].address().direction() == direction::IN));
     }
     else
     {
@@ -39,8 +49,8 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
         iface_desc->bInterfaceNumber = if_index;
         iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
         assert((iface_desc->bNumEndpoints == 2) and
-            (iface.endpoints()[0].address().direction() == direction::OUT) and
-            (iface.endpoints()[1].address().direction() == direction::IN));
+               (iface.endpoints()[0].address().direction() == direction::OUT) and
+               (iface.endpoints()[1].address().direction() == direction::IN));
     }
 }
 
@@ -54,30 +64,30 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     using namespace usb::cdc::control;
     switch (msg.request())
     {
-        case SET_LINE_CODING:
-            // TODO: deinit
-            return msg.receive(line_coding_);
+    case SET_LINE_CODING:
+        // TODO: deinit
+        return msg.receive(line_coding_);
 
-        case GET_LINE_CODING:
-            return msg.send(line_coding_);
+    case GET_LINE_CODING:
+        return msg.send(line_coding_);
 
-        case SET_CONTROL_LINE_STATE:
-        {
-            bool data_terminal_ready = msg.request().wValue & 1;
-            bool request_to_send = msg.request().wValue & 2;
-            // TODO: forward to application
-            return msg.confirm();
-        }
-        case SEND_BREAK:
-        {
-            // if 0xFFFF, then break is held until 0x0000 is received
-            //uint16_t break_ms = msg.request().wValue;
-            // not supported yet (see capabilities)
-            return msg.reject();
-        }
+    case SET_CONTROL_LINE_STATE:
+    {
+        bool data_terminal_ready = msg.request().wValue & 1;
+        bool request_to_send = msg.request().wValue & 2;
+        // TODO: forward to application
+        return msg.confirm();
+    }
+    case SEND_BREAK:
+    {
+        // if 0xFFFF, then break is held until 0x0000 is received
+        // uint16_t break_ms = msg.request().wValue;
+        // not supported yet (see capabilities)
+        return msg.reject();
+    }
 
-        default:
-            return msg.reject();
+    default:
+        return msg.reject();
     }
 }
 
@@ -86,9 +96,9 @@ void function::control_data_complete(message& msg, const config::interface& ifac
     using namespace usb::cdc::control;
     switch (msg.request())
     {
-        case SET_LINE_CODING:
-            // TODO: init
-            break;
+    case SET_LINE_CODING:
+        // TODO: init
+        break;
     }
 
     return msg.confirm();

@@ -20,17 +20,18 @@ standard::descriptor::device* operator<<(standard::descriptor::device* desc, con
     return desc;
 }
 
-standard::descriptor::interface* operator<<(standard::descriptor::interface* desc, const class_info& ci)
+standard::descriptor::interface* operator<<(standard::descriptor::interface* desc,
+                                            const class_info& ci)
 {
     std::memcpy(&desc->bInterfaceClass, &ci, sizeof(ci));
     return desc;
 }
 
-standard::descriptor::interface_association* operator<<(standard::descriptor::interface_association* desc, const class_info& ci)
+standard::descriptor::interface_association*
+operator<<(standard::descriptor::interface_association* desc, const class_info& ci)
 {
     std::memcpy(&desc->bFunctionClass, &ci, sizeof(ci));
     return desc;
 }
 
-}
-
+} // namespace usb

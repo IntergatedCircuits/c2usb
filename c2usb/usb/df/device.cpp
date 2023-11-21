@@ -66,46 +66,47 @@ void device::handle_control_message(message& msg)
     {
         switch (msg.request().recipient())
         {
-            case control::request::recipient::DEVICE:
-                return device_setup_request(msg);
+        case control::request::recipient::DEVICE:
+            return device_setup_request(msg);
 
-            case control::request::recipient::INTERFACE:
-                return interface_control(msg, &function::handle_control_setup);
+        case control::request::recipient::INTERFACE:
+            return interface_control(msg, &function::handle_control_setup);
 
-            case control::request::recipient::ENDPOINT:
-                return endpoint_setup_request(msg);
+        case control::request::recipient::ENDPOINT:
+            return endpoint_setup_request(msg);
 
-            default:
-                return msg.reject();
+        default:
+            return msg.reject();
         }
     }
     else // stage::DATA
     {
         switch (msg.request().recipient())
         {
-            case control::request::recipient::DEVICE:
-                if (msg.request().type() == usb::control::request::type::STANDARD)
-                {
-                    return msg.confirm();
-                }
-                else
-                {
-                    return extension_.control_data_status(*this, msg);
-                }
-
-            case control::request::recipient::INTERFACE:
-                return interface_control(msg, &function::handle_control_data);
-
-            case control::request::recipient::ENDPOINT:
-            default:
-                // endpoint recipient don't deal with received data,
-                // nor do they need steps after sending data
+        case control::request::recipient::DEVICE:
+            if (msg.request().type() == usb::control::request::type::STANDARD)
+            {
                 return msg.confirm();
+            }
+            else
+            {
+                return extension_.control_data_status(*this, msg);
+            }
+
+        case control::request::recipient::INTERFACE:
+            return interface_control(msg, &function::handle_control_data);
+
+        case control::request::recipient::ENDPOINT:
+        default:
+            // endpoint recipient don't deal with received data,
+            // nor do they need steps after sending data
+            return msg.confirm();
         }
     }
 }
 
-void device::interface_control(message& msg, void (function::*handler)(message&, const config::interface&))
+void device::interface_control(message& msg,
+                               void (function::*handler)(message&, const config::interface&))
 {
     auto& iface = mac_.active_config().interfaces()[msg.request().wIndex];
     if (iface.valid())
@@ -118,7 +119,7 @@ void device::interface_control(message& msg, void (function::*handler)(message&,
 
 void device::endpoint_setup_request(message& msg)
 {
-    endpoint::address addr { msg.request().wIndex.low_byte() };
+    endpoint::address addr{msg.request().wIndex.low_byte()};
     auto& ep = mac_.ep_address_to_config(addr);
     if (ep.valid())
     {
@@ -131,7 +132,7 @@ void device::endpoint_setup_request(message& msg)
 void device::set_address(message& msg)
 {
     if (not configured() and (msg.request().wIndex == 0) and (msg.request().wLength == 0) and
-            (msg.request().wValue.low_byte() < 0x80))
+        (msg.request().wValue.low_byte() < 0x80))
     {
         // this request must be handled after the status stage
         // implemented by the MAC independently
@@ -235,27 +236,27 @@ void device::device_setup_request(message& msg)
     {
         switch (msg.request())
         {
-            case GET_DESCRIPTOR:
-                return get_descriptor(msg);
+        case GET_DESCRIPTOR:
+            return get_descriptor(msg);
 
-            case SET_ADDRESS:
-                return set_address(msg);
+        case SET_ADDRESS:
+            return set_address(msg);
 
-            case SET_CONFIGURATION:
-                return set_configuration(msg);
+        case SET_CONFIGURATION:
+            return set_configuration(msg);
 
-            case GET_CONFIGURATION:
-                return get_configuration(msg);
+        case GET_CONFIGURATION:
+            return get_configuration(msg);
 
-            case GET_STATUS:
-                return get_status(msg);
+        case GET_STATUS:
+            return get_status(msg);
 
-            case SET_FEATURE:
-            case CLEAR_FEATURE:
-                return set_feature(msg, msg.request() == SET_FEATURE);
+        case SET_FEATURE:
+        case CLEAR_FEATURE:
+            return set_feature(msg, msg.request() == SET_FEATURE);
 
-            default:
-                return msg.reject();
+        default:
+            return msg.reject();
         }
     }
     else
@@ -373,14 +374,14 @@ void device::get_config_descriptor(message& msg, usb::speed speed)
     auto* config_desc = msg.buffer().allocate<standard::descriptor::configuration>();
 
     // either CONFIGURATION or OTHER_SPEED_CONFIGURATION
-    config_desc->bDescriptorType        = msg.request().wValue.high_byte();
+    config_desc->bDescriptorType = msg.request().wValue.high_byte();
     // offset by 1 so SET_CONFIGURATION 0 can clear any configuration
-    config_desc->bConfigurationValue    = 1 + config_index;
+    config_desc->bConfigurationValue = 1 + config_index;
 
     config_desc << config.info();
     if (config.info().name() != nullptr)
     {
-        config_desc->iConfiguration     = get_config_istring(config_index, speed);
+        config_desc->iConfiguration = get_config_istring(config_index, speed);
     }
 
     // the functions fill out their own parts of the descriptor
@@ -390,7 +391,7 @@ void device::get_config_descriptor(message& msg, usb::speed speed)
         config_desc->bNumInterfaces++;
     }
 
-    config_desc->wTotalLength           = msg.buffer().used_length();
+    config_desc->wTotalLength = msg.buffer().used_length();
 
     return msg.send_buffer();
 }
@@ -399,23 +400,23 @@ void device::get_device_descriptor(message& msg)
 {
     auto* dev_desc = msg.buffer().allocate<standard::descriptor::device>();
 
-    dev_desc->bcdUSB                = usb_spec_version();
-    dev_desc->bMaxPacketSize        = mac_.control_ep_max_packet_size(bus_speed());
-    dev_desc->bNumConfigurations    = configs_by_speed(bus_speed()).size();
+    dev_desc->bcdUSB = usb_spec_version();
+    dev_desc->bMaxPacketSize = mac_.control_ep_max_packet_size(bus_speed());
+    dev_desc->bNumConfigurations = configs_by_speed(bus_speed()).size();
 
-    dev_desc->idVendor              = product_info_.vendor_id;
-    dev_desc->idProduct             = product_info_.product_id;
-    dev_desc->bcdDevice             = product_info_.product_version;
+    dev_desc->idVendor = product_info_.vendor_id;
+    dev_desc->idProduct = product_info_.product_id;
+    dev_desc->bcdDevice = product_info_.product_version;
 
     // serial number is optional, the others are mandatory
     if (not product_info_.serial_number.empty())
     {
-        dev_desc->iSerialNumber     = ISTR_SERIAL_NUMBER;
+        dev_desc->iSerialNumber = ISTR_SERIAL_NUMBER;
     }
     assert(product_info_.vendor_name != nullptr);
-    dev_desc->iManufacturer         = ISTR_VENDOR_NAME;
+    dev_desc->iManufacturer = ISTR_VENDOR_NAME;
     assert(product_info_.product_name != nullptr);
-    dev_desc->iProduct              = ISTR_PRODUCT_NAME;
+    dev_desc->iProduct = ISTR_PRODUCT_NAME;
 
     return msg.send_buffer();
 }
@@ -424,8 +425,8 @@ void device::get_device_qualifier_descriptor(message& msg, usb::speed speed)
 {
     auto* dq_desc = msg.buffer().allocate<standard::descriptor::device_qualifier>();
 
-    dq_desc->bcdUSB             = usb_spec_version();
-    dq_desc->bMaxPacketSize     = mac_.control_ep_max_packet_size(speed);
+    dq_desc->bcdUSB = usb_spec_version();
+    dq_desc->bMaxPacketSize = mac_.control_ep_max_packet_size(speed);
     dq_desc->bNumConfigurations = configs_by_speed(speed).size();
 
     return msg.send_buffer();
@@ -438,8 +439,8 @@ void device::get_bos_descriptor(message& msg)
     auto* bos_desc = msg.buffer().allocate<binary_object_store>();
     msg.buffer().allocate<device_capability::usb_2p0_extension>(mac_.lpm_support());
 
-    bos_desc->bNumDeviceCaps    = 1 + extension_.bos_capabilities(*this, msg.buffer());
-    bos_desc->wTotalLength      = msg.buffer().used_length();
+    bos_desc->bNumDeviceCaps = 1 + extension_.bos_capabilities(*this, msg.buffer());
+    bos_desc->wTotalLength = msg.buffer().used_length();
 
     return msg.send_buffer();
 }
@@ -450,20 +451,20 @@ void device::get_descriptor(message& msg)
 
     switch (static_cast<type>(msg.request().wValue.high_byte()))
     {
-        case type::DEVICE:
-            return get_device_descriptor(msg);
+    case type::DEVICE:
+        return get_device_descriptor(msg);
 
-        case type::CONFIGURATION:
-            return get_config_descriptor(msg, bus_speed());
+    case type::CONFIGURATION:
+        return get_config_descriptor(msg, bus_speed());
 
-        case type::STRING:
-            return get_string_descriptor(msg);
+    case type::STRING:
+        return get_string_descriptor(msg);
 
-        case type::BINARY_OBJECT_STORE:
-            return get_bos_descriptor(msg);
+    case type::BINARY_OBJECT_STORE:
+        return get_bos_descriptor(msg);
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return msg.reject();
@@ -476,14 +477,14 @@ void device::get_descriptor_dual_speed(message& msg)
 
     switch (static_cast<type>(msg.request().wValue.high_byte()))
     {
-        case type::DEVICE_QUALIFIER:
-            return get_device_qualifier_descriptor(msg, alternative_speed);
+    case type::DEVICE_QUALIFIER:
+        return get_device_qualifier_descriptor(msg, alternative_speed);
 
-        case type::OTHER_SPEED_CONFIGURATION:
-            return get_config_descriptor(msg, alternative_speed);
+    case type::OTHER_SPEED_CONFIGURATION:
+        return get_config_descriptor(msg, alternative_speed);
 
-        default:
-            return device::get_descriptor(msg);
+    default:
+        return device::get_descriptor(msg);
     }
 }
 

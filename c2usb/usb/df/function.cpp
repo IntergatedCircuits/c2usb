@@ -61,85 +61,86 @@ void function::handle_control_setup(message& msg, const config::interface& iface
 
     switch (msg.request())
     {
-        case GET_INTERFACE:
-        {
-            return msg.send_value(get_alt_setting(iface));
-        }
+    case GET_INTERFACE:
+    {
+        return msg.send_value(get_alt_setting(iface));
+    }
 
-        case SET_INTERFACE:
-        {
-            uint8_t alt_selector = msg.request().wValue.low_byte();
+    case SET_INTERFACE:
+    {
+        uint8_t alt_selector = msg.request().wValue.low_byte();
 
-            if (alt_selector < iface.alt_setting_count())
+        if (alt_selector < iface.alt_setting_count())
+        {
+            if (alt_selector != get_alt_setting(iface))
             {
-                if (alt_selector != get_alt_setting(iface))
-                {
-                    restart(iface, alt_selector);
-                }
-                return msg.confirm();
+                restart(iface, alt_selector);
             }
-            else
-            {
-                return msg.reject();
-            }
+            return msg.confirm();
         }
+        else
+        {
+            return msg.reject();
+        }
+    }
 
 #if C2USB_FUNCTION_SUSPEND
-        case SET_FEATURE:
-        case CLEAR_FEATURE:
+    case SET_FEATURE:
+    case CLEAR_FEATURE:
+    {
+        if ((iface.primary()) and (msg.request().wValue == feature::FUNCTION_SUSPEND))
         {
-            if ((iface.primary()) and (msg.request().wValue == feature::FUNCTION_SUSPEND))
-            {
-                // TODO
-                return msg.confirm();
-            }
-            else
-            {
-                return msg.reject();
-            }
+            // TODO
+            return msg.confirm();
         }
+        else
+        {
+            return msg.reject();
+        }
+    }
 
-        case GET_STATUS:
+    case GET_STATUS:
+    {
+        auto status = std_status_;
+        if (not iface.primary())
         {
-            auto status = std_status_;
-            if (not iface.primary())
-            {
-                status = {};
-            }
-            return msg.send_value(status);
+            status = {};
         }
+        return msg.send_value(status);
+    }
 #endif
 
-        default:
-            return control_setup_request(msg, iface);
+    default:
+        return control_setup_request(msg, iface);
     }
 }
 
 void function::handle_control_setup(message& msg, ep_handle eph)
 {
     using namespace standard::endpoint;
-    status ep_status {};
+    status ep_status{};
 
     switch (msg.request())
     {
-        case SET_FEATURE:
-        case CLEAR_FEATURE:
-            if (msg.request().wValue == feature::HALT)
+    case SET_FEATURE:
+    case CLEAR_FEATURE:
+        if (msg.request().wValue == feature::HALT)
+        {
+            ep_status.halt = msg.request() == SET_FEATURE;
+            if (control_endpoint_state(eph, ep_status) and
+                (stall_ep(eph, ep_status.halt) == result::OK))
             {
-                ep_status.halt = msg.request() == SET_FEATURE;
-                if (control_endpoint_state(eph, ep_status) and (stall_ep(eph, ep_status.halt) == result::OK))
-                {
-                    return msg.confirm();
-                }
+                return msg.confirm();
             }
-            return msg.reject();
+        }
+        return msg.reject();
 
-        case GET_STATUS:
-            ep_status.halt = mac_->ep_is_stalled(eph);
-            return msg.send_value(ep_status);
+    case GET_STATUS:
+        ep_status.halt = mac_->ep_is_stalled(eph);
+        return msg.send_value(ep_status);
 
-        default:
-            return msg.reject();
+    default:
+        return msg.reject();
     }
 }
 

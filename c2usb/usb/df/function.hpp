@@ -17,132 +17,123 @@
 
 namespace usb::df
 {
-    class buffer;
-    class message;
-    class string_message;
-    class mac;
+class buffer;
+class message;
+class string_message;
+class mac;
 
-    /// @brief  The function is the base class for all USB device functions.
-    ///         It provides the abstract interface for the device class,
-    ///         and it also provides a restricted interface to the mac for its subclasses.
-    class function
+/// @brief  The function is the base class for all USB device functions.
+///         It provides the abstract interface for the device class,
+///         and it also provides a restricted interface to the mac for its subclasses.
+class function
+{
+  public:
+    virtual ~function() = default;
+
+    void handle_control_setup(message& msg, const config::interface& iface);
+    void handle_control_setup(message& msg, ep_handle eph);
+    void handle_control_data(message& msg, const config::interface& iface);
+
+    virtual void describe_config(const config::interface& iface, uint8_t if_index,
+                                 df::buffer& buffer) = 0;
+
+    void free_string_index();
+    void allocate_string_index(istring* pindex);
+    bool send_owned_string(istring index, string_message& smsg);
+
+    void init(const config::interface& iface, mac* m);
+    void deinit(const config::interface& iface);
+
+    virtual const char* ms_compatible_id() const { return nullptr; }
+
+    virtual void transfer_complete(ep_handle eph, const transfer& t) {}
+
+  protected:
+    ep_handle open_ep(const config::endpoint& ep);
+    template <size_t T>
+    void open_eps(const config::interface_endpoint_view& eps, std::array<ep_handle, T>& handles)
     {
-    public:
-        virtual ~function() = default;
-
-        void handle_control_setup(message& msg, const config::interface& iface);
-        void handle_control_setup(message& msg, ep_handle eph);
-        void handle_control_data(message& msg, const config::interface& iface);
-
-        virtual void describe_config(const config::interface& iface,
-                uint8_t if_index, df::buffer& buffer) = 0;
-
-        void free_string_index();
-        void allocate_string_index(istring* pindex);
-        bool send_owned_string(istring index, string_message& smsg);
-
-        void init(const config::interface& iface, mac* m);
-        void deinit(const config::interface& iface);
-
-        virtual const char* ms_compatible_id() const
+        assert(eps.size() <= handles.size());
+        auto h = handles.begin();
+        for (auto& ep : eps)
         {
-            return nullptr;
+            *h = open_ep(ep);
+            h++;
         }
-
-        virtual void transfer_complete(ep_handle eph, const transfer& t)
-        {}
-
-    protected:
-        ep_handle open_ep(const config::endpoint& ep);
-        template <size_t T>
-        void open_eps(const config::interface_endpoint_view& eps, std::array<ep_handle, T>& handles)
+    }
+    void close_ep(ep_handle& eph);
+    template <size_t T>
+    void close_eps(std::array<ep_handle, T>& handles)
+    {
+        for (auto& h : handles)
         {
-            assert(eps.size() <= handles.size());
-            auto h = handles.begin();
-            for (auto& ep : eps)
-            {
-                *h = open_ep(ep);
-                h++;
-            }
+            close_ep(h);
         }
-        void close_ep(ep_handle& eph);
-        template <size_t T>
-        void close_eps(std::array<ep_handle, T>& handles)
-        {
-            for (auto& h : handles)
-            {
-                close_ep(h);
-            }
-        }
-        result send_ep(ep_handle eph, const std::span<const uint8_t>& data);
-        result receive_ep(ep_handle eph, const std::span<uint8_t>& data);
-        result stall_ep(ep_handle eph, bool stall);
+    }
+    result send_ep(ep_handle eph, const std::span<const uint8_t>& data);
+    result receive_ep(ep_handle eph, const std::span<uint8_t>& data);
+    result stall_ep(ep_handle eph, bool stall);
 
-        message* pending_message();
+    message* pending_message();
 
-        virtual void control_setup_request(message& msg, const config::interface& iface);
-        virtual void control_data_complete(message& msg, const config::interface& iface);
-        virtual bool control_endpoint_state(ep_handle eph, standard::endpoint::status new_state)
-        {
-            return false;
-        }
+    virtual void control_setup_request(message& msg, const config::interface& iface);
+    virtual void control_data_complete(message& msg, const config::interface& iface);
+    virtual bool control_endpoint_state(ep_handle eph, standard::endpoint::status new_state)
+    {
+        return false;
+    }
 
-        virtual void send_string(uint8_t rel_index, string_message& smsg);
+    virtual void send_string(uint8_t rel_index, string_message& smsg);
 
-        virtual uint8_t get_alt_setting(const config::interface& iface)
-        {
-            return 0;
-        }
+    virtual uint8_t get_alt_setting(const config::interface& iface) { return 0; }
 
-        virtual void start(const config::interface& iface, uint8_t alt_sel)
-        {}
-        virtual void stop(const config::interface& iface)
-        {}
+    virtual void start(const config::interface& iface, uint8_t alt_sel) {}
+    virtual void stop(const config::interface& iface) {}
 
-        constexpr function(istring istr_count)
-                : istr_count_(istr_count)
-        {}
+    constexpr function(istring istr_count)
+        : istr_count_(istr_count)
+    {}
 
-        istring to_istring(istring relative_index) const
-        {
-            return (istr_count_ == 0) ? 0 : istr_base_ + relative_index;
-        }
+    istring to_istring(istring relative_index) const
+    {
+        return (istr_count_ == 0) ? 0 : istr_base_ + relative_index;
+    }
 
-        uint8_t describe_endpoints(const config::interface& iface, df::buffer& buffer);
+    uint8_t describe_endpoints(const config::interface& iface, df::buffer& buffer);
 
-    private:
-        function(const function&) = delete;
-        function& operator=(const function&) = delete;
+  private:
+    function(const function&) = delete;
+    function& operator=(const function&) = delete;
 
-        void restart(const config::interface& iface, uint8_t alt_sel)
-        {
-            stop(iface);
-            start(iface, alt_sel);
-        }
+    void restart(const config::interface& iface, uint8_t alt_sel)
+    {
+        stop(iface);
+        start(iface, alt_sel);
+    }
 
-        mac* mac_ = nullptr;
-        const istring istr_count_ {};
-        istring istr_base_ {};
+    mac* mac_ = nullptr;
+    const istring istr_count_{};
+    istring istr_base_{};
 #if C2USB_FUNCTION_SUSPEND
-        usb::standard::interface::status std_status_ {};
+    usb::standard::interface::status std_status_{};
 #endif
-    };
+};
 
-    class named_function : public function
-    {
-    protected:
-        constexpr named_function(const char_t* name = {})
-                : function(static_cast<istring>(name != nullptr)), name_(name)
-        {}
-        constexpr named_function(const char_t* name, istring istr_extra_count)
-                : function(1 + istr_extra_count), name_(name)
-        {}
+class named_function : public function
+{
+  protected:
+    constexpr named_function(const char_t* name = {})
+        : function(static_cast<istring>(name != nullptr)), name_(name)
+    {}
+    constexpr named_function(const char_t* name, istring istr_extra_count)
+        : function(1 + istr_extra_count), name_(name)
+    {}
 
-        void send_string(uint8_t rel_index, string_message& smsg) override;
+    void send_string(uint8_t rel_index, string_message& smsg) override;
 
-    private:
-        const char_t* const name_ {};
-    };
-}
+  private:
+    const char_t* const name_{};
+};
+} // namespace usb::df
 
 #endif // __USB_DF_FUNCTION_HPP_

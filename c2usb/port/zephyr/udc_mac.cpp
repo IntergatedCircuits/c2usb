@@ -8,7 +8,7 @@
 ///         If a copy of the MPL was not distributed with this file, You can obtain one at
 ///         https://mozilla.org/MPL/2.0/.
 ///
-#include "usb/df/port/zephyr/udc_mac.hpp"
+#include "port/zephyr/udc_mac.hpp"
 
 #if C2USB_HAS_ZEPHYR_HEADERS
 
@@ -96,7 +96,9 @@ udc_mac* udc_mac::lookup(const device* dev)
 void udc_mac::init(const usb::speeds& speeds)
 {
     auto dispatch = [](const device*, const udc_event* event)
-    { return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT); };
+    {
+        return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT);
+    };
     auto ret = udc_init(dev_, dispatch);
     assert(ret == 0);
 }

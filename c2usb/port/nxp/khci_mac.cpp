@@ -1,4 +1,4 @@
-#include "usb/df/port/nxp/kusb_mac.hpp"
+#include "port/nxp/kusb_mac.hpp"
 #if C2USB_HAS_NXP_KHCI
 #include "usb_device_khci.h"
 

@@ -32,7 +32,7 @@ add_library(${PROJECT_NAME}
     ${C2USB_SOURCES}
 )
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PUBLIC
     magic_enum
     etl
     hid-rp

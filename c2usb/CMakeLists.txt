@@ -1,21 +1,21 @@
 set(C2USB_NXP_PORT_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/kusb_mac.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/kusb_mac.hpp
 )
 
 set(C2USB_NXP_PORT_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/dwc3_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/ehci_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/khci_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/kusb_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/nxp/lpcip3511_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/dwc3_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/ehci_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/khci_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/kusb_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/lpcip3511_mac.cpp
 )
 
 set(C2USB_ZEPHYR_PORT_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/zephyr/udc_mac.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.hpp
 )
 
 set(C2USB_ZEPHYR_PORT_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/port/zephyr/udc_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.cpp
 )
 
 set(C2USB_PUBLIC_HEADERS

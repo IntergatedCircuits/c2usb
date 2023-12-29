@@ -23,19 +23,32 @@ class leds_saving_keyboard : public hid::application
     using keys_report = hid::app::keyboard::keys_input_report<0>;
     using kb_leds_report = hid::app::keyboard::output_report<0>;
 
-    static const auto& report_prot()
+  public:
+    static constexpr auto report_desc() { return hid::app::keyboard::app_report_descriptor<0>(); }
+    static const hid::report_protocol& report_prot()
     {
-        static constexpr auto rd{hid::app::keyboard::app_report_descriptor<0>()};
-        static constexpr hid::report_protocol rp{rd};
+        static constexpr const auto rd{report_desc()};
+        static constexpr const hid::report_protocol rp{rd};
         return rp;
     }
 
-  public:
     leds_saving_keyboard(hid::page::keyboard_keypad key, hid::page::leds led)
         : hid::application(report_prot()),
           key_(static_cast<uint8_t>(key)),
           led_mask_(1 << (static_cast<uint8_t>(led) - 1))
     {}
+    auto send_key(bool set)
+    {
+        if (set)
+        {
+            keys_buffer_.scancodes[0] = key_;
+        }
+        else
+        {
+            keys_buffer_.scancodes[0] = 0;
+        }
+        return send_report(&keys_buffer_);
+    }
     void start(hid::protocol prot) override
     {
         prot_ = prot;
@@ -48,8 +61,7 @@ class leds_saving_keyboard : public hid::application
 
         if ((out_report->leds & led_mask_) != 0)
         {
-            keys_buffer_.scancodes[0] = key_;
-            send_report(&keys_buffer_);
+            send_key(true);
         }
         receive_report(&leds_buffer_);
     }
@@ -57,8 +69,7 @@ class leds_saving_keyboard : public hid::application
     {
         if (keys_buffer_.scancodes[0] == key_)
         {
-            keys_buffer_.scancodes[0] = 0;
-            send_report(&keys_buffer_);
+            send_key(false);
         }
     }
     void get_report(hid::report::selector select, const std::span<uint8_t>& buffer) override

@@ -11,6 +11,7 @@
 #ifndef __HID_APPLICATION_HPP_
 #define __HID_APPLICATION_HPP_
 
+#include <atomic>
 #include <hid/report.hpp>
 
 #include "usb/base.hpp"
@@ -21,36 +22,18 @@ using namespace c2usb;
 
 struct report_protocol;
 
-/// @brief  Helper class to manage FEATURE and OUTPUT buffers.
-class reports_receiver
+/// @brief  Interface for different transport layers.
+class transport : public interface
 {
   public:
-    constexpr reports_receiver() = default;
-
-    constexpr std::span<uint8_t>& operator[](report::type type)
-    {
-        return buffers_[static_cast<uint8_t>(type) - OFFSET];
-    }
-    constexpr const std::span<uint8_t>& operator[](report::type type) const
-    {
-        return buffers_[static_cast<uint8_t>(type) - OFFSET];
-    }
-    constexpr std::span<uint8_t>& largest()
-    {
-        return (buffers_[0].size() > buffers_[1].size()) ? buffers_[0] : buffers_[1];
-    }
-
-  private:
-    constexpr static auto OFFSET =
-        static_cast<uint8_t>(std::min(report::type::FEATURE, report::type::OUTPUT));
-    static_assert((static_cast<uint8_t>(std::max(report::type::FEATURE, report::type::OUTPUT)) -
-                   OFFSET) == 1);
-
-    std::array<std::span<uint8_t>, 2> buffers_{};
+    virtual result send_report(const std::span<const uint8_t>& data,
+                               report::type type = report::type::INPUT) = 0;
+    virtual result receive_report(const std::span<uint8_t>& data,
+                                  report::type type = report::type::OUTPUT) = 0;
 };
 
 /// @brief  The application is the base class for transport-agnostic HID device-side applications.
-class application
+class application : public polymorphic
 {
   public:
     constexpr explicit application(const report_protocol& rp)
@@ -105,9 +88,10 @@ class application
                        report::type type = report::type::INPUT)
     {
         assert(data.size() > 0);
-        if (has_transport())
+        auto tp = transport_.load();
+        if (tp)
         {
-            return send_report_(transport_, data, type);
+            return tp->send_report(data, type);
         }
         else
         {
@@ -136,9 +120,10 @@ class application
     result receive_report(const std::span<uint8_t>& data, report::type type = report::type::OUTPUT)
     {
         assert(data.size() > 0);
-        if (has_transport())
+        auto tp = transport_.load();
+        if (tp)
         {
-            return receive_report_(transport_, data, type);
+            return tp->receive_report(data, type);
         }
         else
         {
@@ -166,41 +151,35 @@ class application
     uint32_t get_idle(uint8_t report_id = 0) { return 0; }
     bool set_idle(uint32_t idle_repeat_ms, uint8_t report_id = 0) { return idle_repeat_ms == 0; }
 
-    bool has_transport() const { return transport_ != nullptr; }
+    bool has_transport() const { return transport_.load() != nullptr; }
 
-    template <class T, result (T::*SEND)(const std::span<const uint8_t>&, report::type),
-              result (T::*RECEIVE)(const std::span<uint8_t>&, report::type)>
-    bool setup(T* tp, protocol prot)
+    bool has_transport(transport* tp) const { return transport_.load() == tp; }
+
+    bool setup(transport* tp, protocol prot)
     {
-        if (teardown(tp) or not has_transport())
+        transport* expected = nullptr;
+        if (transport_.compare_exchange_strong(expected, tp))
         {
-            send_report_ = [](void* t, const std::span<const uint8_t>& data, report::type type)
-            {
-                T* p = static_cast<T*>(t);
-                return (p->*SEND)(data, type);
-            };
-            receive_report_ = [](void* t, const std::span<uint8_t>& data, report::type type)
-            {
-                T* p = static_cast<T*>(t);
-                return (p->*RECEIVE)(data, type);
-            };
-            transport_ = reinterpret_cast<decltype(transport_)>(tp);
             start(prot);
             return true;
         }
-        else
+        if (expected != tp)
         {
             return false;
         }
-    }
-
-    template <class T>
-    bool teardown(T* tp)
-    {
-        if (reinterpret_cast<decltype(transport_)>(tp) == transport_)
+        if (get_protocol() != prot)
         {
             stop();
-            transport_ = nullptr;
+            start(prot);
+        }
+        return true;
+    }
+
+    bool teardown(transport* tp)
+    {
+        if (transport_.compare_exchange_strong(tp, nullptr))
+        {
+            stop();
             return true;
         }
         else
@@ -211,9 +190,35 @@ class application
 
   private:
     const report_protocol& report_info_;
-    void* transport_{};
-    result (*send_report_)(void*, const std::span<const uint8_t>&, report::type){};
-    result (*receive_report_)(void*, const std::span<uint8_t>&, report::type){};
+    std::atomic<transport*> transport_{};
+};
+
+/// @brief  Helper class to manage FEATURE and OUTPUT buffers.
+class reports_receiver
+{
+  public:
+    constexpr reports_receiver() = default;
+
+    constexpr std::span<uint8_t>& operator[](report::type type)
+    {
+        return buffers_[static_cast<uint8_t>(type) - OFFSET];
+    }
+    constexpr const std::span<uint8_t>& operator[](report::type type) const
+    {
+        return buffers_[static_cast<uint8_t>(type) - OFFSET];
+    }
+    constexpr std::span<uint8_t>& largest()
+    {
+        return (buffers_[0].size() > buffers_[1].size()) ? buffers_[0] : buffers_[1];
+    }
+
+  private:
+    constexpr static auto OFFSET =
+        static_cast<uint8_t>(std::min(report::type::FEATURE, report::type::OUTPUT));
+    static_assert((static_cast<uint8_t>(std::max(report::type::FEATURE, report::type::OUTPUT)) -
+                   OFFSET) == 1);
+
+    std::array<std::span<uint8_t>, 2> buffers_{};
 };
 } // namespace hid
 

@@ -11,7 +11,6 @@
 #include <magic_enum.hpp>
 
 #include "i2c/hid/device.hpp"
-#include "i2c/slave.hpp"
 
 using namespace ::hid;
 using namespace i2c::hid;
@@ -24,7 +23,7 @@ device::device(application& app, const product_info& pinfo, i2c::slave& slave, i
       bus_address_(address),
       hid_descriptor_reg_(hid_descriptor_reg_address)
 {
-    slave_.register_module<device, &device::process_start, &device::process_stop>(this, address);
+    slave_.register_module(this, address);
 }
 
 device::~device()
@@ -245,7 +244,7 @@ bool device::get_input()
     return true;
 }
 
-bool device::process_start(i2c::direction dir, size_t data_length)
+bool device::on_start(i2c::direction dir, size_t data_length)
 {
     bool success = false;
 
@@ -406,8 +405,7 @@ bool device::set_command(const std::span<const uint8_t>& command_data)
         }
         if (app_.get_protocol() != static_cast<protocol>(value))
         {
-            app_.setup<device, &device::send_report, &device::receive_report>(
-                this, static_cast<protocol>(value));
+            app_.setup(this, static_cast<protocol>(value));
         }
         return true;
 
@@ -454,8 +452,7 @@ void device::process_input_complete(size_t data_length)
         {
 #if not C2USB_I2C_HID_FULL_COMMAND_SUPPORT
             // completed reset, initialize application
-            app_.setup<device, &device::send_report, &device::receive_report>(this,
-                                                                              protocol::REPORT);
+            app_.setup(this, protocol::REPORT);
 #endif
         }
         else
@@ -478,12 +475,12 @@ void device::process_reply_complete(size_t data_length)
     if (reg == registers::REPORT_DESCRIPTOR)
     {
         // initialize applications
-        app_.setup<device, &device::send_report, &device::receive_report>(this, protocol::REPORT);
+        app_.setup(this, protocol::REPORT);
     }
 #endif
 }
 
-void device::process_stop(i2c::direction dir, size_t data_length)
+void device::on_stop(i2c::direction dir, size_t data_length)
 {
     // received request from host
     if (dir == i2c::direction::WRITE)

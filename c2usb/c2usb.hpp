@@ -100,6 +100,31 @@ using sized_unsigned_t = typename sized_unsigned<SIZE>::type;
 
 template <typename T>
 concept IntegerConvertable = std::is_convertible_v<T, sized_unsigned_t<sizeof(T)>>;
+
+/// @brief  The interface base class is used by interface subclasses,
+///         that contain only abstract virtual functions, and no member data.
+///         This library limits multiple inheritance to interface subclasses.
+class interface
+{
+  public:
+    constexpr interface() = default;
+    virtual ~interface() = default;
+
+    interface(const interface&) = delete;
+    interface& operator=(const interface&) = delete;
+};
+
+/// @brief  The polymorphic base class is used by any subclass that implements polymorphism,
+///         but isn't a pure interface class.
+class polymorphic
+{
+  public:
+    constexpr polymorphic() = default;
+    virtual ~polymorphic() = default;
+
+    polymorphic(const polymorphic&) = delete;
+    polymorphic& operator=(const polymorphic&) = delete;
+};
 } // namespace c2usb
 
 #endif // __C2USB_HPP_

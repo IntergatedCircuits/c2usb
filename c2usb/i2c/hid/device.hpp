@@ -15,6 +15,7 @@
 
 #include "hid/application.hpp"
 #include "i2c/hid/standard.hpp"
+#include "i2c/slave.hpp"
 #include "single_elem_queue.hpp"
 
 inline namespace utilities
@@ -31,15 +32,10 @@ constexpr T pack_str(const char* str)
 }
 } // namespace utilities
 
-namespace i2c
-{
-class slave;
-}
-
 namespace i2c::hid
 {
 /// @brief  Implementation of the I2C HID protocol on the slave device side.
-class device
+class device : public slave::module, public ::hid::transport
 {
     enum registers : uint16_t
     {
@@ -55,7 +51,7 @@ class device
   public:
     device(::hid::application& app, const hid::product_info& pinfo, i2c::slave& slave,
            i2c::address address, uint16_t hid_descriptor_reg_address);
-    ~device();
+    ~device() override;
 
     enum class event : uint8_t
     {
@@ -75,13 +71,13 @@ class device
     i2c::address bus_address() const { return bus_address_; }
     uint16_t hid_descriptor_reg_address() const { return hid_descriptor_reg_; }
     void get_hid_descriptor(descriptor& desc) const;
-    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type);
-    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type);
+    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
+    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
 
     void delegate_power_event(event ev);
 
-    bool process_start(i2c::direction dir, size_t data_length);
-    void process_stop(i2c::direction dir, size_t data_length);
+    bool on_start(i2c::direction dir, size_t data_length) override;
+    void on_stop(i2c::direction dir, size_t data_length) override;
 
     template <typename T>
     T* get_buffer()

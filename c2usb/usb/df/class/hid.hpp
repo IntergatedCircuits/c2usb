@@ -21,7 +21,7 @@ using namespace usb::hid;
 
 /// @brief  This is a partial implementation of the HID function, that interfaces to the application
 ///         without any USB HID protocol specifics, so it can be reused in other HID-like functions.
-class app_base_function : public df::named_function
+class app_base_function : public df::named_function, public ::hid::transport
 {
   public:
     constexpr app_base_function(::hid::application& app, const char_t* name = {})
@@ -34,8 +34,8 @@ class app_base_function : public df::named_function
     void start(const config::interface& iface, ::hid::protocol prot);
     void stop(const config::interface& iface) override;
 
-    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type);
-    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type);
+    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
+    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
 
     void transfer_complete(ep_handle eph, const transfer& t) override;
 

@@ -15,57 +15,50 @@
 
 namespace i2c
 {
-/// @brief  The slave class is an abstract base for I2C slave
-///         transport drivers.
-class slave
+/// @brief  The slave class is an abstract base for I2C slave transport drivers.
+class slave : public polymorphic
 {
   public:
-    virtual ~slave() = default;
+    /// @brief  The module class is a callback interface for I2C slave functionality
+    ///         at a specific address.
+    class module : public interface
+    {
+      public:
+        virtual bool on_start(direction dir, size_t data_length) = 0;
+        virtual void on_stop(direction dir, size_t data_length) = 0;
+    };
 
-    bool has_module() const { return module_ != nullptr; }
+    bool has_module([[maybe_unused]] address slave_addr) const { return module_ != nullptr; }
 
     /// @brief  Registers a slave module on the I2C bus.
-    /// @tparam T: module type
-    /// @tparam ON_START: callback for I2C (re)start events
-    /// @tparam ON_STOP: callback for I2C stop events
-    /// @param  module: module pointer
+    /// @param  m: module pointer
     /// @param  slave_addr: the I2C slave address to listen to
-    template <typename T, bool (T::*ON_START)(direction, size_t),
-              void (T::*ON_STOP)(direction, size_t)>
-    void register_module(T* module, address slave_addr)
+    /// @return true if module registered
+    bool register_module(module* m, address slave_addr)
     {
-        assert(not has_module());
-        on_start_ = [](void* m, direction dir, size_t s)
+        // single module design at the moment
+        if (module_ != nullptr)
         {
-            T* p = static_cast<T*>(m);
-            return (p->*ON_START)(dir, s);
-        };
-        on_stop_ = [](void* m, direction dir, size_t s)
-        {
-            T* p = static_cast<T*>(m);
-            (p->*ON_STOP)(dir, s);
-        };
-        module_ = static_cast<decltype(module_)>(module);
-
-        // single module use case
+            return false;
+        }
+        module_ = m;
         start_listen(slave_addr);
+        return true;
     }
 
     /// @brief  Unregisters the active module from the I2C bus interface.
-    /// @tparam T: module type
-    /// @param  module: module pointer
-    template <class T>
-    void unregister_module(T* module)
+    /// @param  m: module pointer
+    /// @return true if module unregistered
+    bool unregister_module(module* m)
     {
-        if (module_ == static_cast<void*>(module))
+        // single module design at the moment
+        if (module_ != m)
         {
-            // single module use case, just shut down entirely
-            stop_listen();
-
-            module_ = nullptr;
-            on_start_ = nullptr;
-            on_stop_ = nullptr;
+            return false;
         }
+        stop_listen();
+        module_ = nullptr;
+        return true;
     }
 
     /// @brief  This call changes the signal level of the INT line,
@@ -135,8 +128,8 @@ class slave
     ///         Send a NACK or send dummy bytes until NACKed.
     bool on_start(direction dir, size_t data_length)
     {
-        assert(has_module());
-        return on_start_(module_, dir, data_length);
+        assert(module_);
+        return module_->on_start(dir, data_length);
     }
 
     /// @brief  Call the module to handle I2C stop events.
@@ -144,17 +137,12 @@ class slave
     /// @param  data_length: the amount of data transferred since the last START
     void on_stop(direction dir, size_t data_length)
     {
-        assert(has_module());
-        return on_stop_(module_, dir, data_length);
+        assert(module_);
+        return module_->on_stop(dir, data_length);
     }
 
-    slave(const slave&) = delete;
-    slave& operator=(const slave&) = delete;
-
   private:
-    void* module_{};
-    bool (*on_start_)(void* module, direction dir, size_t data_length){};
-    void (*on_stop_)(void* module, direction dir, size_t data_length){};
+    module* module_{};
 };
 } // namespace i2c
 

@@ -27,14 +27,12 @@ class mac : private message
     using lpm_support_flags =
         usb::standard::descriptor::device_capability::usb_2p0_extension::attributes;
 
-    class device_interface
+    class device_interface : public interface
     {
       public:
         virtual void handle_reset_request() = 0;
         virtual void handle_control_message(message&) = 0;
         virtual void handle_new_power_state(power::state) = 0;
-        virtual ~device_interface() = default;
-        constexpr device_interface() = default;
     };
 
     virtual usb::speed speed() const { return speed::FULL; }

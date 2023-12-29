@@ -25,11 +25,9 @@ class mac;
 /// @brief  The function is the base class for all USB device functions.
 ///         It provides the abstract interface for the device class,
 ///         and it also provides a restricted interface to the mac for its subclasses.
-class function
+class function : public polymorphic
 {
   public:
-    virtual ~function() = default;
-
     void handle_control_setup(message& msg, const config::interface& iface);
     void handle_control_setup(message& msg, ep_handle eph);
     void handle_control_data(message& msg, const config::interface& iface);
@@ -102,9 +100,6 @@ class function
     uint8_t describe_endpoints(const config::interface& iface, df::buffer& buffer);
 
   private:
-    function(const function&) = delete;
-    function& operator=(const function&) = delete;
-
     void restart(const config::interface& iface, uint8_t alt_sel)
     {
         stop(iface);

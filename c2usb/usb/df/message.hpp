@@ -69,11 +69,9 @@ class buffer : private df::transfer
 
 /// @brief  The string_message class provides interface to reply string (descriptor) messages
 /// to the USB host.
-class string_message
+class string_message : public polymorphic
 {
   public:
-    virtual ~string_message() = default;
-
     const auto& request() const { return request_; }
     istring index() const { return request().wValue.low_byte(); }
     uint16_t language_id() const { return request().wIndex; }
@@ -99,8 +97,6 @@ class string_message
 
   protected:
     constexpr string_message() = default;
-    string_message(const string_message&) = delete;
-    string_message& operator=(const string_message&) = delete;
 
     constexpr auto stage() const { return static_cast<usb::control::stage>(stage_ >> 1); }
     enum stages : uint8_t

@@ -12,10 +12,13 @@ set(C2USB_NXP_PORT_SOURCES
 
 set(C2USB_ZEPHYR_PORT_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/gatt.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/hid.hpp
 )
 
 set(C2USB_ZEPHYR_PORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/hid.cpp
 )
 
 set(C2USB_PUBLIC_HEADERS
@@ -50,6 +53,7 @@ set(C2USB_PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/c2usb.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/reference_array_view.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/single_elem_queue.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/uninit_store.hpp
     ${C2USB_NXP_PORT_PUBLIC_HEADERS}
     ${C2USB_ZEPHYR_PORT_PUBLIC_HEADERS}
     PARENT_SCOPE

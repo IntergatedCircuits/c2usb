@@ -31,18 +31,44 @@ C libraries of similar functionality.
 
 ### Device classes
 
-* Human Interface Device Class (HID) specification version 1.11 (HID over I2C transport also supported)
+#### HID - Human Interface Device Class
+
+HID specification version 1.11 is fully supported, with extensive report descriptor tooling
+via [hid-rp][hid-rp] library.
+HID has outgrown itself from a pure USB class to a transport-independent protocol,
+and so this library also provides alternative transports for HID applications,
+which interact with the same high-level application API.
+The additional transport layers supported are:
+* BLE (HID over GATT Protocol)
+* I2C
+
+### Platforms
+
+* NXP MCUs supported via `kusb_mac` (see [c2usb/port/nxp](c2usb/port/nxp))
+* Zephyr RTOS supported via `udc_mac` (see [c2usb/port/zephyr](c2usb/port/zephyr))
 * support the project to see more!
 
 ### Vendor extensions
 
-* Microsoft OS descriptors version 2.0
-* Microsoft XBOX-360 controller interface
+#### Microsoft OS descriptors
 
-### Platforms
+Microsoft OS descriptors version 2.0 is supported.
+The main motivation to support this functionality is because
+MS likes to make everybody else's life difficult.
+In the case of USB, this means that in many cases the USB standardized device classes
+don't get the correct OS driver assigned (even if it's available on the system, such as CDC-NCM on Windows 10),
+or get a downgraded driver instead (such as HID gamepads getting DirectInput driver, except if manufactured by MS, see xinputhid.inf),
+or no driver at all.
+The only possible solution to deal with these is using [Windows Compatible IDs][WCID].
+This is stored in the USB device's descriptors, and tells Windows which driver to load for the given USB function.
 
-* NXP MCUs supported via `kusb_mac`
-* Zephyr OS supported via `udc_mac`
-* support the project to see more!
+#### Microsoft XBOX-360 controller interface
+
+Microsoft XBOX-360 gamepad controller interface is implemented to leverage XInput driver on Windows
+for gamepad applications without any user step. Combining this with Microsoft OS descriptors
+makes it possible to have a USB device that either presents an HID or an XInput gamepad interface
+towards the host computer, depending on its OS.
 
 [project-structure]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1204r0.html
+[hid-rp]: https://github.com/IntergatedCircuits/hid-rp
+[WCID]: https://github.com/pbatard/libwdi/wiki/WCID-Devices

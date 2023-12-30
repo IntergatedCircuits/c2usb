@@ -17,7 +17,7 @@ set(C2USB_PATH "c2usb")
 add_subdirectory(${C2USB_PATH})
 
 # link c2usb to the abstract Zephyr interface to inherit the build flags
-target_link_libraries(c2usb zephyr_interface)
+target_link_libraries(c2usb PUBLIC zephyr_interface)
 
 # link the application to c2usb
 target_link_libraries(app PRIVATE
@@ -39,7 +39,7 @@ CONFIG_UDC_DRIVER=y
 
 # RAM optimization:
 # the buffer pool size can be cut down, as it's only used for control transfers
-# CONFIG_UDC_BUF_POOL_SIZE=256
+# CONFIG_UDC_BUF_POOL_SIZE=optimize based on your application (and check asserts)
 # CONFIG_UDC_BUF_COUNT=3 + maximal used endpoint count in a configuration
 ```
 

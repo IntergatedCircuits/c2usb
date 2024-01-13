@@ -59,6 +59,8 @@ enum class security : uint8_t
     AUTH_ENCRYPT = 2, // encryption using authenticated link-key
 };
 
+using boot_protocol_mode = usb::hid::boot_protocol_mode;
+
 /// @brief  This class implements the HID over GATT protocol service.
 ///         To instantiate an object of this class, see @ref service_instance below.
 class service : public ::hid::transport
@@ -98,6 +100,9 @@ class service : public ::hid::transport
     static const gatt::char_decl& input_report_info();
     static const gatt::char_decl& output_report_info();
     static const gatt::char_decl& feature_report_info();
+    static const gatt::char_decl& boot_keyboard_in_info();
+    static const gatt::char_decl& boot_keyboard_out_info();
+    static const gatt::char_decl& boot_mouse_in_info();
 
     static gatt::permissions get_access(security sec);
     gatt::permissions access() const;
@@ -127,6 +132,15 @@ class service : public ::hid::transport
     static ssize_t set_report(::bt_conn* conn, const gatt::attribute* attr, const uint8_t* buf,
                               uint16_t len, uint16_t offset, gatt::write_flags flag);
 
+    static ssize_t get_boot_report(::bt_conn* conn, const gatt::attribute* attr, uint8_t* buf,
+                                   uint16_t len, uint16_t offset);
+
+    static ssize_t set_boot_report(::bt_conn* conn, const gatt::attribute* attr, const uint8_t* buf,
+                                   uint16_t len, uint16_t offset, gatt::write_flags flag);
+
+    static ssize_t ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr,
+                                 gatt::ccc_flags flags);
+
     void request_get_report(::hid::report::selector sel, const std::span<uint8_t>& buffer);
 
     static ::hid::report::selector report_attr_selector(const gatt::attribute* attr)
@@ -141,12 +155,21 @@ class service : public ::hid::transport
     gatt::attribute::builder add_feature_report(gatt::attribute::builder attr_tail,
                                                 ::hid::report::id::type id = 0);
 
+    ::hid::protocol get_protocol();
+
     bool start_app(::bt_conn* conn, ::hid::protocol protocol = ::hid::protocol::REPORT);
     void stop_app(::bt_conn* conn);
 
-    const gatt::attribute* attributes() const
+    std::span<const gatt::attribute> attributes() const
     {
-        return reinterpret_cast<const gatt::attribute*>(gatt_service_.attrs);
+        return {reinterpret_cast<const gatt::attribute*>(gatt_service_.attrs),
+                gatt_service_.attr_count};
+    }
+
+    size_t report_data_offset() const
+    {
+        // report ID is not included in report characteristic data exchange
+        return app_.report_info().uses_report_ids() ? sizeof(::hid::report::id) : 0;
     }
 
     std::span<gatt::attribute> fill_attributes(const std::span<gatt::attribute>& attrs,
@@ -155,25 +178,25 @@ class service : public ::hid::transport
     static service* base_from_input_report_attr(const gatt::attribute* attr);
     static service* base_from_service_attr(const gatt::attribute* attr);
     const gatt::attribute* input_report_attr(::hid::report::id::type id) const;
+    const gatt::attribute* input_boot_attr() const;
 
     ::hid::application& app_;
-    gatt::attribute* attrs_;
-    gatt::permissions access_;
+    const gatt::permissions access_;
     ::hid::report::selector get_report_{};
     std::atomic<::bt_conn*> active_conn_{};
     ::hid::reports_receiver rx_buffers_{};
     std::span<const uint8_t> get_report_buffer_{};
     std::span<const uint8_t> input_buffer_{};
     power_event_delegate power_event_delegate_{};
-    usb::hid::boot_protocol_mode boot_mode_{};
+    const boot_protocol_mode boot_mode_;
     gatt::service gatt_service_; // leave as last
 
   protected:
     service(::hid::application& app, flags f, security sec, const std::span<gatt::attribute>& attrs,
-            const std::span<gatt::ccc_store>& cccs)
+            const std::span<gatt::ccc_store>& cccs, auto boot_mode = boot_protocol_mode::NONE)
         : app_(app),
-          attrs_(attrs.data()),
           access_(get_access(sec)),
+          boot_mode_(boot_mode),
           gatt_service_(fill_attributes(attrs, cccs, f))
     {}
 
@@ -186,12 +209,14 @@ class service : public ::hid::transport
                + 2 // control point
             ;
     }
+    static constexpr size_t boot_attribute_count(::hid::report::type type)
+    {
+        return 2                                       // report characteristic
+               + (type == ::hid::report::type::INPUT); // CCC
+    }
     static constexpr size_t report_attribute_count(::hid::report::type type)
     {
-        return 2                                      // report characteristic
-               + 1                                    // report reference
-               + (type == ::hid::report::type::INPUT) // CCC
-            ;
+        return boot_attribute_count(type) + 1; // report reference
     }
     static constexpr size_t report_reference_offset() { return 2; }
     static constexpr size_t report_count(const ::hid::report_protocol_properties& props,
@@ -207,7 +232,21 @@ class service : public ::hid::transport
         }
         return props.max_report_id(type);
     }
-    static constexpr size_t attribute_count(const ::hid::report_protocol_properties& props)
+    static constexpr size_t boot_mode_attribute_count(boot_protocol_mode boot)
+    {
+        using namespace ::hid::report;
+        switch (boot)
+        {
+        case boot_protocol_mode::KEYBOARD:
+            return boot_attribute_count(type::INPUT) + boot_attribute_count(type::OUTPUT);
+        case boot_protocol_mode::MOUSE:
+            return boot_attribute_count(type::INPUT);
+        default:
+            return 0;
+        }
+    }
+    static constexpr size_t attribute_count(const ::hid::report_protocol_properties& props,
+                                            auto boot = boot_protocol_mode::NONE)
     {
         using namespace ::hid::report;
         size_t size = base_attribute_count();
@@ -216,30 +255,43 @@ class service : public ::hid::transport
         size += report_attribute_count(type::INPUT) * report_count(props, type::INPUT);
         size += report_attribute_count(type::OUTPUT) * report_count(props, type::OUTPUT);
         size += report_attribute_count(type::FEATURE) * report_count(props, type::FEATURE);
+        switch (boot)
+        {
+        case boot_protocol_mode::KEYBOARD:
+            size += report_attribute_count(type::INPUT) - 1;
+            size += report_attribute_count(type::OUTPUT) - 1;
+            break;
+        case boot_protocol_mode::MOUSE:
+            size += report_attribute_count(type::INPUT) - 1;
+            break;
+        default:
+            break;
+        }
         return size;
     }
-    static constexpr size_t ccc_count(const ::hid::report_protocol_properties& props)
+    static constexpr size_t ccc_count(const ::hid::report_protocol_properties& props,
+                                      auto boot = boot_protocol_mode::NONE)
     {
-        return report_count(props, ::hid::report::type::INPUT);
+        return report_count(props, ::hid::report::type::INPUT) + (boot != boot_protocol_mode::NONE);
     }
 };
 
 /// @brief  This class creates the HID over GATT service with the necessary storage.
 /// @tparam REPORT_PROPS the report properties that are created out of the HID report descriptor
-template <::hid::report_protocol_properties REPORT_PROPS>
+template <::hid::report_protocol_properties REPORT_PROPS, auto BOOT = boot_protocol_mode::NONE>
 class service_instance : public service
 {
   public:
     service_instance(::hid::application& app, security sec,
                      flags f = (flags)((uint8_t)flags::REMOTE_WAKE |
                                        (uint8_t)flags::NORMALLY_CONNECTABLE))
-        : service(app, f, sec, attributes_.span(), ccc_stores_.span())
+        : service(app, f, sec, attributes_.span(), ccc_stores_.span(), BOOT)
     {}
 
   private:
     // update @ref base_from_service_attr if this layout changes!
-    c2usb::uninit_store<gatt::attribute, attribute_count(REPORT_PROPS)> attributes_;
-    c2usb::uninit_store<gatt::ccc_store, ccc_count(REPORT_PROPS)> ccc_stores_;
+    c2usb::uninit_store<gatt::attribute, attribute_count(REPORT_PROPS, BOOT)> attributes_;
+    c2usb::uninit_store<gatt::ccc_store, ccc_count(REPORT_PROPS, BOOT)> ccc_stores_;
 };
 
 } // namespace bluetooth::zephyr::hid

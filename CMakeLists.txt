@@ -19,25 +19,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
-set(INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}")
-
 add_subdirectory(modules/magic_enum)
 add_subdirectory(modules/etl)
 add_subdirectory(modules/hid-rp)
-add_subdirectory(${PROJECT_NAME})
 
-add_library(${PROJECT_NAME}
-    ${C2USB_PUBLIC_HEADERS}
-    ${C2USB_PRIVATE_HEADERS}
-    ${C2USB_SOURCES}
-)
+add_library(${PROJECT_NAME})
+add_subdirectory(${PROJECT_NAME})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
     magic_enum
     etl
     hid-rp
-)
-
-target_include_directories(${PROJECT_NAME} PUBLIC
-    ${INCLUDES}
 )

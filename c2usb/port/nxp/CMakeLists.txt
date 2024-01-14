@@ -1,0 +1,10 @@
+target_sources(${PROJECT_NAME}
+    PUBLIC
+        kusb_mac.hpp
+    PRIVATE
+        dwc3_mac.cpp
+        ehci_mac.cpp
+        khci_mac.cpp
+        kusb_mac.cpp
+        lpcip3511_mac.cpp
+)

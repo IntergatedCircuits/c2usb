@@ -16,24 +16,24 @@ set(C2USB_PATH "c2usb")
 
 add_subdirectory(${C2USB_PATH})
 
-# link c2usb to the abstract Zephyr interface to inherit the build flags
-target_link_libraries(c2usb PUBLIC zephyr_interface)
-
 # link the application to c2usb
 target_link_libraries(app PRIVATE
     c2usb
 )
 ```
 
+In addition, include the library's Kconfig from your application's root Kconfig
+(assuming c2usb subpath):
+```
+rsource "c2usb/c2usb/port/zephyr/Kconfig"
+```
+
 ## 2. Configuration
 
 The following are required Zephyr Kconfig options:
 ```
-CONFIG_CPLUSPLUS=y
-CONFIG_LIB_CPLUSPLUS=y
 CONFIG_STD_CPP20=y
 
-CONFIG_UDC_DRIVER=y
 # find the driver for your MCU
 # CONFIG_UDC_NRF=y
 
@@ -41,6 +41,9 @@ CONFIG_UDC_DRIVER=y
 # the buffer pool size can be cut down, as it's only used for control transfers
 # CONFIG_UDC_BUF_POOL_SIZE=optimize based on your application (and check asserts)
 # CONFIG_UDC_BUF_COUNT=3 + maximal used endpoint count in a configuration
+
+# to enable HID over GATT support:
+# CONFIG_C2USB_BLUETOOTH
 ```
 
 ## 3. Integrate the MAC

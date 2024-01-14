@@ -35,9 +35,7 @@ class udc_mac : public mac
     static int event_callback(const device* dev, const udc_event* event);
 
   private:
-    static udc_mac* list_head;
     const ::device* dev_;
-    udc_mac* list_next_{};
     ::net_buf* ctrl_buf_{};
     usb::df::ep_flags stall_flags_{};
     usb::df::ep_flags busy_flags_{};

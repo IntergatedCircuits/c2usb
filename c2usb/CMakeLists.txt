@@ -1,82 +1,68 @@
-set(C2USB_NXP_PORT_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/kusb_mac.hpp
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(C2USB_NXP_PORT_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/dwc3_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/ehci_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/khci_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/kusb_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/nxp/lpcip3511_mac.cpp
+target_sources(${PROJECT_NAME}
+    PUBLIC
+        hid/application.hpp
+        i2c/hid/device.hpp
+        i2c/hid/standard.hpp
+        i2c/base.hpp
+        i2c/slave.hpp
+        usb/class/hid.hpp
+        usb/df/class/cdc.hpp
+        usb/df/class/cdc_acm.hpp
+        usb/df/class/hid.hpp
+        usb/df/vendor/microsoft_os_extension.hpp
+        usb/df/vendor/microsoft_xinput.hpp
+        usb/df/config.hpp
+        usb/df/device.hpp
+        usb/df/ep_flags.hpp
+        usb/df/function.hpp
+        usb/df/mac.hpp
+        usb/df/message.hpp
+        usb/df/transfer.hpp
+        usb/standard/descriptors.hpp
+        usb/standard/requests.hpp
+        usb/vendor/microsoft_os.hpp
+        usb/vendor/microsoft_xusb.hpp
+        usb/base.hpp
+        usb/control.hpp
+        usb/endpoint.hpp
+        usb/product_info.hpp
+        usb/speeds.hpp
+        usb/version.hpp
+        c2usb.hpp
+        reference_array_view.hpp
+        single_elem_queue.hpp
+        uninit_store.hpp
+    PRIVATE
+        i2c/hid/device.cpp
+        usb/df/class/cdc.cpp
+        usb/df/class/cdc_acm.cpp
+        usb/df/class/hid.cpp
+        usb/df/vendor/microsoft_os_extension.cpp
+        usb/df/vendor/microsoft_xinput.cpp
+        usb/df/config.cpp
+        usb/df/device.cpp
+        usb/df/function.cpp
+        usb/df/mac.cpp
+        usb/df/message.cpp
+        usb/standard/descriptors.cpp
 )
 
-set(C2USB_ZEPHYR_PORT_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/gatt.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/hid.hpp
-)
+# ports
+if (DEFINED ENV{ZEPHYR_BASE})
+    add_subdirectory_ifdef(CONFIG_C2USB_UDC_MAC
+        port/zephyr)
+    add_subdirectory_ifdef(CONFIG_C2USB_BLUETOOTH
+        port/zephyr/bluetooth)
 
-set(C2USB_ZEPHYR_PORT_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/udc_mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/port/zephyr/bluetooth/hid.cpp
-)
-
-set(C2USB_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/hid/application.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/standard.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/base.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/slave.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/class/hid.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc_acm.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/config.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/device.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/ep_flags.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/function.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/transfer.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/requests.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/vendor/microsoft_os.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/vendor/microsoft_xusb.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/base.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/control.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/endpoint.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/product_info.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/speeds.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/version.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/c2usb.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/reference_array_view.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/single_elem_queue.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/uninit_store.hpp
-    ${C2USB_NXP_PORT_PUBLIC_HEADERS}
-    ${C2USB_ZEPHYR_PORT_PUBLIC_HEADERS}
-    PARENT_SCOPE
-)
-
-set(C2USB_PRIVATE_HEADERS
-    PARENT_SCOPE
-)
-
-set(C2USB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/i2c/hid/device.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/cdc_acm.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/class/hid.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_os_extension.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/vendor/microsoft_xinput.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/device.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/function.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/mac.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/df/message.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/usb/standard/descriptors.cpp
-    ${C2USB_NXP_PORT_SOURCES}
-    ${C2USB_ZEPHYR_PORT_SOURCES}
-    PARENT_SCOPE
-)
+    target_link_libraries(${PROJECT_NAME}
+        PUBLIC
+            zephyr_interface
+    )
+else()
+    add_subdirectory(port/nxp)
+endif()

@@ -1,0 +1,29 @@
+menu "c2usb configuration"
+
+rsource "bluetooth/Kconfig"
+
+menuconfig C2USB_UDC_MAC
+	bool "c2usb UDC MAC driver"
+	default y
+	select UDC_DRIVER
+	select CPLUSPLUS
+	select LIB_CPLUSPLUS
+
+if C2USB_UDC_MAC
+
+module = C2USB_UDC_MAC
+module-str = c2usb UDC MAC
+source "subsys/logging/Kconfig.template.log_config"
+
+config C2USB_UDC_MAC_MSGQ_SIZE
+	int "Size of message queue receiving events from Zephyr UDC driver."
+	range 4 16
+	default 10
+
+config C2USB_UDC_MAC_THREAD_STACK_SIZE
+	int "UDC MAC thread stack size"
+	default 1024
+
+endif # C2USB_UDC_MAC
+
+endmenu

@@ -11,26 +11,18 @@
 #include "port/zephyr/udc_mac.hpp"
 
 #if C2USB_HAS_ZEPHYR_HEADERS
-
-#ifndef C2USB_ZEPHYR_MSGQ_SIZE
-#define C2USB_ZEPHYR_MSGQ_SIZE 10
-#endif
-#ifndef C2USB_ZEPHYR_THREAD_STACK_SIZE
-#define C2USB_ZEPHYR_THREAD_STACK_SIZE 1024
-#endif
-#ifndef C2USB_ZEPHYR_THREAD_INIT_PRIO
-#define C2USB_ZEPHYR_THREAD_INIT_PRIO 90
-#endif
+#include <atomic>
+#include <zephyr/logging/log.h>
 
 using namespace usb::df::zephyr;
 
-K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), C2USB_ZEPHYR_MSGQ_SIZE, sizeof(uint32_t));
+LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
 
-K_MUTEX_DEFINE(udc_mac_mutex);
+K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), CONFIG_C2USB_UDC_MAC_MSGQ_SIZE, sizeof(uint32_t));
 
 static int udc_mac_preinit(const device* unused)
 {
-    static K_THREAD_STACK_DEFINE(stack, C2USB_ZEPHYR_THREAD_STACK_SIZE);
+    static K_THREAD_STACK_DEFINE(stack, CONFIG_C2USB_UDC_MAC_THREAD_STACK_SIZE);
     static k_thread thread_data;
     auto worker = [](void*, void*, void*)
     {
@@ -48,49 +40,48 @@ static int udc_mac_preinit(const device* unused)
     return 0;
 }
 
-SYS_INIT(udc_mac_preinit, POST_KERNEL, C2USB_ZEPHYR_THREAD_INIT_PRIO);
+SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
-udc_mac* udc_mac::list_head{};
+static std::array<std::atomic<udc_mac*>, 2> mac_ptrs;
 
 udc_mac::udc_mac(const ::device* dev)
     : mac(), dev_(dev)
 {
-    k_mutex_lock(&udc_mac_mutex, K_FOREVER);
-    auto*& ref = list_head;
-    while (ref != nullptr)
+    for (auto& mac : mac_ptrs)
     {
-        assert(ref->dev_ != dev_);
-        ref = ref->list_next_;
+        udc_mac* expected = nullptr;
+        if (mac.compare_exchange_strong(expected, this))
+        {
+            return;
+        }
     }
-    ref = this;
-    k_mutex_unlock(&udc_mac_mutex);
+    assert(false); // increase size if this really ever occurs
 }
 
 udc_mac::~udc_mac()
 {
-    k_mutex_lock(&udc_mac_mutex, K_FOREVER);
-    auto*& ref = list_head;
-    while (ref != this)
+    for (auto& mac : mac_ptrs)
     {
-        ref = ref->list_next_;
+        udc_mac* expected = this;
+        if (mac.compare_exchange_strong(expected, nullptr))
+        {
+            return;
+        }
     }
-    ref = list_next_;
-    k_mutex_unlock(&udc_mac_mutex);
+    assert(false);
 }
 
 udc_mac* udc_mac::lookup(const device* dev)
 {
-    k_mutex_lock(&udc_mac_mutex, K_FOREVER);
-    auto* mac = list_head;
-    for (; mac != nullptr; mac = mac->list_next_)
+    for (auto& mac : mac_ptrs)
     {
-        if (mac->dev_ == dev)
+        udc_mac* mac_raw = mac.load();
+        if (mac_raw and (mac_raw->dev_ == dev))
         {
-            break;
+            return mac_raw;
         }
     }
-    k_mutex_unlock(&udc_mac_mutex);
-    return mac;
+    return nullptr;
 }
 
 void udc_mac::init(const usb::speeds& speeds)
@@ -247,7 +238,7 @@ int udc_mac::process_event(const udc_event& event)
     return 0;
 }
 
-static size_t alloc_size_tuned = 0;
+[[maybe_unused]] static size_t alloc_size_tuned = 0;
 
 void udc_mac::process_ep_event(net_buf* buf)
 {
@@ -331,7 +322,7 @@ void udc_mac::process_ep_event(net_buf* buf)
         else
         {
             net_buf_unref(buf);
-            assert(false);
+            LOG_ERR("CTRL EP %x error:%d", *reinterpret_cast<uint16_t*>(&info), err);
         }
     }
     else
@@ -348,12 +339,11 @@ void udc_mac::process_ep_event(net_buf* buf)
                     return;
                 }
             }
-            assert(false);
+            assert(false); // a net_buf was issued out of c2usb scope
         }
         else
         {
-            // TODO
-            // (err == -ECONNABORTED) ? cancelled : failed
+            LOG_ERR("EP %x error:%d", *reinterpret_cast<uint16_t*>(&info), err);
         }
     }
 }

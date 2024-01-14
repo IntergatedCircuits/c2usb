@@ -14,7 +14,7 @@
 #if C2USB_HAS_ZEPHYR_BT_GATT_HEADERS
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(hogp, 0);
+LOG_MODULE_REGISTER(hogp, CONFIG_C2USB_HOGP_LOG_LEVEL);
 
 using namespace magic_enum::bitwise_operators;
 using namespace ::hid;
@@ -357,7 +357,7 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
     size_t offset = 0;
     if (app_.get_protocol() == protocol::REPORT)
     {
-        attr = input_report_attr(report::id(data.front()));
+        attr = input_report_attr(app_.report_info().uses_report_ids() ? data.front() : 0);
         offset = report_data_offset();
     }
     else
@@ -625,7 +625,7 @@ const gatt::attribute* service::input_report_attr(::hid::report::id::type id) co
     }
 
     const gatt::attribute* attr = &attributes()[base_attribute_count()];
-    if (app_.report_info().uses_report_ids())
+    if (id != 0)
     {
         if ((id > app_.report_info().max_input_id) or (id < report::id::min()))
         {

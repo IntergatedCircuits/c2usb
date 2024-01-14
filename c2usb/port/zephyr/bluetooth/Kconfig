@@ -1,0 +1,15 @@
+
+menuconfig C2USB_BLUETOOTH
+	bool "c2usb Bluetooth drivers"
+	default n
+	select BT_GATT_DYNAMIC_DB
+	select CPLUSPLUS
+	select LIB_CPLUSPLUS
+
+if C2USB_BLUETOOTH
+
+module = C2USB_HOGP
+module-str = c2usb HID over GATT
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # C2USB_BLUETOOTH

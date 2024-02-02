@@ -47,7 +47,6 @@ class udc_mac : public mac
     endpoint::address ep_handle_to_address(ep_handle eph) const override;
     ep_handle ep_config_to_handle(const config::endpoint& ep) const override;
     ::net_buf* const& ep_handle_to_buf(ep_handle eph) const;
-    static void buf_load_data(::net_buf* buf, const transfer& t);
 
     static udc_mac* lookup(const device* dev);
 
@@ -66,7 +65,7 @@ class udc_mac : public mac
 
     usb::result ep_set_stall(endpoint::address addr);
     usb::result ep_clear_stall(endpoint::address addr);
-    usb::result ep_transfer(usb::df::ep_handle eph, const transfer& t);
+    usb::result ep_transfer(usb::df::ep_handle eph, const transfer& t, usb::direction dir);
 
     usb::df::ep_handle ep_open(const usb::df::config::endpoint& ep) override;
     usb::result ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data) override;

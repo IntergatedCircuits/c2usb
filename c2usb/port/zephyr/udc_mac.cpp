@@ -173,8 +173,8 @@ void udc_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
         if (dir == direction::IN)
         {
             assert((ctrl_buf_ != nullptr) and udc_get_buf_info(ctrl_buf_)->data);
-
-            buf_load_data(ctrl_buf_, t);
+            ctrl_buf_->data = t.data();
+            ctrl_buf_->len = t.size();
 
             // set ZLP when needed
             if ((request().wLength > t.size()) and
@@ -348,12 +348,6 @@ void udc_mac::process_ep_event(net_buf* buf)
     }
 }
 
-void udc_mac::buf_load_data(::net_buf* buf, const transfer& t)
-{
-    buf->data = t.data();
-    buf->len = t.size();
-}
-
 void udc_mac::allocate_endpoints(config::view config)
 {
     // first clean up the previous allocation
@@ -447,7 +441,7 @@ usb::df::ep_handle udc_mac::ep_open(const usb::df::config::endpoint& ep)
     return eph;
 }
 
-usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t)
+usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb::direction dir)
 {
     auto* buf = ep_handle_to_buf(eph);
     auto& info = *udc_get_buf_info(buf);
@@ -465,7 +459,9 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t)
         return result::BUSY;
     }
 
-    buf_load_data(buf, t);
+    buf->data = t.data();
+    buf->size = t.size();
+    buf->len = dir == direction::OUT ? 0 : t.size();
     auto ret = udc_ep_enqueue(dev_, buf);
     if (ret != 0)
     {
@@ -476,12 +472,12 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t)
 
 usb::result udc_mac::ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data)
 {
-    return ep_transfer(eph, data);
+    return ep_transfer(eph, data, direction::IN);
 }
 
 usb::result udc_mac::ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data)
 {
-    return ep_transfer(eph, data);
+    return ep_transfer(eph, data, direction::OUT);
 }
 
 usb::result udc_mac::ep_close(usb::df::ep_handle eph)

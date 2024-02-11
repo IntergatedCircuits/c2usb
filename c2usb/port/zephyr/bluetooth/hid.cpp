@@ -419,12 +419,20 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
     }
     auto* this_ = reinterpret_cast<service*>(attr->user_data);
 
-    if (flags != gatt::ccc_flags::NONE)
+    // clearing the flag has no conditions nor consequences
+    if (flags == gatt::ccc_flags::NONE)
     {
-        return this_->start_app(conn, protocol) ? sizeof(flags)
-                                                : BT_GATT_ERR(HOGP_ALREADY_CONNECTED_ERROR);
+        return sizeof(flags);
     }
-    return sizeof(flags);
+
+    // prevent changing protocol mode
+    if ((protocol == protocol::BOOT) && (this_->get_protocol() != protocol))
+    {
+        return BT_GATT_ERR(BT_ATT_ERR_WRITE_REQ_REJECTED);
+    }
+
+    return this_->start_app(conn, protocol) ? sizeof(flags)
+                                            : BT_GATT_ERR(HOGP_ALREADY_CONNECTED_ERROR);
 }
 
 gatt::attribute::builder service::add_input_report(gatt::attribute::builder attr_tail,

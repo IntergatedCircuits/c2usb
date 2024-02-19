@@ -15,6 +15,7 @@
 #include <new>
 #include <string_view>
 
+#include "sized_unsigned.hpp"
 #include "usb/control.hpp"
 #include "usb/df/transfer.hpp"
 

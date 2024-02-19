@@ -31,3 +31,5 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     etl
     hid-rp
 )
+
+add_subdirectory(examples)

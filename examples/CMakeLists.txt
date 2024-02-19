@@ -1,12 +1,12 @@
-set(C2USB_EXAMPLES_PUBLIC_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/leds_saving_keyboard.hpp
-    PARENT_SCOPE
+add_library(${PROJECT_NAME}-example-hid)
+target_sources(${PROJECT_NAME}-example-hid
+    PUBLIC
+        leds_saving_keyboard.hpp
 )
-
-set(C2USB_EXAMPLES_PRIVATE_HEADERS
-    PARENT_SCOPE
+target_include_directories(${PROJECT_NAME}-example-hid
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
-set(C2USB_EXAMPLES_SOURCES
-    PARENT_SCOPE
+target_link_libraries(${PROJECT_NAME}-example-hid PUBLIC
+    ${PROJECT_NAME}
 )

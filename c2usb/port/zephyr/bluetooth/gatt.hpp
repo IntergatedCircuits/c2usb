@@ -14,11 +14,12 @@
 #define C2USB_HAS_ZEPHYR_BT_GATT_HEADERS __has_include("zephyr/bluetooth/gatt.h")
 #if C2USB_HAS_ZEPHYR_BT_GATT_HEADERS
 
+#include <bit>
 #include <span>
 #include <magic_enum.hpp>
 #include <zephyr/bluetooth/gatt.h>
 
-#include "c2usb.hpp"
+#include "sized_unsigned.hpp"
 
 namespace bluetooth::zephyr
 {
@@ -162,7 +163,7 @@ class attribute : public ::bt_gatt_attr
                            reinterpret_cast<::bt_gatt_attr_read_func_t>(&attribute::read_value<T>),
                        .write = nullptr,
                        .user_data = reinterpret_cast<void*>(
-                           std::bit_cast<c2usb::sized_unsigned_t<sizeof(T)>>(user_value)),
+                           std::bit_cast<sized_unsigned_t<sizeof(T)>>(user_value)),
                        .handle = 0,
                        .perm = static_cast<std::underlying_type_t<decltype(perm)>>(perm)}
     {}
@@ -170,7 +171,7 @@ class attribute : public ::bt_gatt_attr
     template <typename T>
     T user_value() const
     {
-        return std::bit_cast<T>(reinterpret_cast<c2usb::sized_unsigned_t<sizeof(T)>>(user_data));
+        return std::bit_cast<T>(reinterpret_cast<sized_unsigned_t<sizeof(T)>>(user_data));
     }
 
     template <typename T>

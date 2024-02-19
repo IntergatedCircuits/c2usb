@@ -33,20 +33,11 @@ class leds_saving_keyboard : public hid::application
     }
 
     leds_saving_keyboard(hid::page::keyboard_keypad key, hid::page::leds led)
-        : hid::application(report_prot()),
-          key_(static_cast<uint8_t>(key)),
-          led_mask_(1 << (static_cast<uint8_t>(led) - 1))
+        : hid::application(report_prot()), key_(key), led_(led)
     {}
     auto send_key(bool set)
     {
-        if (set)
-        {
-            keys_buffer_.scancodes[0] = key_;
-        }
-        else
-        {
-            keys_buffer_.scancodes[0] = 0;
-        }
+        keys_buffer_.scancodes.set(key_, set);
         return send_report(&keys_buffer_);
     }
     void start(hid::protocol prot) override
@@ -59,7 +50,7 @@ class leds_saving_keyboard : public hid::application
     {
         auto* out_report = reinterpret_cast<const kb_leds_report*>(data.data());
 
-        if ((out_report->leds & led_mask_) != 0)
+        if (out_report->leds.test(led_))
         {
             send_key(true);
         }
@@ -67,7 +58,7 @@ class leds_saving_keyboard : public hid::application
     }
     void in_report_sent(const std::span<const uint8_t>& data) override
     {
-        if (keys_buffer_.scancodes[0] == key_)
+        if (keys_buffer_.scancodes.test(key_))
         {
             send_key(false);
         }
@@ -80,8 +71,8 @@ class leds_saving_keyboard : public hid::application
 
   private:
     C2USB_USB_TRANSFER_ALIGN(keys_report, keys_buffer_){};
-    const uint8_t key_{};
-    const uint8_t led_mask_{};
+    const hid::page::keyboard_keypad key_{};
+    const hid::page::leds led_{};
     C2USB_USB_TRANSFER_ALIGN(kb_leds_report, leds_buffer_){};
     hid::protocol prot_{};
 };

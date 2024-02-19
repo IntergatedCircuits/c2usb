@@ -69,38 +69,6 @@ enum class result : int
     NO_CONNECTION = -ENOTCONN,
 };
 
-/// @brief  Lookup unsigned integer of matching size
-template <std::size_t SIZE, class T = void>
-struct sized_unsigned
-{};
-
-template <std::size_t SIZE>
-struct sized_unsigned<SIZE, std::enable_if_t<SIZE == 1>>
-{
-    typedef std::uint8_t type;
-};
-template <std::size_t SIZE>
-struct sized_unsigned<SIZE, std::enable_if_t<SIZE == 2>>
-{
-    typedef std::uint16_t type;
-};
-template <std::size_t SIZE>
-struct sized_unsigned<SIZE, std::enable_if_t<SIZE == 4>>
-{
-    typedef std::uint32_t type;
-};
-template <std::size_t SIZE>
-struct sized_unsigned<SIZE, std::enable_if_t<SIZE == 8>>
-{
-    typedef std::uint64_t type;
-};
-
-template <std::size_t SIZE>
-using sized_unsigned_t = typename sized_unsigned<SIZE>::type;
-
-template <typename T>
-concept IntegerConvertable = std::is_convertible_v<T, sized_unsigned_t<sizeof(T)>>;
-
 /// @brief  The interface base class is used by interface subclasses,
 ///         that contain only abstract virtual functions, and no member data.
 ///         This library limits multiple inheritance to interface subclasses.

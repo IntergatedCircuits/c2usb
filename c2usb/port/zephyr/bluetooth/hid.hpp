@@ -68,6 +68,10 @@ class service : public ::hid::transport
   public:
     using power_event_delegate = etl::delegate<void(service&, event)>;
 
+    bool start() { return gatt_service_.start(); }
+    bool stop() { return gatt_service_.stop(); }
+    bool active() const { return gatt_service_.active(); }
+
     void set_power_event_delegate(const power_event_delegate& delegate)
     {
         power_event_delegate_ = delegate;

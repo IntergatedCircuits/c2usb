@@ -388,6 +388,8 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
     case -ENOENT:
     case -EINVAL:
         return result::INVALID;
+    case -ENOMEM:
+        return result::NO_MEMORY;
     default:
         return result::NO_CONNECTION;
     }

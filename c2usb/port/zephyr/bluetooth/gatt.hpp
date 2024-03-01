@@ -158,14 +158,14 @@ class attribute : public ::bt_gatt_attr
 
     template <typename T>
     attribute(const zephyr::uuid& uuid, gatt::permissions perm, T user_value)
-        : bt_gatt_attr{.uuid = &uuid,
-                       .read =
-                           reinterpret_cast<::bt_gatt_attr_read_func_t>(&attribute::read_value<T>),
-                       .write = nullptr,
-                       .user_data = reinterpret_cast<void*>(
-                           std::bit_cast<sized_unsigned_t<sizeof(T)>>(user_value)),
-                       .handle = 0,
-                       .perm = static_cast<std::underlying_type_t<decltype(perm)>>(perm)}
+        : bt_gatt_attr{
+              .uuid = &uuid,
+              .read = reinterpret_cast<::bt_gatt_attr_read_func_t>(&attribute::read_value<T>),
+              .write = nullptr,
+              .user_data =
+                  reinterpret_cast<void*>(std::bit_cast<sized_unsigned_t<sizeof(T)>>(user_value)),
+              .handle = 0,
+              .perm = static_cast<std::underlying_type_t<decltype(perm)>>(perm)}
     {}
 
     template <typename T>
@@ -311,13 +311,30 @@ class attribute : public ::bt_gatt_attr
 ///        Requires the CONFIG_BT_GATT_DYNAMIC_DB to be set.
 class service : public ::bt_gatt_service
 {
+    bool registered_{};
+
   public:
-    service(const std::span<gatt::attribute>& attrs)
+    constexpr service(const std::span<gatt::attribute>& attrs)
         : bt_gatt_service{.attrs = attrs.data(), .attr_count = attrs.size()}
+    {}
+    bool active() const { return registered_; }
+    bool start()
     {
-        [[maybe_unused]] auto ret = bt_gatt_service_register(this);
+        if (!registered_)
+        {
+            registered_ = bt_gatt_service_register(this) == 0;
+        }
+        return registered_;
     }
-    ~service() { [[maybe_unused]] auto ret = bt_gatt_service_unregister(this); }
+    bool stop()
+    {
+        if (registered_)
+        {
+            registered_ = !(bt_gatt_service_unregister(this) == 0);
+        }
+        return !registered_;
+    }
+    ~service() { stop(); }
 };
 
 } // namespace bluetooth::zephyr::gatt

@@ -6,8 +6,7 @@ menuconfig C2USB_UDC_MAC
 	bool "c2usb UDC MAC driver"
 	default y
 	select UDC_DRIVER
-	select CPLUSPLUS
-	select LIB_CPLUSPLUS
+	select CPP
 
 if C2USB_UDC_MAC
 

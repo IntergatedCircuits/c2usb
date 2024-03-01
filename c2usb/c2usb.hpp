@@ -67,6 +67,7 @@ enum class result : int
     NO_TRANSPORT = -ENODEV,
     BUSY = -EBUSY,
     NO_CONNECTION = -ENOTCONN,
+    NO_MEMORY = -ENOMEM,
 };
 
 /// @brief  The interface base class is used by interface subclasses,

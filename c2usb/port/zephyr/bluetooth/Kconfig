@@ -3,8 +3,7 @@ menuconfig C2USB_BLUETOOTH
 	bool "c2usb Bluetooth drivers"
 	default n
 	select BT_GATT_DYNAMIC_DB
-	select CPLUSPLUS
-	select LIB_CPLUSPLUS
+	select CPP
 
 if C2USB_BLUETOOTH
 

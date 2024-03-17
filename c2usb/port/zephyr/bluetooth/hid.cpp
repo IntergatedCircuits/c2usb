@@ -655,30 +655,6 @@ const gatt::attribute* service::input_boot_attr() const
     return attr;
 }
 
-service* service::base_from_input_report_attr(const gatt::attribute* attr)
-{
-    auto sel = attr[report_reference_offset()].user_value<report::selector>();
-    assert(sel.type() == report::type::INPUT);
-    uint8_t offset = 0;
-    if (sel.id() > report::id::min())
-    {
-        offset = sel.id() - report::id::min();
-        attr -= report_attribute_count(report::type::INPUT) * offset;
-    }
-    attr -= base_attribute_count();
-    return base_from_service_attr(attr);
-}
-
-service* service::base_from_service_attr(const gatt::attribute* attr)
-{
-    struct base_finder : public service
-    {
-        using service::service;
-        gatt::attribute field;
-    };
-    return CONTAINER_OF(attr, base_finder, field);
-}
-
 BT_CONN_CB_DEFINE(hid_service_conn_callbacks) = {
     .disconnected = [](::bt_conn* conn, uint8_t reason)
     { service::for_each<::bt_conn*, &service::disconnected>(conn); },

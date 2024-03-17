@@ -171,7 +171,8 @@ class attribute : public ::bt_gatt_attr
     template <typename T>
     T user_value() const
     {
-        return std::bit_cast<T>(reinterpret_cast<sized_unsigned_t<sizeof(T)>>(user_data));
+        return std::bit_cast<T>(
+            static_cast<sized_unsigned_t<sizeof(T)>>(reinterpret_cast<std::uintptr_t>(user_data)));
     }
 
     template <typename T>
@@ -212,7 +213,7 @@ class attribute : public ::bt_gatt_attr
     {
         ::bt_gatt_notify_params params{.attr = this,
                                        .data = reinterpret_cast<const void*>(data.data()),
-                                       .len = data.size(),
+                                       .len = static_cast<uint16_t>(data.size()),
                                        .func = cb,
                                        .user_data = reinterpret_cast<void*>(user_data)};
         return bt_gatt_notify_cb(conn, &params);

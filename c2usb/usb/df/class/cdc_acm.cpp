@@ -73,8 +73,8 @@ void function::control_setup_request(message& msg, const config::interface& ifac
 
     case SET_CONTROL_LINE_STATE:
     {
-        bool data_terminal_ready = msg.request().wValue & 1;
-        bool request_to_send = msg.request().wValue & 2;
+        [[maybe_unused]] bool data_terminal_ready = msg.request().wValue & 1;
+        [[maybe_unused]] bool request_to_send = msg.request().wValue & 2;
         // TODO: forward to application
         return msg.confirm();
     }

@@ -179,8 +179,6 @@ class service : public ::hid::transport
     std::span<gatt::attribute> fill_attributes(const std::span<gatt::attribute>& attrs,
                                                const std::span<gatt::ccc_store>& cccs, flags f);
 
-    static service* base_from_input_report_attr(const gatt::attribute* attr);
-    static service* base_from_service_attr(const gatt::attribute* attr);
     const gatt::attribute* input_report_attr(::hid::report::id::type id) const;
     const gatt::attribute* input_boot_attr() const;
 

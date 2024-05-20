@@ -25,6 +25,11 @@ namespace bluetooth::zephyr
 {
 using uuid = ::bt_uuid;
 
+inline bool operator==(const uuid& u1, const uuid& u2)
+{
+    return bt_uuid_cmp(&u1, &u2) == 0;
+}
+
 /// @brief  16-bit UUID structure definition
 /// @tparam UUID_CODE the uuid code, usually zephyr's _VAL suffixed macro, e.g. BT_UUID_BAS_VAL
 /// @return reference to the full uuid16 structure in rodata
@@ -151,7 +156,7 @@ class attribute : public ::bt_gatt_attr
                        .read = reinterpret_cast<::bt_gatt_attr_read_func_t>(read),
                        .write = reinterpret_cast<::bt_gatt_attr_write_func_t>(write),
                        .user_data =
-                           reinterpret_cast<void*>(const_cast<std::remove_const_t<T>*>(user_data)),
+                           static_cast<void*>(const_cast<std::remove_const_t<T>*>(user_data)),
                        .handle = 0,
                        .perm = static_cast<std::underlying_type_t<decltype(perm)>>(perm)}
     {}
@@ -188,7 +193,7 @@ class attribute : public ::bt_gatt_attr
     static ssize_t read_range(::bt_conn* conn, const attribute* attr, uint8_t* buf, uint16_t len,
                               uint16_t offset)
     {
-        auto* range = reinterpret_cast<T*>(attr->user_data);
+        auto* range = static_cast<T*>(attr->user_data);
 
         return bt_gatt_attr_read(conn, attr, static_cast<void*>(buf), len, offset, range->data(),
                                  range->size());
@@ -209,13 +214,13 @@ class attribute : public ::bt_gatt_attr
 
     template <typename T>
     int notify(const std::span<const uint8_t>& data, ::bt_gatt_complete_func_t cb,
-               T* user_data = nullptr, ::bt_conn* conn = nullptr) const
+               const T* user_data = nullptr, ::bt_conn* conn = nullptr) const
     {
         ::bt_gatt_notify_params params{.attr = this,
-                                       .data = reinterpret_cast<const void*>(data.data()),
+                                       .data = static_cast<const void*>(data.data()),
                                        .len = static_cast<uint16_t>(data.size()),
                                        .func = cb,
-                                       .user_data = reinterpret_cast<void*>(user_data)};
+                                       .user_data = static_cast<void*>(const_cast<T*>(user_data))};
         return bt_gatt_notify_cb(conn, &params);
     }
 

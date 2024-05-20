@@ -86,11 +86,11 @@ class service : public ::hid::transport
             nullptr, 0,
             [](const ::bt_gatt_attr* attr, uint16_t, void* user_data)
             {
-                auto* this_ = reinterpret_cast<service*>(attr->user_data);
-                (this_->*FUNC)(reinterpret_cast<T>(user_data));
+                auto* this_ = static_cast<service*>(attr->user_data);
+                (this_->*FUNC)(static_cast<T>(user_data));
                 return (uint8_t)BT_GATT_ITER_CONTINUE;
             },
-            reinterpret_cast<void*>(data));
+            static_cast<void*>(data));
     }
 
     void connected(::bt_conn* conn);
@@ -116,6 +116,8 @@ class service : public ::hid::transport
     ::hid::result send_report(const std::span<const uint8_t>& data,
                               ::hid::report::type type) override;
     ::hid::result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
+
+    std::span<const uint8_t>& get_pending_notify(::hid::protocol prot, ::hid::report::id id);
 
     static ssize_t get_report_map(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
                                   uint16_t len, uint16_t offset);
@@ -166,8 +168,7 @@ class service : public ::hid::transport
 
     std::span<const gatt::attribute> attributes() const
     {
-        return {reinterpret_cast<const gatt::attribute*>(gatt_service_.attrs),
-                gatt_service_.attr_count};
+        return {static_cast<const gatt::attribute*>(gatt_service_.attrs), gatt_service_.attr_count};
     }
 
     size_t report_data_offset() const
@@ -283,6 +284,7 @@ class service : public ::hid::transport
 template <::hid::report_protocol_properties REPORT_PROPS, auto BOOT = boot_protocol_mode::NONE>
 class service_instance : public service
 {
+    friend class service;
   public:
     service_instance(::hid::application& app, security sec,
                      flags f = (flags)((uint8_t)flags::REMOTE_WAKE |
@@ -291,7 +293,7 @@ class service_instance : public service
     {}
 
   private:
-    // update @ref base_from_service_attr if this layout changes!
+    std::array<std::span<const uint8_t>, ccc_count(REPORT_PROPS, BOOT)> pending_notify_{};
     c2usb::uninit_store<gatt::attribute, attribute_count(REPORT_PROPS, BOOT)> attributes_;
     c2usb::uninit_store<gatt::ccc_store, ccc_count(REPORT_PROPS, BOOT)> ccc_stores_;
 };

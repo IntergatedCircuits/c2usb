@@ -124,7 +124,7 @@ const gatt::char_decl& service::boot_mouse_in_info()
 ssize_t service::get_report_map(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
                                 uint16_t len, uint16_t offset)
 {
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
     auto& desc = this_->app_.report_info().descriptor;
     return bt_gatt_attr_read(conn, attr, buf, len, offset, const_cast<uint8_t*>(desc.data()),
                              desc.size());
@@ -133,7 +133,7 @@ ssize_t service::get_report_map(::bt_conn* conn, const ::bt_gatt_attr* attr, voi
 ssize_t service::get_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
                                    uint16_t len, uint16_t offset)
 {
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
 
     auto protocol = this_->get_protocol();
     LOG_DBG("get protocol: %u", static_cast<uint8_t>(protocol));
@@ -144,7 +144,7 @@ ssize_t service::get_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, 
 ssize_t service::set_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void const* buf,
                                    uint16_t len, uint16_t offset, uint8_t flags)
 {
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
 
     if (offset > 0)
     {
@@ -172,7 +172,7 @@ ssize_t service::set_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, 
 ssize_t service::control_point_request(::bt_conn* conn, const ::bt_gatt_attr* attr, void const* buf,
                                        uint16_t len, uint16_t offset, uint8_t flags)
 {
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
 
     if (offset > 0)
     {
@@ -212,7 +212,7 @@ ssize_t service::get_report(::bt_conn* conn, const gatt::attribute* attr, uint8_
 {
     LOG_DBG("get report, size:%u, offset:%u", len, offset);
 
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
     if (!this_->start_app(conn))
     {
         return BT_GATT_ERR(HOGP_ALREADY_CONNECTED_ERROR);
@@ -235,7 +235,7 @@ ssize_t service::set_report(::bt_conn* conn, const gatt::attribute* attr, const 
 {
     LOG_DBG("set report, size:%u, offset:%u", len, offset);
 
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
     if (!this_->start_app(conn))
     {
         return BT_GATT_ERR(HOGP_ALREADY_CONNECTED_ERROR);
@@ -274,7 +274,7 @@ ssize_t service::get_boot_report(::bt_conn* conn, const gatt::attribute* attr, u
 {
     LOG_DBG("get boot report, size:%u, offset:%u", len, offset);
 
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
     if (this_->get_protocol() != protocol::BOOT)
     {
         // at least Windows does this, and the driver fails if we reject,
@@ -301,7 +301,7 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
 {
     LOG_DBG("set boot report, size:%u, offset:%u", len, offset);
 
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
     if (this_->get_protocol() != protocol::BOOT)
     {
         // the protocol characteristic must be written first to boot
@@ -328,6 +328,23 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
     return len;
 }
 
+std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id id)
+{
+    service_instance<report_protocol_properties(2, 2, 2, 255, 255, 255)>* instance =
+        static_cast<decltype(instance)>(this);
+
+    if (prot == protocol::BOOT)
+    {
+        return instance->pending_notify_[0];
+    }
+    size_t index = (boot_mode_ != boot_protocol_mode::NONE) ? 1 : 0;
+    if (id > 0)
+    {
+        index += id - 1;
+    }
+    return instance->pending_notify_[index];
+}
+
 ::hid::result service::send_report(const std::span<const uint8_t>& data, report::type type)
 {
     // reroute report when in a querying context
@@ -346,18 +363,13 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
         return result::INVALID;
     }
 
-    // HOGP would allow parallel report notifications (with different report IDs),
-    // but rather keep the application compatible with other transports
-    if (input_buffer_.size() > 0)
-    {
-        return result::BUSY;
-    }
-
     const gatt::attribute* attr;
     size_t offset = 0;
-    if (app_.get_protocol() == protocol::REPORT)
+    protocol prot = app_.get_protocol();
+    report::id id = app_.report_info().uses_report_ids() ? data.front() : 0;
+    if (prot == protocol::REPORT)
     {
-        attr = input_report_attr(app_.report_info().uses_report_ids() ? data.front() : 0);
+        attr = input_report_attr(id);
         offset = report_data_offset();
     }
     else
@@ -369,21 +381,39 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
         return result::INVALID;
     }
 
+    auto& pending_notify = get_pending_notify(prot, id);
+    if (pending_notify.size() > 0)
+    {
+        return result::BUSY;
+    }
+
     auto ret = attr->notify(
         data.subspan(offset),
         [](::bt_conn*, void* user_data)
         {
-            auto* this_ = reinterpret_cast<service*>(user_data);
-            auto buf = this_->input_buffer_;
-            this_->input_buffer_ = {};
-            LOG_DBG("input report sent (size %u)", buf.size());
+            auto* attr = static_cast<gatt::attribute*>(user_data);
+
+            // get report selector / boot report info
+            report::selector sel{report::type::INPUT};
+            protocol prot = protocol::BOOT;
+            if (*attr[1].uuid == *input_report_info().uuid)
+            {
+                sel = attr[report_reference_offset()].user_value<report::selector>();
+                prot = protocol::REPORT;
+            }
+            auto* this_ = static_cast<service*>(attr[1].user_data);
+
+            auto& pending_notify = this_->get_pending_notify(prot, sel.id());
+            auto buf = pending_notify;
+            pending_notify = {};
+            LOG_INF("input report sent (size %u)", buf.size());
             this_->app_.in_report_sent(buf);
         },
-        this, active_conn_.load());
+        attr, active_conn_.load());
     switch (ret)
     {
     case 0:
-        input_buffer_ = data;
+        pending_notify = data;
         return result::OK;
     case -ENOENT:
     case -EINVAL:
@@ -419,7 +449,7 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
     {
         LOG_DBG("boot CCC set: %u", static_cast<uint16_t>(flags));
     }
-    auto* this_ = reinterpret_cast<service*>(attr->user_data);
+    auto* this_ = static_cast<service*>(attr->user_data);
 
     // clearing the flag has no conditions nor consequences
     if (flags == gatt::ccc_flags::NONE)

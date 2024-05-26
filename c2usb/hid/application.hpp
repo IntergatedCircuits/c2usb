@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <hid/report.hpp>
+#include <hid/report_protocol.hpp>
 
 #include "usb/base.hpp"
 
@@ -37,15 +38,14 @@ class application : public polymorphic
 {
   public:
     constexpr explicit application(const report_protocol& rp)
-        : report_info_(&rp)
+        : report_info_(rp)
     {}
 
-    constexpr const report_protocol& report_info() const { return *report_info_; }
+    constexpr const report_protocol& report_info() const { return report_info_; }
 
   private: // internal behavior to override
     /// @brief Initialize the application when the protocol has been (possibly implicitly) selected.
     /// @param prot: the protocol to start operating with
-    /// @return true if successful, false otherwise
     virtual void start(protocol prot) {}
 
     /// @brief Stop and clean up the application when the transport is shut down.
@@ -143,14 +143,6 @@ class application : public polymorphic
         return receive_report(std::span<uint8_t>(report->data(), sizeof(*report)), report->type());
     }
 
-    /// @brief  Changes the report information on the fly. This is extremely rarely needed.
-    /// @param  rp: the new report protocol to use
-    void set_report_info(const report_protocol& rp)
-    {
-        // assert(!has_transport());
-        report_info_ = &rp;
-    }
-
   public:
     // SPEC WTF: The IDLE parameter is meant to control how often the device should resend
     // the same piece of information. This is introduced in the USB HID class spec,
@@ -196,8 +188,10 @@ class application : public polymorphic
         }
     }
 
+  protected:
+    report_protocol report_info_;
+
   private:
-    const report_protocol* report_info_;
     std::atomic<transport*> transport_{};
 };
 

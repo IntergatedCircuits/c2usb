@@ -15,6 +15,7 @@
 #include <hid/report.hpp>
 #include <hid/report_protocol.hpp>
 
+#include "reference_array_view.hpp"
 #include "usb/base.hpp"
 
 namespace hid
@@ -193,6 +194,66 @@ class application : public polymorphic
 
   private:
     std::atomic<transport*> transport_{};
+    friend class multi_application;
+};
+
+/// @brief  The multi_application is a helper to combine multiple TLC applications into a single HID
+///         instance. If boot protocol is supported, its application must be the first parameter.
+class multi_application : public application
+{
+  protected:
+    multi_application(const report_protocol& prot, reference_array_view<application> apps)
+        : application(prot), apps_(apps)
+    {}
+
+  private:
+    template <typename T = void, typename... Targs1, typename... Targs2>
+    void dispatch(T (application::*method)(Targs1...), Targs2&&... args) const
+    {
+        if (get_protocol() == protocol::BOOT)
+        {
+            (apps_[0]->*method)(std::forward<Targs1>(args)...);
+        }
+        else
+        {
+            for (auto* app : apps_)
+            {
+                (app->*method)(std::forward<Targs1>(args)...);
+            }
+        }
+    }
+    void start(protocol prot) override
+    {
+        transport_copy_ = transport_.load();
+        if (prot == protocol::BOOT)
+        {
+            apps_[0]->setup(transport_copy_, prot);
+        }
+        else
+        {
+            for (auto* app : apps_)
+            {
+                app->setup(transport_copy_, prot);
+            }
+        }
+    }
+    void stop() override { dispatch(&application::teardown, transport_copy_); }
+    void set_report(report::type type, const std::span<const uint8_t>& data) override
+    {
+        dispatch(&application::set_report, type, data);
+    }
+    void get_report(report::selector select, const std::span<uint8_t>& buffer) override
+    {
+        dispatch(&application::get_report, select, buffer);
+    }
+    void in_report_sent(const std::span<const uint8_t>& data) override
+    {
+        dispatch(&application::in_report_sent, data);
+    }
+    protocol get_protocol() const override { return apps_[0]->get_protocol(); }
+
+    const reference_array_view<application> apps_;
+    transport* transport_copy_{};
 };
 
 /// @brief  Helper class to manage FEATURE and OUTPUT buffers.

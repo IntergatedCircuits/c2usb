@@ -226,12 +226,23 @@ int udc_mac::process_event(const udc_event& event)
         set_power_state(power::state::L2_SUSPEND);
         break;
     case UDC_EVT_RESUME:
+    case UDC_EVT_VBUS_READY:
         set_power_state(power::state::L0_ON);
+        break;
+    case UDC_EVT_VBUS_REMOVED:
+        // FIXME dodging race condition between this and RESUME:
+        // re-queue the event to be processed after
+        if (event.status == 0)
+        {
+            udc_event e2 = event;
+            e2.status++;
+            k_msgq_put(&udc_mac_msgq, &e2, K_NO_WAIT);
+            break;
+        }
+        set_power_state(power::state::L3_OFF);
         break;
     case UDC_EVT_SOF:
     case UDC_EVT_ERROR:
-    case UDC_EVT_VBUS_REMOVED:
-    case UDC_EVT_VBUS_READY:
     default:
         break;
     }

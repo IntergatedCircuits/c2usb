@@ -153,7 +153,6 @@ class application : public polymorphic
     bool set_idle(uint32_t idle_repeat_ms, uint8_t report_id = 0) { return idle_repeat_ms == 0; }
 
     bool has_transport() const { return transport_.load() != nullptr; }
-
     bool has_transport(transport* tp) const { return transport_.load() == tp; }
 
     bool setup(transport* tp, protocol prot)
@@ -190,6 +189,7 @@ class application : public polymorphic
     }
 
   protected:
+    const transport* get_transport() const { return transport_.load(); }
     report_protocol report_info_;
 
   private:

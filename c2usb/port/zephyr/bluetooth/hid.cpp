@@ -458,7 +458,7 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
     }
 
     // prevent changing protocol mode
-    if ((protocol == protocol::BOOT) && (this_->get_protocol() != protocol))
+    if ((protocol == protocol::BOOT) and (this_->get_protocol() != protocol))
     {
         return BT_GATT_ERR(BT_ATT_ERR_WRITE_REQ_REJECTED);
     }

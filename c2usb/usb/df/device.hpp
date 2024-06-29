@@ -86,7 +86,7 @@ class device : protected mac::device_interface
         CONFIGURATION_CHANGE,
     };
     using power_event_delegate = etl::delegate<void(device&, event)>;
-    void set_power_event_delegate(const power_event_delegate&& delegate)
+    void set_power_event_delegate(const power_event_delegate& delegate)
     {
         power_event_delegate_ = delegate;
     }
@@ -154,11 +154,6 @@ class device : protected mac::device_interface
     void handle_reset_request() override;
     void handle_control_message(message& msg) override;
     void handle_new_power_state(usb::power::state new_state) override;
-
-    device(const device&) = delete;
-    device& operator=(const device&) = delete;
-    device(const device&&) = delete;
-    device& operator=(const device&&) = delete;
 
   protected:
     usb::df::mac& mac_;

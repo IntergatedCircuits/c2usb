@@ -27,10 +27,10 @@ struct product_info
 
     constexpr product_info(uint16_t vendor_id, const char_t* vendor_name, uint16_t product_id,
                            const char_t* product_name, version product_version,
-                           const std::span<const uint8_t>&& serial_no = {})
+                           const std::span<const uint8_t>& serial_no = {})
         : vendor_name(vendor_name),
           product_name(product_name),
-          serial_number(std::move(serial_no)),
+          serial_number(serial_no),
           vendor_id(vendor_id),
           product_id(product_id),
           product_version(product_version)

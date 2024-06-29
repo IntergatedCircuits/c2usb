@@ -58,7 +58,7 @@ class device : public slave::module, public ::hid::transport
         POWER_STATE_CHANGE = 0,
     };
     using power_event_delegate = etl::delegate<void(device&, event)>;
-    void set_power_event_delegate(const power_event_delegate&& delegate)
+    void set_power_event_delegate(const power_event_delegate& delegate)
     {
         power_event_delegate_ = delegate;
     }

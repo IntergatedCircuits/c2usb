@@ -11,7 +11,6 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  TOOLCHAIN_PATH: ${{ github.workspace }}/gcc-arm-none-eabi.cmake
 
 jobs:
   build:
@@ -23,20 +22,15 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install ARM GCC toolchain
+    - name: Install 32-bit multilib toolchain
       run: |
         sudo apt update
-        sudo apt install -y gcc-arm-none-eabi
-
-    - name: Download gcc-arm-none-eabi.cmake from another repository
-      run: |
-        mkdir -p ${{ github.workspace }}
-        curl -sSL "https://raw.githubusercontent.com/jobroe/cmake-arm-embedded/35a969878d3e6a979a0c61f0bf07327bac3aad1e/toolchain-arm-none-eabi.cmake" > "${TOOLCHAIN_PATH}"
+        sudo apt install -y build-essential libc6-dev-i386 g++-multilib
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=${TOOLCHAIN_PATH}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
       # Build your program with the given configuration

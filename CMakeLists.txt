@@ -32,3 +32,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 )
 
 add_subdirectory(examples)
+
+# the library is only supporting 32-bit pointers ATM
+# switch to 32-bit multilib on 64-bit systems, if this is top-level project
+if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND (CMAKE_SIZEOF_VOID_P EQUAL 8))
+    message(STATUS "64-bit detected, adding -m32 flag for 32-bit compilation")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m32")
+endif()

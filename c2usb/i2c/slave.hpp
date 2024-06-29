@@ -19,44 +19,54 @@ namespace i2c
 class slave : public polymorphic
 {
   public:
-    /// @brief  The module class is a callback interface for I2C slave functionality
+    /// @brief  The module class is an abstract base for I2C slave functionality
     ///         at a specific address.
-    class module : public interface
+    class module : public polymorphic
     {
       public:
+        constexpr module(i2c::address slave_addr)
+            : slave_addr_(slave_addr)
+        {}
         virtual bool on_start(direction dir, size_t data_length) = 0;
         virtual void on_stop(direction dir, size_t data_length) = 0;
+        i2c::address address() const { return slave_addr_; }
+
+      private:
+        i2c::address slave_addr_;
     };
 
-    bool has_module([[maybe_unused]] address slave_addr) const { return module_ != nullptr; }
+    bool has_module() const { return module_ != nullptr; }
+    bool has_module([[maybe_unused]] address slave_addr) const
+    {
+        return has_module() and (module_->address() == slave_addr);
+    }
 
     /// @brief  Registers a slave module on the I2C bus.
-    /// @param  m: module pointer
-    /// @param  slave_addr: the I2C slave address to listen to
+    /// @param  m: module reference
     /// @return true if module registered
-    bool register_module(module* m, address slave_addr)
+    bool register_module(module& m)
     {
         // single module design at the moment
         if (module_ != nullptr)
         {
             return false;
         }
-        module_ = m;
-        start_listen(slave_addr);
+        module_ = &m;
+        start_listen(module_->address());
         return true;
     }
 
     /// @brief  Unregisters the active module from the I2C bus interface.
-    /// @param  m: module pointer
+    /// @param  m: module reference
     /// @return true if module unregistered
-    bool unregister_module(module* m)
+    bool unregister_module(module& m)
     {
         // single module design at the moment
-        if (module_ != m)
+        if (module_ != &m)
         {
             return false;
         }
-        stop_listen();
+        stop_listen(module_->address());
         module_ = nullptr;
         return true;
     }
@@ -118,7 +128,8 @@ class slave : public polymorphic
     virtual void start_listen(address slave_addr) = 0;
 
     /// @brief  Stop listening to I2C transfers
-    virtual void stop_listen() = 0;
+    /// @param  slave_addr: the I2C address to stop listening on
+    virtual void stop_listen(address slave_addr) = 0;
 
     /// @brief  Call the module to handle I2C (re)start events.
     /// @param  dir: the transfer's direction

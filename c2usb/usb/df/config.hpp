@@ -51,8 +51,8 @@ class power
     constexpr auto max_power_mA() const { return value_ >> 7; }
     constexpr bool valid() const { return value_ != 0; }
 
-    friend auto operator<<(standard::descriptor::configuration* desc, const power& p)
-        -> standard::descriptor::configuration*;
+    friend auto operator<<(standard::descriptor::configuration* desc,
+                           const power& p) -> standard::descriptor::configuration*;
 
   protected:
     constexpr power(source src = source::BUS, uint16_t max_current_mA = 100,

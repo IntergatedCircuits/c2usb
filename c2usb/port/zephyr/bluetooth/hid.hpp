@@ -285,6 +285,7 @@ template <::hid::report_protocol_properties REPORT_PROPS, auto BOOT = boot_proto
 class service_instance : public service
 {
     friend class service;
+
   public:
     service_instance(::hid::application& app, security sec,
                      flags f = (flags)((uint8_t)flags::REMOTE_WAKE |

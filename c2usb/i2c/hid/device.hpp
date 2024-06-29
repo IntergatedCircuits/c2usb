@@ -68,7 +68,6 @@ class device : public slave::module, public ::hid::transport
   private:
     void link_reset();
 
-    i2c::address bus_address() const { return bus_address_; }
     uint16_t hid_descriptor_reg_address() const { return hid_descriptor_reg_; }
     void get_hid_descriptor(descriptor& desc) const;
     result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
@@ -112,7 +111,6 @@ class device : public slave::module, public ::hid::transport
     power_event_delegate power_event_delegate_{};
     ::hid::reports_receiver rx_buffers_{};
     i2c::slave& slave_;
-    i2c::address bus_address_;
     uint16_t hid_descriptor_reg_;
     single_elem_queue<std::span<const uint8_t>> in_queue_{};
     uint8_t stage_{};

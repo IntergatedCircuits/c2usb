@@ -14,7 +14,6 @@
 #include "usb/class/cdc.hpp"
 #include "usb/df/function.hpp"
 
-
 namespace usb::standard::descriptor
 {
 struct interface;

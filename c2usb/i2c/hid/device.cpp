@@ -17,13 +17,13 @@ using namespace i2c::hid;
 
 device::device(application& app, const product_info& pinfo, i2c::slave& slave, i2c::address address,
                uint16_t hid_descriptor_reg_address)
-    : app_(app),
+    : module(address),
+      app_(app),
       pinfo_(pinfo),
       slave_(slave),
-      bus_address_(address),
       hid_descriptor_reg_(hid_descriptor_reg_address)
 {
-    slave_.register_module(this, address);
+    slave_.register_module(*this);
 }
 
 device::~device()
@@ -32,7 +32,7 @@ device::~device()
     slave().set_pin_interrupt(false);
 
     // disable I2C
-    slave().unregister_module(this);
+    slave().unregister_module(*this);
 
     // clear context
     get_report_.clear();

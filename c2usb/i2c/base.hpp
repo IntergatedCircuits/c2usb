@@ -39,6 +39,8 @@ class address
     bool is_10bit() const { return (_code & MODE_MASK) == static_cast<uint16_t>(mode::_10BIT); }
     uint16_t raw() const { return _code; }
 
+    constexpr bool operator==(const address& rhs) const = default;
+
     // special reserved addresses
     constexpr static address general_call() { return address(0); }
     constexpr static address start_byte() { return address(1); }

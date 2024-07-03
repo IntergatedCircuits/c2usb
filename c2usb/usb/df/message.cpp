@@ -115,7 +115,7 @@ void string_message::send_as_hex_string(std::span<const uint8_t> data)
         }
     };
     size_t offset = 0;
-    for (auto& byte : data)
+    for (auto byte : data)
     {
         string_desc->Data[offset++] = convert(byte >> 4);
         string_desc->Data[offset++] = convert(byte & 0xF);

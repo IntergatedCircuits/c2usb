@@ -150,7 +150,7 @@ unsigned alternate_enumeration_base::bos_capabilities(device& dev, df::buffer& b
     return 1;
 }
 
-void alternate_enumeration_base::assign_istrings(device& dev, istring* index)
+void alternate_enumeration_base::assign_istrings([[maybe_unused]] device& dev, istring* index)
 {
     const auto ss = speeds();
     for (speed s : ss)
@@ -166,7 +166,8 @@ void alternate_enumeration_base::assign_istrings(device& dev, istring* index)
     }
 }
 
-bool alternate_enumeration_base::send_owned_string(device& dev, istring index, string_message& smsg)
+bool alternate_enumeration_base::send_owned_string([[maybe_unused]] device& dev, istring index,
+                                                   string_message& smsg)
 {
     const auto ss = speeds();
     // first try to match the index to a configuration

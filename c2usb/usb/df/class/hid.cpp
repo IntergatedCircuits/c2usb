@@ -28,7 +28,7 @@ void app_base_function::start(const config::interface& iface, ::hid::protocol pr
     assert(ep_in_handle().valid());
 
     // start application
-    bool success = app_.setup(this, prot);
+    [[maybe_unused]] bool success = app_.setup(this, prot);
     assert(success); // support for not success case requires a lot more complicated design
 }
 

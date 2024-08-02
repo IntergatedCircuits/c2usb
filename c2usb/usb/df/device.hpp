@@ -51,16 +51,32 @@ class device : protected mac::device_interface
         }
         virtual ~extension() = default;
 
-        virtual void bus_reset(device& dev) {}
-        virtual void assign_istrings(device& dev, istring* index) {}
-        virtual bool send_owned_string(device& dev, istring index, string_message& smsg)
+        virtual void bus_reset([[maybe_unused]] device& dev) {}
+        virtual void assign_istrings([[maybe_unused]] device& dev, [[maybe_unused]] istring* index)
+        {}
+        virtual bool send_owned_string([[maybe_unused]] device& dev, [[maybe_unused]] istring index,
+                                       [[maybe_unused]] string_message& smsg)
         {
             return false;
         }
-        virtual config::view_list configs_by_speed(device& dev, usb::speed speed) { return {}; }
-        virtual void control_setup_request(device& dev, message& msg) { return msg.reject(); }
-        virtual void control_data_status(device& dev, message& msg) { return msg.confirm(); }
-        virtual unsigned bos_capabilities(device& dev, df::buffer& buffer) { return 0; }
+        virtual config::view_list configs_by_speed([[maybe_unused]] device& dev,
+                                                   [[maybe_unused]] usb::speed speed)
+        {
+            return {};
+        }
+        virtual void control_setup_request([[maybe_unused]] device& dev, message& msg)
+        {
+            return msg.reject();
+        }
+        virtual void control_data_status([[maybe_unused]] device& dev, message& msg)
+        {
+            return msg.confirm();
+        }
+        virtual unsigned bos_capabilities([[maybe_unused]] device& dev,
+                                          [[maybe_unused]] df::buffer& buffer)
+        {
+            return 0;
+        }
 
       protected:
         constexpr extension() = default;
@@ -115,7 +131,7 @@ class device : protected mac::device_interface
           extension_(ext),
           speeds_(speeds),
           max_config_count_(max_configs_count),
-          istr_config_base_(ISTR_GLOBAL_BASE - max_configs_count * speeds.count())
+          istr_config_base_(ISTR_GLOBAL_BASE + max_configs_count * speeds.count())
     {
         mac_.init(*this, speeds);
     }

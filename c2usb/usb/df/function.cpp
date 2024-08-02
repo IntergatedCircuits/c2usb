@@ -40,17 +40,17 @@ bool function::send_owned_string(istring index, string_message& smsg)
     }
 }
 
-void function::control_setup_request(message& msg, const config::interface& iface)
+void function::control_setup_request(message& msg, [[maybe_unused]] const config::interface& iface)
 {
     return msg.reject();
 }
 
-void function::control_data_complete(message& msg, const config::interface& iface)
+void function::control_data_complete(message& msg, [[maybe_unused]] const config::interface& iface)
 {
     return msg.confirm();
 }
 
-void function::send_string(uint8_t rel_index, string_message& smsg)
+void function::send_string([[maybe_unused]] uint8_t rel_index, string_message& smsg)
 {
     return smsg.reject();
 }
@@ -248,7 +248,7 @@ uint8_t function::describe_endpoints(const config::interface& iface, df::buffer&
     return count;
 }
 
-void named_function::send_string(uint8_t rel_index, string_message& smsg)
+void named_function::send_string([[maybe_unused]] uint8_t rel_index, string_message& smsg)
 {
     return smsg.send_string(name_);
 }

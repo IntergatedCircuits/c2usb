@@ -55,19 +55,24 @@ class mac : private message
     }
     message* get_pending_message(function* caller = nullptr);
 
-    virtual ep_handle ep_open(const config::endpoint& ep) { return {}; }
-    virtual result ep_send(ep_handle eph, const std::span<const uint8_t>& data)
+    virtual ep_handle ep_open([[maybe_unused]] const config::endpoint& ep) { return {}; }
+    virtual result ep_send([[maybe_unused]] ep_handle eph,
+                           [[maybe_unused]] const std::span<const uint8_t>& data)
     {
         return result::NO_TRANSPORT;
     }
-    virtual result ep_receive(ep_handle eph, const std::span<uint8_t>& data)
+    virtual result ep_receive([[maybe_unused]] ep_handle eph,
+                              [[maybe_unused]] const std::span<uint8_t>& data)
     {
         return result::NO_TRANSPORT;
     }
-    virtual result ep_close(ep_handle eph) { return result::NO_TRANSPORT; }
+    virtual result ep_close([[maybe_unused]] ep_handle eph) { return result::NO_TRANSPORT; }
 
-    virtual bool ep_is_stalled(ep_handle eph) const { return false; }
-    virtual result ep_change_stall(ep_handle eph, bool stall) { return result::NO_TRANSPORT; }
+    virtual bool ep_is_stalled([[maybe_unused]] ep_handle eph) const { return false; }
+    virtual result ep_change_stall([[maybe_unused]] ep_handle eph, [[maybe_unused]] bool stall)
+    {
+        return result::NO_TRANSPORT;
+    }
 
     void init(device_interface& dev_if, const usb::speeds& speeds);
     void deinit(device_interface& dev_if);
@@ -96,7 +101,7 @@ class mac : private message
     control::request& request() { return request_; }
     using message::stage;
 
-    virtual void allocate_endpoints(config::view config = {}) {}
+    virtual void allocate_endpoints([[maybe_unused]] config::view config = {}) {}
 
     virtual endpoint::address ep_handle_to_address(ep_handle eph) const = 0;
     // virtual void control_reply(direction dir, const transfer& t) override {};
@@ -105,7 +110,7 @@ class mac : private message
     void control_ep_setup();
     void control_ep_data(direction ep_dir, const transfer& t);
     void ep_transfer_complete(ep_handle eph, const transfer& t);
-    virtual void init(const usb::speeds& speeds) {}
+    virtual void init([[maybe_unused]] const usb::speeds& speeds) {}
     virtual void deinit() {}
     virtual bool set_attached(bool attached) { return attached; }
     virtual void signal_remote_wakeup() {}

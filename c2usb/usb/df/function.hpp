@@ -44,7 +44,9 @@ class function : public polymorphic
 
     virtual const char* ms_compatible_id() const { return nullptr; }
 
-    virtual void transfer_complete(ep_handle eph, const transfer& t) {}
+    virtual void transfer_complete([[maybe_unused]] ep_handle eph,
+                                   [[maybe_unused]] const transfer& t)
+    {}
 
   protected:
     ep_handle open_ep(const config::endpoint& ep);
@@ -76,17 +78,20 @@ class function : public polymorphic
 
     virtual void control_setup_request(message& msg, const config::interface& iface);
     virtual void control_data_complete(message& msg, const config::interface& iface);
-    virtual bool control_endpoint_state(ep_handle eph, standard::endpoint::status new_state)
+    virtual bool control_endpoint_state([[maybe_unused]] ep_handle eph,
+                                        [[maybe_unused]] standard::endpoint::status new_state)
     {
         return false;
     }
 
     virtual void send_string(uint8_t rel_index, string_message& smsg);
 
-    virtual uint8_t get_alt_setting(const config::interface& iface) { return 0; }
+    virtual uint8_t get_alt_setting([[maybe_unused]] const config::interface& iface) { return 0; }
 
-    virtual void start(const config::interface& iface, uint8_t alt_sel) {}
-    virtual void stop(const config::interface& iface) {}
+    virtual void start([[maybe_unused]] const config::interface& iface,
+                       [[maybe_unused]] uint8_t alt_sel)
+    {}
+    virtual void stop([[maybe_unused]] const config::interface& iface) {}
 
     constexpr function(istring istr_count)
         : istr_count_(istr_count)

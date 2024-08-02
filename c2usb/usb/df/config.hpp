@@ -168,7 +168,7 @@ class element
     element(const endpoint& e)
         : element(&e)
     {}
-    constexpr static bool is_header(const header& c) { return false; }
+    constexpr static bool is_header([[maybe_unused]] const header& c) { return false; }
     constexpr static bool is_interface(const interface& c) { return c.valid(); }
     constexpr static bool is_endpoint(const endpoint& c) { return c.valid(); }
     constexpr static bool is_active_endpoint(const endpoint& c)
@@ -449,7 +449,7 @@ class view_base
     }
     size_t count() const
     {
-        return count([](const_reference x) { return true; });
+        return count([](const_reference) { return true; });
     }
 
     size_t size() const

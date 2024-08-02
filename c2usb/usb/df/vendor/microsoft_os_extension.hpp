@@ -55,7 +55,7 @@ class alternate_enumeration_base : public descriptors
     constexpr alternate_enumeration_base(usb::speeds speeds, uint8_t max_configs_count)
         : descriptors(), speeds_(speeds), max_config_count_(max_configs_count)
     {}
-    void bus_reset(device& dev) override { using_alt_enum_ = false; }
+    void bus_reset([[maybe_unused]] device& dev) override { using_alt_enum_ = false; }
 
     void assign_istrings(device& dev, istring* index) override;
     bool send_owned_string(device& dev, istring index, string_message& smsg) override;

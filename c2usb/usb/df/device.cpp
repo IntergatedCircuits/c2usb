@@ -108,7 +108,8 @@ void device::handle_control_message(message& msg)
 void device::interface_control(message& msg,
                                void (function::*handler)(message&, const config::interface&))
 {
-    auto& iface = mac_.active_config().interfaces()[msg.request().wIndex];
+    auto ifaces = mac_.active_config().interfaces();
+    auto& iface = ifaces[msg.request().wIndex];
     if (iface.valid())
     {
         return (iface.function().*handler)(msg, iface);

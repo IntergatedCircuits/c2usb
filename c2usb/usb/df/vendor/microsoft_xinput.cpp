@@ -35,7 +35,7 @@ void xfunction::describe_config(const config::interface& iface, uint8_t if_index
            (iface.endpoints()[1].address().direction() == direction::OUT));
 }
 
-void xfunction::start(const config::interface& iface, uint8_t alt_sel)
+void xfunction::start(const config::interface& iface, [[maybe_unused]] uint8_t alt_sel)
 {
     app_base_function::start(iface, PROTOCOL);
 }

@@ -91,7 +91,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     }
 }
 
-void function::control_data_complete(message& msg, const config::interface& iface)
+void function::control_data_complete(message& msg, [[maybe_unused]] const config::interface& iface)
 {
     using namespace usb::cdc::control;
     switch (msg.request())

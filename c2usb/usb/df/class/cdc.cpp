@@ -43,7 +43,7 @@ function::get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df
     return &descs->iface;
 }
 
-void function::start(const config::interface& iface, uint8_t alt_sel)
+void function::start(const config::interface& iface, [[maybe_unused]] uint8_t alt_sel)
 {
     if (iface.primary() and (iface.endpoints().size() > 0))
     {

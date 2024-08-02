@@ -47,7 +47,7 @@ class application : public polymorphic
   private: // internal behavior to override
     /// @brief Initialize the application when the protocol has been (possibly implicitly) selected.
     /// @param prot: the protocol to start operating with
-    virtual void start(protocol prot) {}
+    virtual void start([[maybe_unused]] protocol prot) {}
 
     /// @brief Stop and clean up the application when the transport is shut down.
     virtual void stop() {}
@@ -70,7 +70,7 @@ class application : public polymorphic
     ///        that was provided through a successful call of @ref send_report,
     ///        outside of @ref get_report context.
     /// @param data: the report data that was sent
-    virtual void in_report_sent(const std::span<const uint8_t>& data) {}
+    virtual void in_report_sent([[maybe_unused]] const std::span<const uint8_t>& data) {}
 
     /// @brief  Indicates the currently selected protocol.
     /// @return The current protocol, either REPORT (default) or BOOT.
@@ -149,8 +149,11 @@ class application : public polymorphic
     // the same piece of information. This is introduced in the USB HID class spec,
     // somehow thinking that the host cannot keep track of the time by itself -
     // but then how does the host generate the Start of Frame with correct intervals?
-    uint32_t get_idle(uint8_t report_id = 0) { return 0; }
-    bool set_idle(uint32_t idle_repeat_ms, uint8_t report_id = 0) { return idle_repeat_ms == 0; }
+    uint32_t get_idle([[maybe_unused]] uint8_t report_id = 0) { return 0; }
+    bool set_idle(uint32_t idle_repeat_ms, [[maybe_unused]] uint8_t report_id = 0)
+    {
+        return idle_repeat_ms == 0;
+    }
 
     bool has_transport() const { return transport_.load() != nullptr; }
     bool has_transport(transport* tp) const { return transport_.load() == tp; }

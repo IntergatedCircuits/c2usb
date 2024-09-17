@@ -350,7 +350,7 @@ void udc_mac::process_ep_event(net_buf* buf)
                     return;
                 }
             }
-            assert(false); // a net_buf was issued out of c2usb scope
+            assert(ep_bufs_.size() == 0); // a net_buf was issued out of c2usb scope
         }
         else
         {

@@ -90,13 +90,13 @@ void udc_mac::init(const usb::speeds& speeds)
     {
         return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT);
     };
-    auto ret = udc_init(dev_, dispatch);
+    [[maybe_unused]] auto ret = udc_init(dev_, dispatch);
     assert(ret == 0);
 }
 
 void udc_mac::deinit()
 {
-    auto ret = udc_shutdown(dev_);
+    [[maybe_unused]] auto ret = udc_shutdown(dev_);
     assert(ret == 0);
 }
 
@@ -104,12 +104,12 @@ bool udc_mac::set_attached(bool attached)
 {
     if (attached)
     {
-        auto ret = udc_enable(dev_);
+        [[maybe_unused]] auto ret = udc_enable(dev_);
         assert(ret == 0);
     }
     else
     {
-        auto ret = udc_disable(dev_);
+        [[maybe_unused]] auto ret = udc_disable(dev_);
         assert(ret == 0);
     }
     return udc_is_enabled(dev_);
@@ -117,8 +117,7 @@ bool udc_mac::set_attached(bool attached)
 
 void udc_mac::signal_remote_wakeup()
 {
-    auto ret = udc_host_wakeup(dev_);
-    assert(ret == 0);
+    [[maybe_unused]] auto ret = udc_host_wakeup(dev_);
 }
 
 usb::speed udc_mac::speed() const
@@ -138,7 +137,7 @@ usb::speed udc_mac::speed() const
 
 void udc_mac::control_ep_open()
 {
-    auto ret = udc_set_address(dev_, 0);
+    [[maybe_unused]] auto ret = udc_set_address(dev_, 0);
     assert(ret == 0);
     // control endpoints are opened in udc_init
 }
@@ -164,7 +163,7 @@ void udc_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
             net_buf_unref(ctrl_buf_);
             ctrl_buf_ = nullptr;
         }
-        auto ret = ep_set_stall(addr);
+        [[maybe_unused]] auto ret = ep_set_stall(addr);
         assert(ret == result::OK);
         return;
     }

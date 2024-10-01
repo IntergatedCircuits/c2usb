@@ -131,7 +131,7 @@ class device : protected mac::device_interface
           extension_(ext),
           speeds_(speeds),
           max_config_count_(max_configs_count),
-          istr_config_base_(ISTR_GLOBAL_BASE + max_configs_count * speeds.count())
+          istr_config_base_(ISTR_GLOBAL_BASE - max_configs_count * speeds.count())
     {
         mac_.init(*this, speeds);
     }

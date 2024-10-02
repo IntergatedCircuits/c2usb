@@ -1,7 +1,7 @@
 /// @file
 ///
 /// @author Benedek Kupper
-/// @date   2023
+/// @date   2024
 ///
 /// @copyright
 ///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
@@ -14,9 +14,26 @@
 #include <atomic>
 #include <zephyr/logging/log.h>
 
-using namespace usb::df::zephyr;
+using namespace usb::zephyr;
+using namespace usb::df;
 
 LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
+
+// keeping compatibility with multiple Zephyr versions
+template <typename T>
+concept HasAddrBeforeStatus = requires(T t) {
+    { t.addr_before_status } -> std::convertible_to<bool>;
+};
+template <HasAddrBeforeStatus T>
+constexpr auto addr_before_status(const T& obj)
+{
+    return obj.addr_before_status;
+}
+template <typename T>
+constexpr auto addr_before_status(const T&)
+{
+    return false;
+}
 
 K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), CONFIG_C2USB_UDC_MAC_MSGQ_SIZE, sizeof(uint32_t));
 
@@ -55,7 +72,7 @@ udc_mac::udc_mac(const ::device* dev)
             return;
         }
     }
-    assert(false); // increase size if this really ever occurs
+    assert(false); // increase mac_ptrs size if this really ever occurs
 }
 
 udc_mac::~udc_mac()
@@ -82,6 +99,11 @@ udc_mac* udc_mac::lookup(const device* dev)
         }
     }
     return nullptr;
+}
+
+usb::result udc_mac::post_event(const udc_event& event)
+{
+    return static_cast<usb::result>(k_msgq_put(&udc_mac_msgq, &event, K_NO_WAIT));
 }
 
 void udc_mac::init(const usb::speeds& speeds)
@@ -140,23 +162,39 @@ void udc_mac::control_ep_open()
     [[maybe_unused]] auto ret = udc_set_address(dev_, 0);
     assert(ret == 0);
     // control endpoints are opened in udc_init
+
+    // clear leftover pending ctrl data
+    ret = udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
+    assert(ret == 0);
 }
 
-void udc_mac::control_transfer()
+void udc_mac::move_data_out(usb::df::transfer t)
 {
-    // only one buf chain is sent to driver (data + status)
-    if (ctrl_buf_ != nullptr)
+    while (ctrl_buf_)
     {
-        auto ret = udc_ep_enqueue(dev_, ctrl_buf_);
-        assert(ret == 0);
-        ctrl_buf_ = nullptr;
+        // consume the buffer chunks into the destination
+        auto size = std::min(t.size(), ctrl_buf_->len);
+        if (t.data() != ctrl_buf_->data) [[likely]]
+        {
+            std::memcpy(t.data(), ctrl_buf_->data, t.size());
+        }
+        t = {t.data() + size, static_cast<decltype(t.size())>(t.size() - size)};
+
+        ctrl_buf_ = net_buf_frag_del(nullptr, ctrl_buf_);
+        if (ctrl_buf_ and udc_get_buf_info(ctrl_buf_)->status)
+        {
+            break;
+        }
     }
+
+    assert(t.empty());
 }
 
 void udc_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
 {
     auto addr = endpoint::address::control(dir);
-    if (t.stalled())
+
+    if (t.stalled()) [[unlikely]]
     {
         if (ctrl_buf_)
         {
@@ -167,11 +205,12 @@ void udc_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
         assert(ret == result::OK);
         return;
     }
+
     if (t.size() > 0)
     {
+        assert((ctrl_buf_ != nullptr) and udc_get_buf_info(ctrl_buf_)->data);
         if (dir == direction::IN)
         {
-            assert((ctrl_buf_ != nullptr) and udc_get_buf_info(ctrl_buf_)->data);
             ctrl_buf_->data = t.data();
             ctrl_buf_->len = t.size();
 
@@ -184,28 +223,138 @@ void udc_mac::control_reply(usb::direction dir, const usb::df::transfer& t)
         }
         else
         {
-            assert((ctrl_buf_ != nullptr) and udc_get_buf_info(ctrl_buf_)->data);
-
             // the data has been received in advance
-            assert(t.size() <= ctrl_buf_->len);
-            if (t.data() != ctrl_buf_->data)
-            {
-                // copy to expected location
-                std::memcpy(t.data(), ctrl_buf_->data, t.size());
-            }
-            ctrl_buf_ = net_buf_frag_del(nullptr, ctrl_buf_);
+            move_data_out(t);
+
+            // complete the data stage for upper layer, recursive call ahead
+            // the data can be rejected and end with a stall
+            control_ep_data(dir, t);
         }
     }
-    control_transfer();
-    if (t.size() > 0)
+    else if (ctrl_buf_ != nullptr)
     {
-        // forward the data now
+        ctrl_buf_->len = 0;
+        ctrl_buf_->size = 0;
+
+        // setting the address early
+        if (addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
+        {
+            auto ret = udc_set_address(dev_, request().wValue.low_byte());
+            assert(ret == 0);
+        }
+    }
+
+    // only one buf chain is sent to driver (data + status)
+    if (ctrl_buf_ != nullptr)
+    {
+        auto ret = udc_ep_enqueue(dev_, ctrl_buf_);
+        assert(ret == 0);
+        ctrl_buf_ = nullptr;
+    }
+
+    if ((t.size() > 0) and (dir == direction::IN))
+    {
+        // TODO: this should be done between the data IN and status OUT stages,
+        // but the UDC driver is designed to perform these two without providing an event
+        // so for now we do it on best effort basis (it should only be important for DFU class)
         control_ep_data(dir, t);
+    }
+}
+
+void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
+{
+    endpoint::address addr{info.ep};
+    int err = info.err;
+
+    // control bufs are allocated by the UDC driver
+    // so they must be freed
+    if (info.setup)
+    {
+        assert((info.ep == USB_CONTROL_EP_OUT) and (buf->len == sizeof(request())));
+
+        // new setup packet resets the stall status
+        stall_flags_.clear(endpoint::address::control_out());
+        stall_flags_.clear(endpoint::address::control_in());
+
+        std::memcpy(&request(), buf->data, sizeof(request()));
+
+        // pop the buf chain for the next stage(s), freeing the setup buf
+        ctrl_buf_ = net_buf_frag_del(nullptr, buf);
+        if (ctrl_buf_ == nullptr)
+        {
+            control_stall();
+            return;
+        }
+        if (request().direction() == direction::IN)
+        {
+            assert(udc_get_buf_info(ctrl_buf_)->data);
+            // reserve all space for ctrl data
+            // as it's used to construct descriptors even if the host request truncates it
+            auto* status = net_buf_frag_del(nullptr, ctrl_buf_);
+
+            // magic number, tune it with below code fragment
+            static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 96;
+            static_assert(CONFIG_UDC_BUF_POOL_SIZE > 128);
+            ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
+                                         max_alloc_size - ep_bufs_.size_bytes());
+#if 0
+                alloc_size_tuned = max_alloc_size;
+                while (ctrl_buf_ == nullptr)
+                {
+                    alloc_size_tuned -= sizeof(std::intptr_t);
+                    assert(alloc_size_tuned > ep_bufs_.size_bytes());
+                    ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
+                            alloc_size_tuned - ep_bufs_.size_bytes());
+                }
+#endif
+            assert(ctrl_buf_ != nullptr);
+            udc_get_buf_info(ctrl_buf_)->data = true;
+            if (status != nullptr)
+            {
+                net_buf_frag_add(ctrl_buf_, status);
+            }
+        }
+
+        // set up the buf as ctrl data target
+        set_control_buffer(std::span<uint8_t>(ctrl_buf_->data, ctrl_buf_->size));
+
+        // signal upper layer
+        control_ep_setup();
+    }
+    else if (info.status and (err == 0))
+    {
+        // we only get callback here if there was no data stage
+        // therefore control_reply has to call control_ep_data in all other cases
+        assert(ctrl_buf_ == nullptr);
+
+        // signal upper layer
+        control_ep_data(addr.direction(), transfer(buf->data, buf->len));
+
+        net_buf_unref(buf);
+
+        // timely address setting
+        if (!addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
+        {
+            auto ret = udc_set_address(dev_, request().wValue.low_byte());
+            assert(ret == 0);
+        }
+    }
+    else
+    {
+        net_buf_unref(buf);
+        LOG_ERR("CTRL EP %x error:%d", *reinterpret_cast<const uint16_t*>(&info), err);
     }
 }
 
 int udc_mac::event_callback(const device* dev, const udc_event* event)
 {
+    if (event->type == UDC_MAC_TASK) [[unlikely]]
+    {
+        auto& task =
+            *reinterpret_cast<etl::delegate<void()>*>(&const_cast<udc_event*>(event)->value);
+        task();
+        return 0;
+    }
     auto* mac = lookup(dev);
     assert(mac != nullptr);
     return mac->process_event(*event);
@@ -235,7 +384,7 @@ int udc_mac::process_event(const udc_event& event)
         {
             udc_event e2 = event;
             e2.status++;
-            k_msgq_put(&udc_mac_msgq, &e2, K_NO_WAIT);
+            post_event(e2);
             break;
         }
         set_power_state(power::state::L3_OFF);
@@ -247,8 +396,6 @@ int udc_mac::process_event(const udc_event& event)
     }
     return 0;
 }
-
-[[maybe_unused]] static size_t alloc_size_tuned = 0;
 
 void udc_mac::process_ep_event(net_buf* buf)
 {
@@ -289,7 +436,7 @@ void udc_mac::process_ep_event(net_buf* buf)
                 ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
                                              max_alloc_size - ep_bufs_.size_bytes());
 #if 0
-                alloc_size_tuned = max_alloc_size;
+                static size_t alloc_size_tuned = max_alloc_size;
                 while (ctrl_buf_ == nullptr)
                 {
                     alloc_size_tuned -= sizeof(std::intptr_t);

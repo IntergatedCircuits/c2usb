@@ -136,7 +136,8 @@ void device::set_address(message& msg)
         (msg.request().wValue.low_byte() < 0x80))
     {
         // this request must be handled after the status stage
-        // implemented by the MAC independently
+        // implemented by the MAC independently, as different controllers need different timing
+        // (e.g. ASAP, timely, none)
         return msg.confirm();
     }
     else

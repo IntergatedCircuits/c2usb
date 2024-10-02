@@ -51,10 +51,10 @@ CONFIG_NEWLIB_LIBC=y
 
 ## 3. Integrate the MAC
 
-A `usb::df::zephyr::udc_mac` subclass object will be the glue that connects the Zephyr OS to this library.
+A `usb::zephyr::udc_mac` subclass object will be the glue that connects the Zephyr OS to this library.
 Create this object and pass it the devicetree object that represents the USB device, e.g.
 ```
-usb::df::zephyr::udc_mac mac {DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0))};
+usb::zephyr::udc_mac mac {DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0))};
 ```
 
 ## 4. Your turn

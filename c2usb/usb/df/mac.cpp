@@ -40,6 +40,7 @@ void mac::stop()
     if (running())
     {
         running_ = set_attached(false);
+        set_power_state(power::state::L3_OFF);
     }
 }
 
@@ -95,7 +96,8 @@ uint32_t mac::granted_bus_current_uA() const
 
 bool mac::remote_wakeup()
 {
-    if (not std_status().remote_wakeup)
+    if (!std_status().remote_wakeup or (power_state() == power::state::L0_ON) or
+        (power_state() == power::state::L3_OFF))
     {
         return false;
     }

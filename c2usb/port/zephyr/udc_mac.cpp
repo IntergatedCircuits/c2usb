@@ -47,7 +47,7 @@ static int udc_mac_preinit()
         {
             udc_event event;
             k_msgq_get(&udc_mac_msgq, &event, K_FOREVER);
-            udc_mac::event_callback(event.dev, &event);
+            udc_mac::event_callback(event);
         }
     };
 
@@ -346,18 +346,18 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
     }
 }
 
-int udc_mac::event_callback(const device* dev, const udc_event* event)
+int udc_mac::event_callback(const udc_event& event)
 {
-    if (event->type == UDC_MAC_TASK) [[unlikely]]
+    if (event.type == UDC_MAC_TASK) [[unlikely]]
     {
         auto& task =
-            *reinterpret_cast<etl::delegate<void()>*>(&const_cast<udc_event*>(event)->value);
+            *reinterpret_cast<etl::delegate<void()>*>(&const_cast<udc_event&>(event).value);
         task();
         return 0;
     }
-    auto* mac = lookup(dev);
+    auto* mac = lookup(event.dev);
     assert(mac != nullptr);
-    return mac->process_event(*event);
+    return mac->process_event(event);
 }
 
 int udc_mac::process_event(const udc_event& event)
@@ -406,83 +406,7 @@ void udc_mac::process_ep_event(net_buf* buf)
     int err = info.err;
     if (addr.number() == 0)
     {
-        // control bufs are allocated by the UDC driver
-        // so they must be freed
-        if (info.setup)
-        {
-            assert((info.ep == USB_CONTROL_EP_OUT) and (buf->len == sizeof(request())));
-
-            // new setup packet resets the stall status
-            stall_flags_.clear(endpoint::address::control_out());
-            stall_flags_.clear(endpoint::address::control_in());
-
-            std::memcpy(&request(), buf->data, sizeof(request()));
-
-            // pop the buf chain for the next stage(s), freeing the setup buf
-            ctrl_buf_ = net_buf_frag_del(nullptr, buf);
-            if (ctrl_buf_ == nullptr)
-            {
-                control_stall();
-                return;
-            }
-            if (request().direction() == direction::IN)
-            {
-                assert(udc_get_buf_info(ctrl_buf_)->data);
-                // reserve all space for ctrl data
-                // as it's used to construct descriptors even if the host request truncates it
-                auto* status = net_buf_frag_del(nullptr, ctrl_buf_);
-
-                // magic number, tune it with below code fragment
-                static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 96;
-                static_assert(CONFIG_UDC_BUF_POOL_SIZE > 128);
-                ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
-                                             max_alloc_size - ep_bufs_.size_bytes());
-#if 0
-                static size_t alloc_size_tuned = max_alloc_size;
-                while (ctrl_buf_ == nullptr)
-                {
-                    alloc_size_tuned -= sizeof(std::intptr_t);
-                    assert(alloc_size_tuned > ep_bufs_.size_bytes());
-                    ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
-                            alloc_size_tuned - ep_bufs_.size_bytes());
-                }
-#endif
-                assert(ctrl_buf_ != nullptr);
-                udc_get_buf_info(ctrl_buf_)->data = true;
-                if (status != nullptr)
-                {
-                    net_buf_frag_add(ctrl_buf_, status);
-                }
-            }
-
-            // set up the buf as ctrl data target
-            set_control_buffer(std::span<uint8_t>(ctrl_buf_->data, ctrl_buf_->size));
-
-            // signal upper layer
-            control_ep_setup();
-        }
-        else if (info.status and (err == 0))
-        {
-            // we only get callback here if there was no data stage
-            // therefore control_reply has to call control_ep_data in all other cases
-            assert(ctrl_buf_ == nullptr);
-
-            // signal upper layer
-            control_ep_data(addr.direction(), transfer(buf->data, buf->len));
-
-            // UDC expects the address timely
-            if (request() == standard::device::SET_ADDRESS)
-            {
-                auto ret = udc_set_address(dev_, request().wValue.low_byte());
-                assert(ret == 0);
-            }
-            net_buf_unref(buf);
-        }
-        else
-        {
-            net_buf_unref(buf);
-            LOG_ERR("CTRL EP %x error:%d", *reinterpret_cast<uint16_t*>(&info), err);
-        }
+        process_ctrl_ep_event(buf, info);
     }
     else
     {

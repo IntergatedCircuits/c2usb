@@ -12,7 +12,7 @@
 #define __PORT_ZEPHYR_UDC_MAC_HPP_
 
 #define C2USB_HAS_ZEPHYR_HEADERS    (__has_include("zephyr/drivers/usb/udc.h") and \
-                                     __has_include("zephyr/device.h"))
+                                     __has_include("zephyr/device.h") and CONFIG_C2USB_UDC_MAC)
 #if C2USB_HAS_ZEPHYR_HEADERS
 
 #include "etl/delegate.h"
@@ -47,7 +47,7 @@ class udc_mac : public df::mac
         return post_event(event);
     }
 
-    static int event_callback(const device* dev, const udc_event* event);
+    static int event_callback(const udc_event& event);
 
   private:
     const ::device* dev_;

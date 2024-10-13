@@ -11,7 +11,9 @@
 
 #include <cstddef>
 #include <optional>
-#include <zephyr/kernel.h>
+#include "port/zephyr/tick_timer.hpp"
+
+#if C2USB_HAS_ZEPHYR_KERNEL
 
 namespace os::zephyr
 {
@@ -21,15 +23,35 @@ class message_queue
   public:
     message_queue() { ::k_msgq_init(&msgq_, msgq_buffer_, sizeof(T), max_size()); }
 
-    bool post(const T& msg, ::k_timeout_t timeout = K_FOREVER)
+    void post(const T& msg)
     {
-        return ::k_msgq_put(&msgq_, &msg, timeout) == 0;
+        [[maybe_unused]] auto ret = ::k_msgq_put(&msgq_, &msg, K_FOREVER);
+        assert(ret == 0);
+    }
+    bool try_post(const T& msg) { return ::k_msgq_put(&msgq_, &msg, K_NO_WAIT) == 0; }
+    template <class Rep, class Period>
+    inline bool try_post_for(const T& msg, const std::chrono::duration<Rep, Period>& rel_time)
+    {
+        return ::k_msgq_put(&msgq_, &msg, to_timeout(rel_time)) == 0;
+    }
+    template <class Clock, class Duration>
+    inline bool try_post_until(const T& msg,
+                               const std::chrono::time_point<Clock, Duration>& abs_time)
+    {
+        return try_post_for(abs_time - Clock::now());
     }
 
-    std::optional<T> get(::k_timeout_t timeout = K_FOREVER)
+    T get()
     {
         T msg;
-        if (::k_msgq_get(&msgq_, reinterpret_cast<void*>(&msg), timeout) == 0)
+        [[maybe_unused]] auto ret = ::k_msgq_get(&msgq_, reinterpret_cast<void*>(&msg), K_FOREVER);
+        assert(ret == 0);
+        return msg;
+    }
+    std::optional<T> try_get()
+    {
+        T msg;
+        if (::k_msgq_get(&msgq_, reinterpret_cast<void*>(&msg), K_NO_WAIT) == 0)
         {
             return msg;
         }
@@ -59,5 +81,7 @@ class message_queue
 };
 
 } // namespace os::zephyr
+
+#endif // C2USB_HAS_ZEPHYR_KERNEL
 
 #endif // __PORT_ZEPHYR_MESSAGE_QUEUE_HPP

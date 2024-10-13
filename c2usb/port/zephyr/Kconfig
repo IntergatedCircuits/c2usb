@@ -16,7 +16,7 @@ source "subsys/logging/Kconfig.template.log_config"
 
 config C2USB_UDC_MAC_MSGQ_SIZE
 	int "Size of message queue receiving events from Zephyr UDC driver."
-	range 4 16
+	range 4 40
 	default 10
 
 config C2USB_UDC_MAC_THREAD_STACK_SIZE

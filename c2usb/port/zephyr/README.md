@@ -1,6 +1,10 @@
 # Zephyr-RTOS middleware port
 
 This USB device MAC port builds on top of the Zephyr UDC drivers.
+Additionally, this port also implements HID over GATT service for BLE (see bluetooth subdirectory).
+The library can be integrated in two ways into a zephyr application:
+1. as a subdirectory / submodule of the application (guide below)
+2. as a zephyr module (example usage [here][c2usb-zephyr-examples])
 
 ## 1. Project setup
 
@@ -60,3 +64,5 @@ usb::zephyr::udc_mac mac {DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0))};
 ## 4. Your turn
 
 If your porting journey took any unexpected steps, do let us know so we can share this knowledge with others.
+
+[c2usb-zephyr-examples]: https://github.com/IntergatedCircuits/c2usb-zephyr-examples

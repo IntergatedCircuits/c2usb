@@ -368,7 +368,6 @@ int udc_mac::process_event(const udc_event& event)
         process_ep_event(event.buf);
         break;
     case UDC_EVT_RESET:
-        cancel_all_transfers();
         bus_reset();
         break;
     case UDC_EVT_SUSPEND:
@@ -376,7 +375,6 @@ int udc_mac::process_event(const udc_event& event)
         break;
     case UDC_EVT_RESUME:
     case UDC_EVT_VBUS_READY:
-        cancel_all_transfers();
         set_power_state(power::state::L0_ON);
         break;
     case UDC_EVT_VBUS_REMOVED:
@@ -509,19 +507,6 @@ usb::endpoint::address udc_mac::ep_handle_to_address(ep_handle eph) const
     return endpoint::address(udc_get_buf_info(ep_handle_to_buf(eph))->ep);
 }
 
-void udc_mac::cancel_all_transfers()
-{
-    for (auto* buf : ep_bufs_)
-    {
-        endpoint::address addr{udc_get_buf_info(buf)->ep};
-        if (busy_flags_.test(addr))
-        {
-            [[maybe_unused]] auto ret = udc_ep_dequeue(dev_, addr);
-            busy_flags_.clear(addr);
-        }
-    }
-}
-
 usb::df::ep_handle udc_mac::ep_open(const usb::df::config::endpoint& ep)
 {
     auto ret = udc_ep_enable(dev_, ep.address(), ep.bmAttributes, ep.wMaxPacketSize, ep.bInterval);
@@ -550,7 +535,7 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
         return result::BUSY;
     }
 #endif
-    if ((power_state() != power::state::L0_ON) or busy_flags_.test_and_set(addr))
+    if (busy_flags_.test_and_set(addr))
     {
         return result::BUSY;
     }

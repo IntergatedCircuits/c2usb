@@ -36,13 +36,7 @@ rsource "c2usb/c2usb/port/zephyr/Kconfig"
 
 The following are required Zephyr Kconfig options:
 ```
-CONFIG_STD_CPP20=y
-# your choice of libc++
-CONFIG_GLIBCXX_LIBCPP=y
-CONFIG_NEWLIB_LIBC=y
-
-# find the driver for your MCU
-# CONFIG_UDC_NRF=y
+CONFIG_C2USB_UDC_MAC=y
 
 # RAM optimization:
 # the buffer pool size can be cut down, as it's only used for control transfers

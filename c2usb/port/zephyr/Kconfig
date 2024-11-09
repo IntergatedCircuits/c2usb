@@ -1,12 +1,16 @@
 menu "c2usb configuration"
 
+config C2USB_CPP
+	bool
+	select CPP
+	select REQUIRES_FULL_LIBCPP
+
 rsource "bluetooth/Kconfig"
 
 menuconfig C2USB_UDC_MAC
 	bool "c2usb UDC MAC driver"
-	default y
 	select UDC_DRIVER
-	select CPP
+	select C2USB_CPP
 
 if C2USB_UDC_MAC
 
@@ -26,3 +30,7 @@ config C2USB_UDC_MAC_THREAD_STACK_SIZE
 endif # C2USB_UDC_MAC
 
 endmenu
+
+choice STD_CPP
+	default STD_CPP20 if C2USB_CPP
+endchoice

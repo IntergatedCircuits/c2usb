@@ -49,6 +49,8 @@ class udc_mac : public df::mac
 
     static int event_callback(const udc_event& event);
 
+    const ::device* device() const { return dev_; }
+
   private:
     const ::device* dev_;
     ::net_buf* ctrl_buf_{};
@@ -62,8 +64,6 @@ class udc_mac : public df::mac
     endpoint::address ep_handle_to_address(usb::df::ep_handle eph) const override;
     usb::df::ep_handle ep_config_to_handle(const usb::df::config::endpoint& ep) const override;
     ::net_buf* const& ep_handle_to_buf(usb::df::ep_handle eph) const;
-
-    static udc_mac* lookup(const device* dev);
 
     void init(const usb::speeds& speeds) override;
     void deinit() override;

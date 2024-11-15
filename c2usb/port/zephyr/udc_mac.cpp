@@ -9,6 +9,7 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "port/zephyr/udc_mac.hpp"
+#include "port/compatibility_helper.hpp"
 
 #if C2USB_HAS_ZEPHYR_HEADERS
 #include <atomic>
@@ -35,6 +36,29 @@ constexpr auto addr_before_status(const T&)
     return false;
 }
 
+constexpr bool udc_init_has_ctx = c2usb::function_arg_count(udc_init) == 3;
+template <typename T>
+udc_mac* get_event_ctx(T* dev)
+    requires(udc_init_has_ctx)
+{
+    return static_cast<udc_mac*>(const_cast<void*>(udc_get_event_ctx(dev)));
+}
+[[maybe_unused]] static std::array<std::atomic<udc_mac*>, 2> mac_ptrs;
+template <typename T>
+udc_mac* get_event_ctx(T* dev)
+    requires(!udc_init_has_ctx)
+{
+    for (auto& mac : mac_ptrs)
+    {
+        udc_mac* mac_raw = mac.load();
+        if (mac_raw and (mac_raw->device() == dev))
+        {
+            return mac_raw;
+        }
+    }
+    return nullptr;
+}
+
 K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), CONFIG_C2USB_UDC_MAC_MSGQ_SIZE, sizeof(uint32_t));
 
 static int udc_mac_preinit()
@@ -59,11 +83,13 @@ static int udc_mac_preinit()
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
-static std::array<std::atomic<udc_mac*>, 2> mac_ptrs;
-
 udc_mac::udc_mac(const ::device* dev)
     : mac(), dev_(dev)
 {
+    if constexpr (udc_init_has_ctx)
+    {
+        return;
+    }
     for (auto& mac : mac_ptrs)
     {
         udc_mac* expected = nullptr;
@@ -77,6 +103,10 @@ udc_mac::udc_mac(const ::device* dev)
 
 udc_mac::~udc_mac()
 {
+    if constexpr (udc_init_has_ctx)
+    {
+        return;
+    }
     for (auto& mac : mac_ptrs)
     {
         udc_mac* expected = this;
@@ -88,19 +118,6 @@ udc_mac::~udc_mac()
     assert(false);
 }
 
-udc_mac* udc_mac::lookup(const device* dev)
-{
-    for (auto& mac : mac_ptrs)
-    {
-        udc_mac* mac_raw = mac.load();
-        if (mac_raw and (mac_raw->dev_ == dev))
-        {
-            return mac_raw;
-        }
-    }
-    return nullptr;
-}
-
 usb::result udc_mac::post_event(const udc_event& event)
 {
     return static_cast<usb::result>(k_msgq_put(&udc_mac_msgq, &event, K_NO_WAIT));
@@ -108,11 +125,11 @@ usb::result udc_mac::post_event(const udc_event& event)
 
 void udc_mac::init(const usb::speeds& speeds)
 {
-    auto dispatch = [](const device*, const udc_event* event)
+    auto dispatch = [](const ::device*, const udc_event* event)
     {
         return k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT);
     };
-    [[maybe_unused]] auto ret = udc_init(dev_, dispatch);
+    [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, dispatch, this);
     assert(ret == 0);
 }
 
@@ -355,7 +372,7 @@ int udc_mac::event_callback(const udc_event& event)
         task();
         return 0;
     }
-    auto* mac = lookup(event.dev);
+    auto* mac = get_event_ctx(event.dev);
     assert(mac != nullptr);
     return mac->process_event(event);
 }

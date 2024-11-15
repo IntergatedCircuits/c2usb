@@ -10,6 +10,7 @@ target_sources(${PROJECT_NAME}
         i2c/hid/standard.hpp
         i2c/base.hpp
         i2c/slave.hpp
+        port/compatibility_helper.hpp
         usb/class/hid.hpp
         usb/df/class/cdc.hpp
         usb/df/class/cdc_acm.hpp

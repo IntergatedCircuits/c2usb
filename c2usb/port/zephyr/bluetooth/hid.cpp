@@ -387,6 +387,7 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
         return result::BUSY;
     }
 
+    pending_notify = data;
     auto ret = attr->notify(
         data.subspan(offset),
         [](::bt_conn*, void* user_data)
@@ -396,7 +397,7 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
             // get report selector / boot report info
             report::selector sel{report::type::INPUT};
             protocol prot = protocol::BOOT;
-            if (*attr[1].uuid == *input_report_info().uuid)
+            if (attr[1].uuid == input_report_info().uuid)
             {
                 sel = attr[report_reference_offset()].user_value<report::selector>();
                 prot = protocol::REPORT;
@@ -413,7 +414,6 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
     switch (ret)
     {
     case 0:
-        pending_notify = data;
         return result::OK;
     case -ENOENT:
     case -EINVAL:

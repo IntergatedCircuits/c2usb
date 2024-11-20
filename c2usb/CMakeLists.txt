@@ -54,7 +54,7 @@ target_sources(${PROJECT_NAME}
 )
 
 # ports
-if (DEFINED ENV{ZEPHYR_BASE})
+if(ZEPHYR_BUILD)
     add_subdirectory_ifdef(CONFIG_C2USB_UDC_MAC
         port/zephyr)
     add_subdirectory_ifdef(CONFIG_C2USB_BLUETOOTH

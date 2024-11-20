@@ -1,13 +1,27 @@
 cmake_minimum_required(VERSION 3.19)
 
 project(c2usb
-	LANGUAGES CXX
+    LANGUAGES CXX
 )
 
-# this library only works with C++20 (and above?)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
+if(DEFINED ENV{ZEPHYR_BASE})
+    set(ZEPHYR_BUILD ON)
+else()
+    set(ZEPHYR_BUILD OFF)
+endif()
+set(ZEPHYR_BUILD ${ZEPHYR_BUILD} CACHE BOOL "Indicates if this is a Zephyr build")
+if(ZEPHYR_BUILD)
+    if (NOT CONFIG_C2USB_CPP)
+        message("Zephyr build without c2usb")
+        return()
+    endif()
+    # using zephyr's C++ settings via zephyr_interface
+else()
+    # this library only works with C++20 (and above?)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS ON)
+endif()
 
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})

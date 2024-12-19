@@ -57,6 +57,21 @@ class message_queue
         }
         return std::nullopt;
     }
+    template <class Rep, class Period>
+    std::optional<T> try_get_for(const std::chrono::duration<Rep, Period>& rel_time)
+    {
+        T msg;
+        if (::k_msgq_get(&msgq_, reinterpret_cast<void*>(&msg), to_timeout(rel_time)) == 0)
+        {
+            return msg;
+        }
+        return std::nullopt;
+    }
+    template <class Clock, class Duration>
+    std::optional<T> try_get_until(const std::chrono::time_point<Clock, Duration>& abs_time)
+    {
+        return try_get_for(abs_time - Clock::now());
+    }
 
     void flush() { ::k_msgq_purge(&msgq_); }
 

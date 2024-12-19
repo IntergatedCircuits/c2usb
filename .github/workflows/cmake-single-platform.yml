@@ -4,9 +4,9 @@ name: CMake on a single platform
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -22,6 +22,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+      # using the most convenient 32-bit target platform, as the library is designed for 32-bit pointer systems
     - name: Install 32-bit multilib toolchain
       run: |
         sudo apt update

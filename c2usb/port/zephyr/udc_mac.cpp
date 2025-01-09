@@ -9,16 +9,22 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "port/zephyr/udc_mac.hpp"
-#include "port/compatibility_helper.hpp"
 
 #if C2USB_HAS_ZEPHYR_HEADERS
 #include <atomic>
+#include "port/compatibility_helper.hpp"
 #include <zephyr/logging/log.h>
+extern "C"
+{
+#include <zephyr/drivers/usb/udc.h>
+}
 
 using namespace usb::zephyr;
 using namespace usb::df;
 
 LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
+
+static constexpr ::udc_event_type UDC_MAC_TASK = (udc_event_type)-1;
 
 // keeping compatibility with multiple Zephyr versions
 template <typename T>
@@ -361,6 +367,15 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         net_buf_unref(buf);
         LOG_ERR("CTRL EP %x error:%d", *reinterpret_cast<const uint16_t*>(&info), err);
     }
+}
+
+usb::result udc_mac::queue_task(etl::delegate<void()> task)
+{
+    udc_event event{.type = UDC_MAC_TASK};
+    static_assert(offsetof(udc_event, type) == 0 and
+                  sizeof(task) <= (sizeof(event) - offsetof(udc_event, value)));
+    std::memcpy(&event.value, &task, sizeof(task));
+    return post_event(event);
 }
 
 int udc_mac::event_callback(const udc_event& event)

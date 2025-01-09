@@ -19,18 +19,16 @@
 #include "usb/df/ep_flags.hpp"
 #include "usb/df/mac.hpp"
 
-extern "C"
-{
-#include <zephyr/drivers/usb/udc.h>
-}
+struct device;
+struct net_buf;
+struct udc_buf_info;
+struct udc_event;
 
 namespace usb::zephyr
 {
 /// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
 class udc_mac : public df::mac
 {
-    static constexpr udc_event_type UDC_MAC_TASK = (udc_event_type)-1;
-
   public:
     udc_mac(const ::device* dev);
     ~udc_mac() override;
@@ -38,16 +36,9 @@ class udc_mac : public df::mac
     /// @brief Queues a task to be executed in the USB thread context.
     /// @param task the callable to execute
     /// @return OK if the task was queued, -ENOMSG if the queue is full
-    static usb::result queue_task(etl::delegate<void()> task)
-    {
-        udc_event event{.type = UDC_MAC_TASK};
-        static_assert(offsetof(udc_event, type) == 0 and
-                      sizeof(task) <= (sizeof(event) - offsetof(udc_event, value)));
-        std::memcpy(&event.value, &task, sizeof(task));
-        return post_event(event);
-    }
+    static usb::result queue_task(etl::delegate<void()> task);
 
-    static int event_callback(const udc_event& event);
+    static int event_callback(const ::udc_event& event);
 
     const ::device* device() const { return dev_; }
 
@@ -74,11 +65,11 @@ class udc_mac : public df::mac
     void control_ep_open() override;
     void move_data_out(usb::df::transfer t);
     void control_reply(usb::direction dir, const usb::df::transfer& t) override;
-    void process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info);
+    void process_ctrl_ep_event(::net_buf* buf, const ::udc_buf_info& info);
 
-    static usb::result post_event(const udc_event& event);
-    int process_event(const udc_event& event);
-    void process_ep_event(net_buf* buf);
+    static usb::result post_event(const ::udc_event& event);
+    int process_event(const ::udc_event& event);
+    void process_ep_event(::net_buf* buf);
 
     usb::result ep_set_stall(endpoint::address addr);
     usb::result ep_clear_stall(endpoint::address addr);

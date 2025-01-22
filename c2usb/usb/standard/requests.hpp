@@ -39,6 +39,8 @@ enum class request : uint8_t
     LOOPBACK_DATA_WRITE = 0x15,
     LOOPBACK_DATA_READ = 0x16,
     SET_INTERFACE_DS = 0x17,
+    AUTH_IN = 0x18,
+    AUTH_OUT = 0x19,
     GET_FW_STATUS = 0x1A,
     SET_FW_STATUS = 0x1B,
     SET_SEL = 0x30,

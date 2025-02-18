@@ -94,6 +94,17 @@ class polymorphic
     polymorphic(const polymorphic&) = delete;
     polymorphic& operator=(const polymorphic&) = delete;
 };
+
+template <typename Type, std::size_t... sizes>
+constexpr auto join(const std::array<Type, sizes>&... arrays)
+{
+    // https://stackoverflow.com/a/42774523
+    std::array<Type, (sizes + ...)> result;
+    std::size_t index{};
+    ((std::copy_n(arrays.begin(), sizes, result.begin() + index), index += sizes), ...);
+    return result;
+}
+
 } // namespace c2usb
 
 #endif // __C2USB_HPP_

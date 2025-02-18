@@ -95,6 +95,7 @@ class service : public ::hid::transport
 
     void connected(::bt_conn* conn);
     void disconnected(::bt_conn* conn);
+    ::bt_conn* peer() const { return active_conn_.load(); }
 
   private:
     static const gatt::char_decl& report_map_info();

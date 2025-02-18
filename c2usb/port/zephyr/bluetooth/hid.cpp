@@ -407,7 +407,7 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
             auto& pending_notify = this_->get_pending_notify(prot, sel.id());
             auto buf = pending_notify;
             pending_notify = {};
-            LOG_INF("input report sent (size %u)", buf.size());
+            LOG_DBG("input report sent (size %u)", buf.size());
             this_->app_.in_report_sent(buf);
         },
         attr, active_conn_.load());
@@ -540,7 +540,7 @@ bool service::start_app(::bt_conn* conn, ::hid::protocol protocol)
     }
 
     auto result = app_.setup(this, protocol);
-    LOG_INF("starting HID app %u: %u", static_cast<uint8_t>(protocol), result);
+    LOG_INF("starting HID app %s: %u", magic_enum::enum_name(protocol).data(), result);
     if (!result)
     {
         active_conn_.compare_exchange_strong(conn, nullptr);

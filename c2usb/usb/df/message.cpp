@@ -101,26 +101,7 @@ void string_message::send_as_hex_string(std::span<const uint8_t> data)
 {
     auto trimmed_size = data.size();
     auto* string_desc = safe_allocate(trimmed_size, 2);
-    data = data.subspan(0, trimmed_size);
-
-    auto convert = [](uint8_t v)
-    {
-        if (v < 10)
-        {
-            return '0' + v;
-        }
-        else
-        {
-            return 'A' + v - 10;
-        }
-    };
-    size_t offset = 0;
-    for (auto byte : data)
-    {
-        string_desc->Data[offset++] = convert(byte >> 4);
-        string_desc->Data[offset++] = convert(byte & 0xF);
-    }
-
+    to_hex_string(data, std::span(string_desc->Data, trimmed_size * 2));
     return send_buffer();
 }
 

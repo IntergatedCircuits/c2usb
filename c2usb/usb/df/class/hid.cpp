@@ -47,8 +47,8 @@ usb::result app_base_function::send_report(const std::span<const uint8_t>& data,
     if ((get_report_.type() == type) and
         ((get_report_.id() == 0) or (get_report_.id() == data.front())))
     {
-        auto* msg = pending_message();
-        if (msg != nullptr)
+        auto msg = pending_message();
+        if (msg)
         {
             msg->send_data(data);
         }
@@ -93,6 +93,15 @@ void app_base_function::transfer_complete(ep_handle eph, const transfer& t)
     {
         app_.set_report(report::type::OUTPUT, t);
     }
+}
+
+void function::start(const config::interface& iface, uint8_t alt_sel)
+{
+    /* Windows 11 was observed to not re-fetch the report descriptor
+     * after a power cycle, therefore there is no reliable way of detecting
+     * an intended report mode operation. Start in default report mode,
+     * even at the cost of a quick transition to boot mode. */
+    app_base_function::start(iface, ::hid::protocol::REPORT);
 }
 
 void function::get_hid_descriptor(df::buffer& buffer)
@@ -201,7 +210,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         }
         if (app_.get_protocol() != prot)
         {
-            start(iface, prot);
+            app_base_function::start(iface, prot);
         }
         return msg.confirm();
     }
@@ -229,20 +238,9 @@ void function::control_data_complete(message& msg, const config::interface& ifac
     {
         auto type = static_cast<report::type>(msg.request().wValue.high_byte());
         rx_buffers_[type] = {};
-        app_.set_report(type, msg.transferred_data());
+        app_.set_report(type, msg.data());
         break;
     }
-
-    case GET_DESCRIPTOR:
-        if (static_cast<hid::descriptor::type>(msg.request().wValue.high_byte()) ==
-            hid::descriptor::type::REPORT)
-        {
-            // start the application in default report mode
-            // after the report descriptor was transferred
-            start(iface, protocol::REPORT);
-        }
-        break;
-
     default:
         break;
     }

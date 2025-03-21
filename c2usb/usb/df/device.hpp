@@ -13,6 +13,7 @@
 
 #include <variant>
 #include <etl/delegate.h>
+#include <magic_enum.hpp>
 
 #include "usb/df/mac.hpp"
 #include "usb/product_info.hpp"
@@ -37,7 +38,7 @@ struct language_id_provider
 };
 
 /// @brief  The device is the non-template base class for @ref device_instance.
-class device : protected mac::device_interface
+class device : public polymorphic
 {
   public:
     /// @brief  The extension is the interface for vendor specific device extensions.
@@ -94,12 +95,14 @@ class device : protected mac::device_interface
     bool allows_remote_wakeup() const { return mac_.std_status().remote_wakeup; }
     auto power_state() const { return mac_.power_state(); }
     const config::power* power_config() const;
-    bool remote_wakeup() { return mac_.remote_wakeup(); }
+    auto remote_wakeup() { return mac_.remote_wakeup(); }
 
+    // using namespace magic_enum::bitwise_operators;
     enum class event : uint8_t
     {
-        POWER_STATE_CHANGE = 0,
-        CONFIGURATION_CHANGE,
+        NONE = 0,
+        POWER_STATE_CHANGE = 1,
+        CONFIGURATION_CHANGE = 2,
     };
     using power_event_delegate = etl::delegate<void(device&, event)>;
     void set_power_event_delegate(const power_event_delegate& delegate)
@@ -125,8 +128,7 @@ class device : protected mac::device_interface
 
     device(usb::df::mac& mac, const product_info& prodinfo, usb::speeds speeds,
            uint8_t max_configs_count, extension& ext)
-        : mac::device_interface(),
-          mac_(mac),
+        : mac_(mac),
           product_info_(prodinfo),
           extension_(ext),
           speeds_(speeds),
@@ -156,7 +158,7 @@ class device : protected mac::device_interface
     void get_device_descriptor(message& msg);
     void get_bos_descriptor(message& msg);
     void set_address(message& msg);
-    void set_config(config::view config);
+    void set_config(config::view config, event ev = event::CONFIGURATION_CHANGE);
     void set_configuration(message& msg);
     void get_configuration(message& msg);
     void get_status(message& msg);
@@ -167,9 +169,12 @@ class device : protected mac::device_interface
 
     void delegate_power_event(event ev);
 
-    void handle_reset_request() override;
-    void handle_control_message(message& msg) override;
-    void handle_new_power_state(usb::power::state new_state) override;
+    friend class mac;
+
+    void on_power_state_change(power::state new_state);
+    void on_bus_reset(event ev);
+    void on_control_setup(message& msg);
+    void on_control_data(message& msg);
 
   protected:
     usb::df::mac& mac_;
@@ -283,5 +288,11 @@ class device_instance : public device
     [[no_unique_address]] conditional_store_t config_list_store_{};
 };
 } // namespace usb::df
+
+template <>
+struct magic_enum::customize::enum_range<usb::df::device::event>
+{
+    static constexpr bool is_flags = true;
+};
 
 #endif // __USB_DF_DEVICE_HPP_

@@ -17,8 +17,8 @@ using namespace usb::df;
 uint8_t* buffer::allocate(size_type size)
 {
     // need to increase CONTROL_BUFFER_SIZE
-    assert((data() != nullptr) and ((used_length() + size) <= max_size()));
-    auto* ptr = data() + used_length();
+    assert(data_ and ((used_length() + size) <= max_size()));
+    auto* ptr = data_ + used_length();
     used_length_ += size;
     return ptr;
 }
@@ -29,34 +29,23 @@ void buffer::free(size_type size)
     used_length_ -= size;
 }
 
-bool string_message::pending_reply() const
+void string_message::set_pending(const transfer& data)
 {
-    return (stage_ & stages::PENDING_FLAG) != 0;
-}
-
-void string_message::setup_reply(const transfer& t)
-{
-    if (stage_ == stages::SETUP_PENDING)
+    buffer_.clear();
+    pending_ = true;
+    has_data_ = !data.empty();
+    if (has_data_)
     {
-        auto size = std::min(transfer::size_type(request().wLength), t.size());
-        stage_ = (t.size() > 0) ? stages::DATA : stages::STATUS;
-        control_reply(request().direction(), transfer(t.data(), size));
+        data_ = data;
     }
 }
 
 void string_message::set_reply(const transfer& t)
 {
-    if (not pending_reply())
-    {
-        return;
-    }
-    direction dir = direction::IN;
-    if (stage_ != stages::SETUP_PENDING)
-    {
-        dir = opposite_direction(request().direction());
-    }
-    stage_ = stages::STATUS;
-    control_reply(dir, t);
+    assert(pending_);
+    pending_ = false;
+    auto size = std::min(transfer::size_type(request().wLength), t.size());
+    data_ = transfer(t.data(), size);
 }
 
 void string_message::reject()
@@ -67,7 +56,7 @@ void string_message::reject()
 void string_message::send_buffer()
 {
     assert(request().direction() == direction::IN);
-    setup_reply(transfer(buffer_));
+    set_reply(buffer_);
 }
 
 usb::standard::descriptor::string* string_message::safe_allocate(size_t& size, size_t char_ratio)
@@ -115,45 +104,20 @@ void message::set_reply(bool accept)
     string_message::set_reply(accept ? transfer() : transfer::stall());
 }
 
-void message::set_control_buffer(const std::span<uint8_t>& buffer)
-{
-    *static_cast<transfer*>(&buffer_) = transfer(buffer);
-    buffer_.clear();
-}
-
 void message::send_data(const std::span<const uint8_t>& data)
 {
     assert(request().direction() == direction::IN);
-    setup_reply(data);
+    string_message::set_reply(data);
 }
 
 void message::receive_data(const std::span<uint8_t>& data)
 {
     assert(request().direction() == direction::OUT);
-    setup_reply(data);
+    string_message::set_reply(data);
 }
 
 void message::receive_to_buffer()
 {
     receive_data(std::span<uint8_t>(
         buffer().begin(), std::min(buffer::size_type(request().wLength), buffer().max_size())));
-}
-
-void message::enter_setup()
-{
-    stage_ = stages::SETUP_PENDING;
-    buffer_.clear();
-    data_ = {};
-}
-
-void message::enter_data(const transfer& t)
-{
-    stage_ = stages::DATA_PENDING;
-    data_ = t;
-}
-
-void message::enter_status()
-{
-    stage_ = stages::RESET;
-    data_ = {};
 }

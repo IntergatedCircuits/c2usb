@@ -26,19 +26,19 @@ struct string;
 
 namespace usb::df
 {
+class mac;
+
 /// @brief  The buffer allows incremental, distributed construction of control messages.
-class buffer : private df::transfer
+class buffer
 {
   public:
-    using size_type = df::transfer::size_type;
+    using size_type = uint16_t;
 
-    constexpr buffer() = default;
-
-    size_type max_size() const { return df::transfer::size(); }
+    size_type max_size() const { return size_; }
     size_type used_length() const { return used_length_; }
     bool empty() const { return used_length() == 0; }
-    uint8_t* begin() const { return data(); }
-    uint8_t* end() const { return data() + used_length(); }
+    uint8_t* begin() const { return data_; }
+    uint8_t* end() const { return data_ + used_length(); }
 
     void clear() { used_length_ = 0; }
     uint8_t* allocate(size_type size);
@@ -57,27 +57,33 @@ class buffer : private df::transfer
         std::memcpy(allocate(sizeof(data)), &data, sizeof(data));
     }
 
+    constexpr buffer() = default;
+
   private:
     buffer(const buffer&) = delete;
     buffer& operator=(const buffer&) = delete;
-    friend class message;
-    buffer(uint8_t* data, size_type size)
-        : df::transfer(data, size)
-    {}
 
+    friend class mac;
+    void assign(uint8_t* data, size_type size)
+    {
+        data_ = data;
+        size_ = size;
+        used_length_ = 0;
+    }
+
+    uint8_t* data_{};
+    size_type size_{};
     size_type used_length_{};
 };
 
 /// @brief  The string_message class provides interface to reply string (descriptor) messages
 /// to the USB host.
-class string_message : public polymorphic
+class string_message
 {
   public:
     const auto& request() const { return request_; }
     istring index() const { return request().wValue.low_byte(); }
     uint16_t language_id() const { return request().wIndex; }
-
-    bool pending_reply() const;
 
     void reject();
 
@@ -125,43 +131,31 @@ class string_message : public polymorphic
   protected:
     constexpr string_message() = default;
 
-    constexpr auto stage() const { return static_cast<usb::control::stage>(stage_ >> 1); }
-    enum stages : uint8_t
-    {
-        RESET = 0,
-        PENDING_FLAG = 1,
-        SETUP_PENDING = 3,
-        DATA = 4,
-        DATA_PENDING = 5,
-        STATUS = 6,
-    };
-
     void set_reply(const transfer& t);
     void send_buffer();
-    void setup_reply(const transfer& t);
 
-    virtual void control_reply(direction dir, const transfer& t) = 0;
+    void set_pending(const transfer& data = {});
 
     C2USB_USB_TRANSFER_ALIGN(control::request, request_){};
     df::buffer buffer_{};
     transfer data_{};
-    stages stage_{};
+    bool pending_{};
+    bool has_data_{};
 
   private:
     standard::descriptor::string* safe_allocate(size_t& size, size_t char_ratio = 1);
 };
 
 /// @brief  The message class provides interface to exchange control messages with the USB host.
-class message : private string_message
+class message : protected string_message
 {
   public:
+    using string_message::string_message;
     string_message& to_string_message() { return *(this); }
 
-    using string_message::pending_reply;
     using string_message::request;
-    using string_message::stage;
 
-    const transfer& transferred_data() { return data_; }
+    const transfer& data() { return data_; }
     df::buffer& buffer() { return buffer_; }
 
     using string_message::reject;
@@ -208,16 +202,9 @@ class message : private string_message
 
     void receive_to_buffer();
 
-  protected:
-    using string_message::control_reply;
-    using string_message::request_;
-    using string_message::string_message;
-    void set_control_buffer(const std::span<uint8_t>& buffer);
-
-    void enter_setup();
-    void enter_data(const transfer& t);
-    void enter_status();
+    // TODO: add API to ask for callback after data IN stage
 };
+
 } // namespace usb::df
 
 #endif // __USB_DF_MESSAGE_HPP_

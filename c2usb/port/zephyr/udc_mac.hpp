@@ -24,11 +24,15 @@ struct net_buf;
 struct udc_buf_info;
 struct udc_event;
 
+int udc_mac_preinit();
+
 namespace usb::zephyr
 {
 /// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
 class udc_mac : public df::mac
 {
+    friend int ::udc_mac_preinit();
+
   public:
     udc_mac(const ::device* dev);
     ~udc_mac() override;
@@ -38,33 +42,32 @@ class udc_mac : public df::mac
     /// @return OK if the task was queued, -ENOMSG if the queue is full
     static usb::result queue_task(etl::delegate<void()> task);
 
-    static int event_callback(const ::udc_event& event);
-
-    const ::device* device() const { return dev_; }
+    const ::device* driver_device() const { return dev_; }
 
   private:
     const ::device* dev_;
-    ::net_buf* ctrl_buf_{};
     usb::df::ep_flags stall_flags_{};
     usb::df::ep_flags busy_flags_{};
     std::span<::net_buf*> ep_bufs_{};
 
+    static void worker(void*, void*, void*);
+    static int event_callback(const ::udc_event& event);
+    bool ctrl_buf_valid(::net_buf* buf);
+    void ctrl_stall(::net_buf* buf, int err = 0);
+    ::net_buf* ctrl_buffer_allocate(::net_buf* buf);
+    bool set_attached(bool attached) override;
     void allocate_endpoints(usb::df::config::view config) override;
     usb::df::ep_handle ep_address_to_handle(endpoint::address addr) const override;
-    const usb::df::config::endpoint& ep_handle_to_config(usb::df::ep_handle eph) const override;
-    endpoint::address ep_handle_to_address(usb::df::ep_handle eph) const override;
+    endpoint::address ep_handle_to_address(usb::df::ep_handle eph) const;
     usb::df::ep_handle ep_config_to_handle(const usb::df::config::endpoint& ep) const override;
     ::net_buf* const& ep_handle_to_buf(usb::df::ep_handle eph) const;
 
     void init(const usb::speeds& speeds) override;
     void deinit() override;
-    bool set_attached(bool attached) override;
-    void signal_remote_wakeup() override;
+    usb::result signal_remote_wakeup() override;
     usb::speed speed() const override;
 
-    void control_ep_open() override;
-    void move_data_out(usb::df::transfer t);
-    void control_reply(usb::direction dir, const usb::df::transfer& t) override;
+    static ::net_buf* move_data_out(::net_buf* buf, usb::df::transfer t);
     void process_ctrl_ep_event(::net_buf* buf, const ::udc_buf_info& info);
 
     static usb::result post_event(const ::udc_event& event);

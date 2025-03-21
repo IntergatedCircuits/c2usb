@@ -13,6 +13,7 @@
 #include "usb/standard/descriptors.hpp"
 
 using namespace usb::df;
+using namespace magic_enum::bitwise_operators;
 
 void device::open()
 {
@@ -27,7 +28,7 @@ void device::close()
 
 bool device::is_open() const
 {
-    return mac_.running();
+    return mac_.active();
 }
 
 void device::delegate_power_event(event ev)
@@ -38,70 +39,80 @@ void device::delegate_power_event(event ev)
     }
 }
 
-void device::handle_new_power_state(usb::power::state new_state)
-{
-    if (new_state == usb::power::state::L3_OFF)
-    {
-        set_config({});
-    }
-    delegate_power_event(event::POWER_STATE_CHANGE);
-}
-
 const config::power* device::power_config() const
 {
     return configured() ? &mac_.active_config().info() : nullptr;
 }
 
-void device::handle_reset_request()
+void device::on_power_state_change(usb::power::state new_state)
 {
-    set_config({});
+    if ((new_state == usb::power::state::L3_OFF) and configured())
+    {
+        set_config({}, event::POWER_STATE_CHANGE);
+    }
+    else
+    {
+        delegate_power_event(event::POWER_STATE_CHANGE);
+    }
+}
+
+void device::on_bus_reset(event ev)
+{
+    if (configured())
+    {
+        set_config({}, ev);
+    }
+    else if (ev != event::NONE)
+    {
+        delegate_power_event(ev);
+    }
     extension_.bus_reset(*this);
 }
 
-void device::handle_control_message(message& msg)
+void device::on_control_setup(message& msg)
 {
-    using namespace control;
+    using namespace usb::control;
 
-    if (msg.stage() == stage::SETUP)
+    switch (msg.request().recipient())
     {
-        switch (msg.request().recipient())
-        {
-        case control::request::recipient::DEVICE:
-            return device_setup_request(msg);
+    case request::recipient::DEVICE:
+        return device_setup_request(msg);
 
-        case control::request::recipient::INTERFACE:
-            return interface_control(msg, &function::handle_control_setup);
+    case request::recipient::INTERFACE:
+        return interface_control(msg, &function::handle_control_setup);
 
-        case control::request::recipient::ENDPOINT:
-            return endpoint_setup_request(msg);
+    case request::recipient::ENDPOINT:
+        return endpoint_setup_request(msg);
 
-        default:
-            return msg.reject();
-        }
+    default:
+        return msg.reject();
     }
-    else // stage::DATA
+}
+
+void device::on_control_data(message& msg)
+{
+    using namespace usb::control;
+
+    switch (msg.request().recipient())
     {
-        switch (msg.request().recipient())
+    case request::recipient::DEVICE:
+        if (msg.request().type() == request::type::STANDARD)
         {
-        case control::request::recipient::DEVICE:
-            if (msg.request().type() == usb::control::request::type::STANDARD)
-            {
-                return msg.confirm();
-            }
-            else
-            {
-                return extension_.control_data_status(*this, msg);
-            }
-
-        case control::request::recipient::INTERFACE:
-            return interface_control(msg, &function::handle_control_data);
-
-        case control::request::recipient::ENDPOINT:
-        default:
-            // endpoint recipient don't deal with received data,
-            // nor do they need steps after sending data
             return msg.confirm();
         }
+        else
+        {
+            return extension_.control_data_status(*this, msg);
+        }
+
+    case request::recipient::INTERFACE:
+        return interface_control(msg, &function::handle_control_data);
+
+    case request::recipient::ENDPOINT:
+    default:
+        // endpoint recipient don't deal with received data,
+        // nor do they need steps after sending data
+        return msg.confirm();
     }
 }
 
@@ -146,7 +157,7 @@ void device::set_address(message& msg)
     }
 }
 
-void device::set_config(config::view config)
+void device::set_config(config::view config, event ev)
 {
     // effective change in configuration
     if (config != mac_.active_config())
@@ -158,7 +169,7 @@ void device::set_config(config::view config)
         }
 
         mac_.set_config(config);
-        delegate_power_event(event::CONFIGURATION_CHANGE);
+        delegate_power_event(ev | event::CONFIGURATION_CHANGE);
 
         for (auto& iface : mac_.active_config().interfaces())
         {

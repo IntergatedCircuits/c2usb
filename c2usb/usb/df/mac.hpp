@@ -19,21 +19,14 @@
 
 namespace usb::df
 {
+class device;
 /// @brief  The mac class serves as the USB device's Media Access Controller,
 ///         allowing access to bus resources.
-class mac : private message
+class mac : public polymorphic
 {
   public:
     using lpm_support_flags =
         usb::standard::descriptor::device_capability::usb_2p0_extension::attributes;
-
-    class device_interface : public interface
-    {
-      public:
-        virtual void handle_reset_request() = 0;
-        virtual void handle_control_message(message&) = 0;
-        virtual void handle_new_power_state(power::state) = 0;
-    };
 
     virtual usb::speed speed() const { return speed::FULL; }
 
@@ -45,15 +38,16 @@ class mac : private message
     /// @brief  Sets the buffer used for control transfers to the passed span.
     /// @note   The buffer must be aligned with @ref C2USB_USB_TRANSFER_ALIGN()
     /// @param  buffer: the buffer span available for control transfers
-    using message::set_control_buffer;
-
-    virtual void control_ep_open() {}
+    void set_control_buffer(const std::span<uint8_t>& buffer)
+    {
+        ctrl_msg_.buffer_.assign(buffer.data(), buffer.size());
+    }
 
     uint16_t control_ep_max_packet_size(usb::speed speed) const
     {
         return endpoint::packet_size_limit(endpoint::type::CONTROL, speed);
     }
-    message* get_pending_message(function* caller = nullptr);
+    message* get_pending_message(const function* caller = nullptr);
 
     virtual ep_handle ep_open([[maybe_unused]] const config::endpoint& ep) { return {}; }
     virtual result ep_send([[maybe_unused]] ep_handle eph,
@@ -74,11 +68,11 @@ class mac : private message
         return result::NO_TRANSPORT;
     }
 
-    void init(device_interface& dev_if, const usb::speeds& speeds);
-    void deinit(device_interface& dev_if);
+    void init(device& dev_if, const usb::speeds& speeds);
+    void deinit(device& dev_if);
     void start();
     void stop();
-    bool running() const { return running_; }
+    bool active() const { return active_; }
 
     standard::device::status std_status() const { return std_status_; }
 
@@ -87,33 +81,28 @@ class mac : private message
 
     power::state power_state() const { return power_state_; }
     uint32_t granted_bus_current_uA() const;
-    bool remote_wakeup();
+    result remote_wakeup();
 
     void set_remote_wakeup(bool enabled);
     void set_power_source(usb::power::source src);
 
     virtual const config::endpoint& ep_address_to_config(endpoint::address addr) const;
     virtual ep_handle ep_address_to_handle(endpoint::address addr) const = 0;
-    virtual const config::endpoint& ep_handle_to_config(ep_handle eph) const = 0;
     virtual ep_handle ep_config_to_handle(const config::endpoint& ep) const = 0;
 
   protected:
-    control::request& request() { return request_; }
-    using message::stage;
+    control::request& request() { return ctrl_msg_.request_; }
+    const control::request& request() const { return ctrl_msg_.request_; }
 
     virtual void allocate_endpoints([[maybe_unused]] config::view config = {}) {}
 
-    virtual endpoint::address ep_handle_to_address(ep_handle eph) const = 0;
-    // virtual void control_reply(direction dir, const transfer& t) override {};
-
-    auto control_stall() { return message::reject(); }
-    void control_ep_setup();
-    void control_ep_data(direction ep_dir, const transfer& t);
-    void ep_transfer_complete(ep_handle eph, const transfer& t);
+    transfer control_ep_setup();
+    bool control_ep_data(direction ep_dir, const transfer& t);
+    void ep_transfer_complete(endpoint::address addr, ep_handle eph, const transfer& t);
     virtual void init([[maybe_unused]] const usb::speeds& speeds) {}
     virtual void deinit() {}
     virtual bool set_attached(bool attached) { return attached; }
-    virtual void signal_remote_wakeup() {}
+    virtual result signal_remote_wakeup() { return result::operation_not_supported; }
 
     static ep_handle create_ep_handle(uint8_t raw) { return ep_handle(raw); }
 
@@ -121,14 +110,27 @@ class mac : private message
 
     void set_power_state(power::state new_state);
 
+    bool control_in_zlp(const transfer& t) const
+    {
+        return (request().wLength > t.size()) and
+               ((t.size() % control_ep_max_packet_size(speed())) == 0);
+    }
+
     constexpr mac() = default;
 
   private:
+    class message_control : public message
+    {
+      public:
+        friend class mac;
+        using message::message;
+    };
+    message_control ctrl_msg_{};
     standard::device::status std_status_{};
     power::state power_state_{};
-    bool running_{};
+    bool active_{};
     config::view active_config_{};
-    device_interface* dev_if_{};
+    device* dev_if_{};
 };
 
 /// @brief  MAC specialization that uses the config index of endpoints as handles.
@@ -138,10 +140,8 @@ class index_handle_mac : public mac
     using mac::mac;
 
     ep_handle ep_address_to_handle(endpoint::address addr) const override;
-    const config::endpoint& ep_handle_to_config(ep_handle eph) const override;
 
   protected:
-    endpoint::address ep_handle_to_address(ep_handle eph) const override;
     ep_handle ep_config_to_handle(const config::endpoint& ep) const override;
 };
 
@@ -152,13 +152,9 @@ class address_handle_mac : public mac
     using mac::mac;
 
     ep_handle ep_address_to_handle(endpoint::address addr) const override;
-    const config::endpoint& ep_handle_to_config(ep_handle eph) const override;
 
   protected:
-    endpoint::address ep_handle_to_address(ep_handle eph) const override
-    {
-        return endpoint::address(eph);
-    }
+    endpoint::address ep_handle_to_address(ep_handle eph) const { return endpoint::address(eph); }
     ep_handle ep_config_to_handle(const config::endpoint& ep) const override
     {
         return ep_address_to_handle(ep.address());

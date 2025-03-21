@@ -12,10 +12,10 @@
 #define __C2USB_HPP_
 
 #include <array>
-#include <cerrno>
 #include <cstdint>
 #include <span>
 #include <etl/unaligned_type.h>
+#include <system_error>
 #include <type_traits>
 
 #ifndef C2USB_UNUSED
@@ -60,14 +60,26 @@ using be_int16_t = etl::be_int16_t;
 using be_int32_t = etl::be_int32_t;
 using be_int64_t = etl::be_int64_t;
 
-enum class result : int
+class result
 {
-    OK = 0,
-    INVALID = -EINVAL,
-    NO_TRANSPORT = -ENODEV,
-    BUSY = -EBUSY,
-    NO_CONNECTION = -ENOTCONN,
-    NO_MEMORY = -ENOMEM,
+    int code_;
+
+  public:
+    using enum std::errc;
+    constexpr result(std::errc err)
+        : code_(-static_cast<int>(err))
+    {}
+    constexpr explicit result(int err)
+        : code_(err)
+    {}
+    static inline constexpr std::errc ok = static_cast<std::errc>(0);
+    static inline constexpr std::errc OK = static_cast<std::errc>(0);
+    static inline constexpr std::errc INVALID = static_cast<std::errc>(EINVAL);
+    static inline constexpr std::errc NO_TRANSPORT = static_cast<std::errc>(ENODEV);
+    static inline constexpr std::errc BUSY = static_cast<std::errc>(EBUSY);
+    static inline constexpr std::errc NO_CONNECTION = static_cast<std::errc>(ENOTCONN);
+    static inline constexpr std::errc NO_MEMORY = static_cast<std::errc>(ENOMEM);
+    constexpr bool operator==(const result& other) const = default;
 };
 
 /// @brief  The interface base class is used by interface subclasses,

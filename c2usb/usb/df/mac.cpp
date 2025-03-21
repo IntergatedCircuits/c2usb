@@ -9,49 +9,52 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "usb/df/mac.hpp"
+#include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
 
 using namespace usb::df;
 
-void mac::init(device_interface& dev_if, const usb::speeds& speeds)
+void mac::init(device& dev_if, const usb::speeds& speeds)
 {
     dev_if_ = &dev_if;
     init(speeds);
 }
 
-void mac::deinit(device_interface& dev_if)
+void mac::deinit(device& dev_if)
 {
     assert(&dev_if == dev_if_);
-    set_power_state(power::state::L3_OFF);
+    stop();
     deinit();
     dev_if_ = nullptr;
 }
 
 void mac::start()
 {
-    if (!running())
+    if (!active())
     {
-        running_ = set_attached(true);
+        set_attached(true);
+        active_ = true;
     }
 }
 
 void mac::stop()
 {
-    if (running())
+    if (active())
     {
-        running_ = set_attached(false);
+        set_attached(false);
+        active_ = false;
         set_power_state(power::state::L3_OFF);
     }
 }
 
 void mac::bus_reset()
 {
-    assert(dev_if_ != nullptr);
-    dev_if_->handle_reset_request();
     std_status_.remote_wakeup = false;
+    bool power_change = power_state() != power::state::L0_ON;
+    power_state_ = power::state::L0_ON;
+    assert(dev_if_ != nullptr);
+    dev_if_->on_bus_reset(power_change ? device::event::POWER_STATE_CHANGE : device::event::NONE);
     allocate_endpoints();
-    control_ep_open();
-    set_power_state(power::state::L0_ON);
 }
 
 void mac::set_power_state(power::state new_state)
@@ -60,9 +63,9 @@ void mac::set_power_state(power::state new_state)
     {
         return;
     }
-    assert(dev_if_ != nullptr);
     power_state_ = new_state;
-    dev_if_->handle_new_power_state(new_state);
+    assert(dev_if_ != nullptr);
+    dev_if_->on_power_state_change(new_state);
 }
 
 void mac::set_remote_wakeup(bool enabled)
@@ -94,15 +97,21 @@ uint32_t mac::granted_bus_current_uA() const
     }
 }
 
-bool mac::remote_wakeup()
+usb::result mac::remote_wakeup()
 {
-    if (!std_status().remote_wakeup or (power_state() == power::state::L0_ON) or
-        (power_state() == power::state::L3_OFF))
+    if (!std_status().remote_wakeup)
     {
-        return false;
+        return usb::result::operation_not_permitted;
     }
-    signal_remote_wakeup();
-    return true;
+    if (power_state() == power::state::L0_ON)
+    {
+        return usb::result::already_connected;
+    }
+    if (power_state() == power::state::L3_OFF)
+    {
+        return usb::result::not_connected;
+    }
+    return signal_remote_wakeup();
 }
 
 void mac::set_config(config::view config)
@@ -111,37 +120,42 @@ void mac::set_config(config::view config)
     active_config_ = config;
 }
 
-void mac::control_ep_setup()
+transfer mac::control_ep_setup()
 {
-    message::enter_setup();
-    dev_if_->handle_control_message(*this);
+    ctrl_msg_.set_pending();
+    dev_if_->on_control_setup(ctrl_msg_);
+    assert(!ctrl_msg_.pending_);
+    return ctrl_msg_.data_;
 }
 
-void mac::control_ep_data(direction ep_dir, const transfer& t)
+bool mac::control_ep_data(direction ep_dir, const transfer& t)
 {
-    if ((ep_dir == request().direction()) and (t.size() > 0))
+    if (ep_dir != request().direction())
     {
-        message::enter_data(t);
-        dev_if_->handle_control_message(*this);
+        return false;
     }
-    else
+    if (t.size() > 0)
     {
-        message::enter_status();
+        ctrl_msg_.set_pending(t);
+        dev_if_->on_control_data(ctrl_msg_);
+        assert(!ctrl_msg_.pending_);
+        return !ctrl_msg_.data_.stalled();
     }
+    return true;
 }
 
-void mac::ep_transfer_complete(ep_handle eph, const transfer& t)
+void mac::ep_transfer_complete(endpoint::address addr, ep_handle eph, const transfer& t)
 {
     assert(configured());
-    ep_handle_to_config(eph).interface().function().transfer_complete(eph, t);
+    ep_address_to_config(addr).interface().function().transfer_complete(eph, t);
 }
 
-message* mac::get_pending_message(function* caller)
+message* mac::get_pending_message(const function* caller)
 {
     assert((caller == nullptr) or
            (configured() and (request().recipient() == control::request::recipient::INTERFACE) and
             (&(active_config().interfaces()[request().wIndex].function()) == caller)));
-    return pending_reply() ? this : nullptr;
+    return ctrl_msg_.pending_ ? &ctrl_msg_ : nullptr;
 }
 
 const config::endpoint& mac::ep_address_to_config(endpoint::address addr) const
@@ -159,17 +173,6 @@ ep_handle index_handle_mac::ep_address_to_handle(endpoint::address addr) const
     return {};
 }
 
-const config::endpoint& index_handle_mac::ep_handle_to_config(ep_handle eph) const
-{
-    assert(configured());
-    return active_config().endpoints()[eph];
-}
-
-usb::endpoint::address index_handle_mac::ep_handle_to_address(ep_handle eph) const
-{
-    return ep_handle_to_config(eph).address();
-}
-
 ep_handle index_handle_mac::ep_config_to_handle(const config::endpoint& ep) const
 {
     return create_ep_handle(active_config().endpoints().indexof(ep));
@@ -182,11 +185,4 @@ ep_handle address_handle_mac::ep_address_to_handle(endpoint::address addr) const
         return create_ep_handle(addr);
     }
     return {};
-}
-
-const config::endpoint& address_handle_mac::ep_handle_to_config(ep_handle eph) const
-{
-    auto& ep = ep_address_to_config(ep_handle_to_address(eph));
-    assert(ep.valid());
-    return ep;
 }

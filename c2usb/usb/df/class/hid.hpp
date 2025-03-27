@@ -60,7 +60,6 @@ class function : public app_base_function
     {}
 
   protected:
-    virtual void start(const config::interface& iface, uint8_t alt_sel) override;
     virtual void get_hid_descriptor(df::buffer& buffer);
     virtual void get_descriptor(message& msg);
 

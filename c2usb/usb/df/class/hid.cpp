@@ -95,15 +95,6 @@ void app_base_function::transfer_complete(ep_handle eph, const transfer& t)
     }
 }
 
-void function::start(const config::interface& iface, uint8_t alt_sel)
-{
-    /* Windows 11 was observed to not re-fetch the report descriptor
-     * after a power cycle, therefore there is no reliable way of detecting
-     * an intended report mode operation. Start in default report mode,
-     * even at the cost of a quick transition to boot mode. */
-    app_base_function::start(iface, ::hid::protocol::REPORT);
-}
-
 void function::get_hid_descriptor(df::buffer& buffer)
 {
     auto* hid_desc = buffer.allocate<hid::descriptor::hid<1>>();
@@ -151,6 +142,18 @@ void function::control_setup_request(message& msg, const config::interface& ifac
 {
     using namespace standard::interface;
     using namespace hid::control;
+
+    if (!app_.has_transport(this) and (msg.request() != SET_PROTOCOL) and
+        (msg.request() != GET_PROTOCOL))
+    {
+        /* All tested hosts send at least one of these requests at the beginning:
+         * - GET_DESCRIPTOR(REPORT)
+         * - SET_IDLE
+         * - SET_PROTOCOL
+         * So start the application on the first of these (instead of
+         * at the function start, which doesn't tolerate longer lasting application init). */
+        app_base_function::start(iface, ::hid::protocol::REPORT);
+    }
 
     auto value_lb = msg.request().wValue.low_byte();
     switch (msg.request())
@@ -208,7 +211,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         {
             return msg.reject();
         }
-        if (app_.get_protocol() != prot)
+        if (!app_.has_transport(this) or (app_.get_protocol() != prot))
         {
             app_base_function::start(iface, prot);
         }

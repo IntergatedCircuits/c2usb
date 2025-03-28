@@ -79,8 +79,7 @@ class result
     static inline constexpr std::errc BUSY = static_cast<std::errc>(EBUSY);
     static inline constexpr std::errc NO_CONNECTION = static_cast<std::errc>(ENOTCONN);
     static inline constexpr std::errc NO_MEMORY = static_cast<std::errc>(ENOMEM);
-    bool operator==(std::errc err) const { return code_ == -static_cast<int>(err); }
-    bool operator!=(std::errc err) const { return code_ != -static_cast<int>(err); }
+    constexpr bool operator==(const result& other) const = default;
 };
 
 /// @brief  The interface base class is used by interface subclasses,

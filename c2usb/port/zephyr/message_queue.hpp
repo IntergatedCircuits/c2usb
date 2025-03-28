@@ -9,20 +9,18 @@
 #ifndef __PORT_ZEPHYR_MESSAGE_QUEUE_HPP
 #define __PORT_ZEPHYR_MESSAGE_QUEUE_HPP
 
-#include <cstddef>
 #include <optional>
+#include <span>
 #include "port/zephyr/tick_timer.hpp"
 
 #if C2USB_HAS_ZEPHYR_KERNEL
 
 namespace os::zephyr
 {
-template <typename T, std::size_t SIZE>
+template <typename T>
 class message_queue
 {
   public:
-    message_queue() { ::k_msgq_init(&msgq_, msgq_buffer_, sizeof(T), max_size()); }
-
     void post(const T& msg)
     {
         [[maybe_unused]] auto ret = ::k_msgq_put(&msgq_, &msg, K_FOREVER);
@@ -86,13 +84,36 @@ class message_queue
     }
 
     std::size_t size() const { return ::k_msgq_num_used_get(const_cast<::k_msgq*>(&msgq_)); }
-    static constexpr std::size_t max_size() { return SIZE; }
+    std::size_t free_space() const { return ::k_msgq_num_free_get(const_cast<::k_msgq*>(&msgq_)); }
+    std::size_t max_size()
+    {
+        ::k_msgq_attrs attrs{};
+        k_msgq_get_attrs(&msgq_, &attrs);
+        return attrs.max_msgs;
+    }
     bool empty() const { return ::k_msgq_num_used_get(const_cast<::k_msgq*>(&msgq_)) == 0; }
     bool full() const { return ::k_msgq_num_free_get(const_cast<::k_msgq*>(&msgq_)) == 0; }
 
+  protected:
+    message_queue(const std::span<char>& buffer, std::size_t align)
+    {
+        ::k_msgq_init(&msgq_, buffer.data(), sizeof(T), buffer.size());
+    }
+
   private:
     ::k_msgq msgq_;
-    char msgq_buffer_[max_size() * sizeof(T)];
+};
+
+template <typename T, std::size_t SIZE>
+class message_queue_instance : public message_queue<T>
+{
+  public:
+    message_queue_instance()
+        : message_queue<T>(msgq_buffer_, alignof(T))
+    {}
+
+  private:
+    char msgq_buffer_[SIZE * sizeof(T)];
 };
 
 } // namespace os::zephyr

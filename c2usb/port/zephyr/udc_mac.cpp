@@ -13,6 +13,7 @@
 #if C2USB_HAS_ZEPHYR_HEADERS
 #include <atomic>
 #include "port/compatibility_helper.hpp"
+#include "port/zephyr/message_queue.hpp"
 #include <zephyr/logging/log.h>
 extern "C"
 {
@@ -118,42 +119,61 @@ udc_mac::~udc_mac()
 }
 
 K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), CONFIG_C2USB_UDC_MAC_MSGQ_SIZE, sizeof(uint32_t));
+static auto& message_queue()
+{
+    return *reinterpret_cast<os::zephyr::message_queue<udc_event>*>(&udc_mac_msgq);
+}
 
 void udc_mac::worker(void*, void*, void*)
 {
     while (true)
     {
-        udc_event event;
-        k_msgq_get(&udc_mac_msgq, &event, K_FOREVER);
+        udc_event event = message_queue().get();
         event_callback(event);
     }
 }
 
 usb::result udc_mac::post_event(const udc_event& event)
 {
-    return usb::result(k_msgq_put(&udc_mac_msgq, &event, K_NO_WAIT));
+    message_queue().post(event);
+    return usb::result::ok;
 }
+
+static int udc_mac_event_dispatch(const ::device*, const udc_event* event)
+{
+    static bool last_full = false;
+    if (message_queue().full() and last_full)
+    {
+        // if the queue is full, there's nothing we can do
+        return -ENOMEM;
+    }
+    last_full = !message_queue().try_post(*event);
+    if (last_full)
+    {
+        LOG_ERR("udc_mac_msgq full");
+    }
+#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
+    static auto min_free_msgq_space = message_queue().free_space();
+    if (auto free_space = message_queue().free_space(); free_space < min_free_msgq_space)
+    {
+        min_free_msgq_space = free_space;
+        LOG_DBG("udc_mac_msgq free %u", free_space);
+    }
+#endif
+#if 0
+    if (k_can_yield())
+    {
+        // when possible (i.e. sent from coop thread context), try to continue processing
+        // the event immediately in the higher level thread
+        k_yield();
+    }
+#endif
+    return last_full ? -ENOMSG : 0;
+};
 
 void udc_mac::init(const usb::speeds& speeds)
 {
-    auto dispatch = [](const ::device*, const udc_event* event)
-    {
-        auto ret = k_msgq_put(&udc_mac_msgq, event, K_NO_WAIT);
-        if (ret)
-        {
-            LOG_ERR("udc_mac_msgq err %d", ret);
-        }
-#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
-        static auto min_free_msgq_space = k_msgq_num_free_get(&udc_mac_msgq);
-        if (auto free_space = k_msgq_num_free_get(&udc_mac_msgq); free_space < min_free_msgq_space)
-        {
-            min_free_msgq_space = free_space;
-            LOG_DBG("udc_mac_msgq free %u", free_space);
-        }
-#endif
-        return ret;
-    };
-    [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, dispatch, this);
+    [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, udc_mac_event_dispatch, this);
     assert(ret == 0);
     if (!can_detect_vbus(udc_caps(dev_)))
     {
@@ -224,7 +244,10 @@ void udc_mac::ctrl_stall(net_buf* buf, int err)
         addr = endpoint::address::control_out();
     }
     [[maybe_unused]] auto ret = ep_set_stall(addr);
-    net_buf_unref(buf);
+    if (buf)
+    {
+        net_buf_unref(buf);
+    }
 }
 
 net_buf* udc_mac::ctrl_buffer_allocate(net_buf* buf)
@@ -258,6 +281,10 @@ net_buf* udc_mac::ctrl_buffer_allocate(net_buf* buf)
         {
             net_buf_frag_add(buf, status);
         }
+    }
+    else if (status != nullptr)
+    {
+        net_buf_unref(status);
     }
     return buf;
 }
@@ -319,8 +346,11 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         stall_flags_.clear(endpoint::address::control_in());
 
         std::memcpy(&request(), buf->data, sizeof(request()));
+#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
+        // logged when DBG level is selected, but without the extra details of LOG_DBG()
         LOG_INF("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
                 (uint16_t)request().wValue, (uint16_t)request().wLength);
+#endif
 
         // pop the buf chain for the next stage(s), freeing the setup buf
         buf = net_buf_frag_del(nullptr, buf);

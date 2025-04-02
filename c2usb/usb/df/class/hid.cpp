@@ -177,6 +177,12 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     case SET_REPORT:
     {
         auto type = static_cast<report::type>(msg.request().wValue.high_byte());
+        if (msg.request().wLength == 0)
+        {
+            // Linux OS does this with the mouse resolution multiplier report
+            // only if report ID is not used
+            return msg.reject();
+        }
         if ((type != report::type::FEATURE) and (type != report::type::OUTPUT))
         {
             return msg.reject();

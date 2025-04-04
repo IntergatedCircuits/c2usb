@@ -85,16 +85,17 @@ class string_message
     istring index() const { return request().wValue.low_byte(); }
     uint16_t language_id() const { return request().wIndex; }
 
+    control::stage stage() const;
+
     void reject();
 
     template <typename T>
-    void send_string(std::basic_string_view<T> str)
+    void send_string(const std::basic_string_view<T>& str)
         requires(std::is_same_v<T, char> or std::is_same_v<T, char16_t>)
     {
         auto trimmed_size = str.size();
         auto* string_desc = safe_allocate(trimmed_size);
-        str = str.substr(0, trimmed_size);
-        std::copy(str.begin(), str.end(), string_desc->Data);
+        std::copy(str.begin(), str.begin() + trimmed_size, string_desc->Data);
         return send_buffer();
     }
     template <typename T>
@@ -136,11 +137,11 @@ class string_message
 
     void set_pending(const transfer& data = {});
 
-    C2USB_USB_TRANSFER_ALIGN(control::request, request_){};
+    C2USB_USB_TRANSFER_ALIGN(control::request, request_) {};
     df::buffer buffer_{};
     transfer data_{};
     bool pending_{};
-    bool has_data_{};
+    control::stage stage_{};
 
   private:
     standard::descriptor::string* safe_allocate(size_t& size, size_t char_ratio = 1);
@@ -154,6 +155,7 @@ class message : protected string_message
     string_message& to_string_message() { return *(this); }
 
     using string_message::request;
+    using string_message::stage;
 
     const transfer& data() { return data_; }
     df::buffer& buffer() { return buffer_; }

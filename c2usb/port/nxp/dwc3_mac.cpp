@@ -1,11 +1,17 @@
-#include "port/nxp/kusb_mac.hpp"
+#include "port/nxp/mcux_mac.hpp"
 #if C2USB_HAS_NXP_DWC3
-#include "usb_device_dwc3.h"
+#include "port/nxp/controller_interface.hpp"
+#include <usb_device_dwc3.h>
 
-using namespace usb::df::nxp;
-
-const kusb_mac::controller_interface dwc3_mac::interface = {
+namespace usb::df::nxp
+{
+static const controller_interface dwc3_mac_interface = {
     USB_DeviceDwc3Init,   USB_DeviceDwc3Deinit,  USB_DeviceDwc3Send,       USB_DeviceDwc3Recv,
     USB_DeviceDwc3Cancel, USB_DeviceDwc3Control, USB_DeviceDwc3IsrFunction};
 
-#endif
+dwc3_mac::dwc3_mac()
+    : mcux_mac(kUSB_ControllerDwc30, dwc3_mac_interface)
+{}
+
+} // namespace usb::df::nxp
+#endif // C2USB_HAS_NXP_DWC3

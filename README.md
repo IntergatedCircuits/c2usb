@@ -44,7 +44,7 @@ The additional transport layers supported are:
 
 ### Platforms
 
-* NXP MCUs supported via `kusb_mac` (see [c2usb/port/nxp](c2usb/port/nxp))
+* NXP MCUs supported via `mcux_mac` (see [c2usb/port/nxp](c2usb/port/nxp))
 * Zephyr RTOS supported via `udc_mac` (see [c2usb/port/zephyr](c2usb/port/zephyr))
 * support the project to see more!
 

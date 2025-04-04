@@ -17,7 +17,7 @@ No port-specific configuration options.
 
 ## 3. Integrate the MAC
 
-A `usb::df::nxp::kusb_mac` subclass object (khci/ehci/lpcip3511/dwc3) will be the glue that connects the NXP firmware to this library.
+A `usb::df::nxp::mcux_mac` subclass object (khci/ehci/lpcip3511/dwc3) will be the glue that connects the NXP firmware to this library.
 Create this object (Meyer's singleton pattern is recommended),
 and replace the USB interrupt handler's contents to `your_mac_instance().handle_irq();`.
 

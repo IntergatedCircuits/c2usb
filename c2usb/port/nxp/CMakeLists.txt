@@ -1,10 +1,11 @@
 target_sources(${PROJECT_NAME}
     PUBLIC
-        kusb_mac.hpp
+        mcux_mac.hpp
     PRIVATE
+        controller_interface.hpp
         dwc3_mac.cpp
         ehci_mac.cpp
         khci_mac.cpp
-        kusb_mac.cpp
         lpcip3511_mac.cpp
+        mcux_mac.cpp
 )

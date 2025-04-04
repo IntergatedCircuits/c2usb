@@ -96,6 +96,7 @@ class mac : public polymorphic
 
     virtual void allocate_endpoints([[maybe_unused]] config::view config = {}) {}
 
+    auto control_stage() const { return ctrl_msg_.stage(); }
     transfer control_ep_setup();
     bool control_ep_data(direction ep_dir, const transfer& t);
     void ep_transfer_complete(endpoint::address addr, ep_handle eph, const transfer& t);

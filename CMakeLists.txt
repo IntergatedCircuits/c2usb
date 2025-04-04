@@ -26,6 +26,13 @@ endif()
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})
 
+if(MCUX_SDK_PROJECT_NAME)
+    get_target_property(MCUX_SDK_PROJECT_INCLUDE_DIRS ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${MCUX_SDK_PROJECT_INCLUDE_DIRS}
+    )
+endif()
+
 find_package(Git REQUIRED)
 
 # fetch all submodules explicitly as there are nested ones

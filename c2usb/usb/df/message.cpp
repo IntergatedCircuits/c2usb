@@ -29,23 +29,24 @@ void buffer::free(size_type size)
     used_length_ -= size;
 }
 
+usb::control::stage string_message::stage() const
+{
+    return stage_;
+}
+
 void string_message::set_pending(const transfer& data)
 {
     buffer_.clear();
     pending_ = true;
-    has_data_ = !data.empty();
-    if (has_data_)
-    {
-        data_ = data;
-    }
+    stage_ = data.empty() ? control::stage::SETUP : control::stage::DATA;
+    data_ = data;
 }
 
 void string_message::set_reply(const transfer& t)
 {
     assert(pending_);
     pending_ = false;
-    auto size = std::min(transfer::size_type(request().wLength), t.size());
-    data_ = transfer(t.data(), size);
+    data_ = transfer(t.data(), std::min(transfer::size_type(request().wLength), t.size()));
 }
 
 void string_message::reject()

@@ -35,6 +35,7 @@ target_sources(${PROJECT_NAME}
         usb/speeds.hpp
         usb/version.hpp
         c2usb.hpp
+        raw_to_hex_string.hpp
         reference_array_view.hpp
         single_elem_queue.hpp
         uninit_store.hpp

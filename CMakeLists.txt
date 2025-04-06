@@ -26,6 +26,7 @@ endif()
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})
 
+# if using MCUXpresso SDK for VSCode, take over the includes
 if(MCUX_SDK_PROJECT_NAME)
     get_target_property(MCUX_SDK_PROJECT_INCLUDE_DIRS ${MCUX_SDK_PROJECT_NAME} INCLUDE_DIRECTORIES)
     target_include_directories(${PROJECT_NAME} PRIVATE

@@ -128,7 +128,7 @@ void function::handle_control_setup(message& msg, ep_handle eph)
         {
             ep_status.halt = msg.request() == SET_FEATURE;
             if (control_endpoint_state(eph, ep_status) and
-                (stall_ep(eph, ep_status.halt) == result::OK))
+                (stall_ep(eph, ep_status.halt) == result::ok))
             {
                 return msg.confirm();
             }
@@ -197,7 +197,7 @@ usb::result function::send_ep(ep_handle eph, const std::span<const uint8_t>& dat
     }
     else
     {
-        return usb::result::NO_TRANSPORT;
+        return usb::result::connection_reset;
     }
 }
 
@@ -209,7 +209,7 @@ usb::result function::receive_ep(ep_handle eph, const std::span<uint8_t>& data)
     }
     else
     {
-        return usb::result::NO_TRANSPORT;
+        return usb::result::connection_reset;
     }
 }
 
@@ -221,7 +221,7 @@ usb::result function::stall_ep(ep_handle eph, bool stall)
     }
     else
     {
-        return usb::result::NO_TRANSPORT;
+        return usb::result::connection_reset;
     }
 }
 

@@ -80,11 +80,11 @@ class application : public polymorphic
     /// @brief  Send a report to the host.
     /// @param  data: the report data to send
     /// @param  type: either INPUT, or FEATURE (the latter only from @ref get_report call context)
-    /// @return OK           if transmission is scheduled,
-    ///         BUSY         if transport is busy with another report,
-    ///         NO_TRANSPORT if transport is missing;
-    ///         INVALID      if the buffer size is 0 or FEATURE report is provided from wrong
-    ///                      context
+    /// @return @ref result::ok if transmission is scheduled,
+    ///         @ref result::device_or_resource_busy if transport is busy with another report,
+    ///         @ref result::connection_reset if transport is missing;
+    ///         @ref result::invalid_argument if the buffer size is 0 or FEATURE report is provided
+    ///         from wrong context
     result send_report(const std::span<const uint8_t>& data,
                        report::type type = report::type::INPUT)
     {
@@ -96,7 +96,7 @@ class application : public polymorphic
         }
         else
         {
-            return result::NO_TRANSPORT;
+            return result::connection_reset;
         }
     }
 
@@ -115,9 +115,9 @@ class application : public polymorphic
     /// @brief  Request receiving the next OUT or FEATURE report into the provided buffer.
     /// @param  data: The allocated buffer for receiving reports.
     /// @param  type: either OUTPUT, or FEATURE
-    /// @return OK           if transport is available
-    ///         NO_TRANSPORT if transport is missing
-    ///         INVALID      if the buffer size is 0
+    /// @return @ref result::ok if transport is available
+    ///         @ref result::connection_reset if transport is missing
+    ///         @ref result::invalid_argument if the buffer size is 0
     result receive_report(const std::span<uint8_t>& data, report::type type = report::type::OUTPUT)
     {
         assert(data.size() > 0);
@@ -128,7 +128,7 @@ class application : public polymorphic
         }
         else
         {
-            return result::NO_TRANSPORT;
+            return result::connection_reset;
         }
     }
 

@@ -290,36 +290,43 @@ void device::get_string_descriptor(message& msg)
     if (extension_.send_owned_string(*this, index, smsg))
     {
         // nothing more to do
+        return;
     }
-    else if (smsg.language_id() == 0)
+    if (smsg.language_id() == 0)
     {
-        // Windows MSOS 1.0 ...
-        smsg.reject();
+        // Windows MSOS 1.0 abusing the string descriptor interface
+        // index is 0xEE, which might be assigned to a function / config
+        return smsg.reject();
     }
-    else if (index < istr_config_base())
+    if (index < istr_config_base())
     {
-        get_function_string(index, smsg);
+        return get_function_string(index, smsg);
     }
-    else if (index < ISTR_GLOBAL_BASE)
+    if (index < ISTR_GLOBAL_BASE)
     {
-        get_config_string(index, smsg);
+        return get_config_string(index, smsg);
     }
-    else if (index == ISTR_VENDOR_NAME)
+    if (index == ISTR_VENDOR_NAME)
     {
-        smsg.send_string(product_info_.vendor_name);
+        return smsg.send_string(product_info_.vendor_name);
     }
-    else if (index == ISTR_PRODUCT_NAME)
+    if (index == ISTR_PRODUCT_NAME)
     {
-        smsg.send_string(product_info_.product_name);
+        return smsg.send_string(product_info_.product_name);
     }
-    else if (index == ISTR_SERIAL_NUMBER)
+    if (index == ISTR_SERIAL_NUMBER)
     {
-        smsg.send_as_hex_string(product_info_.serial_number);
+        auto serial_number = product_info_.serial_number();
+        if (auto* serial_str = std::get_if<std::string_view>(&serial_number))
+        {
+            return smsg.send_string(*serial_str);
+        }
+        if (auto* serial_span = std::get_if<std::span<const uint8_t>>(&serial_number))
+        {
+            return smsg.send_as_hex_string(*serial_span);
+        }
     }
-    else
-    {
-        smsg.reject();
-    }
+    return smsg.reject();
 }
 
 void device::assign_function_istrings()
@@ -422,7 +429,7 @@ void device::get_device_descriptor(message& msg)
     dev_desc->bcdDevice = product_info_.product_version;
 
     // serial number is optional, the others are mandatory
-    if (not product_info_.serial_number.empty())
+    if (product_info_.has_serial_number())
     {
         dev_desc->iSerialNumber = ISTR_SERIAL_NUMBER;
     }

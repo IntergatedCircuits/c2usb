@@ -9,6 +9,7 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "usb/df/message.hpp"
+#include "raw_to_hex_string.hpp"
 #include "usb/standard/descriptors.hpp"
 #include "usb/standard/requests.hpp"
 
@@ -91,7 +92,7 @@ void string_message::send_as_hex_string(std::span<const uint8_t> data)
 {
     auto trimmed_size = data.size();
     auto* string_desc = safe_allocate(trimmed_size, 2);
-    to_hex_string(data, std::span(string_desc->Data, trimmed_size * 2));
+    raw_to_hex_string(data, std::span(string_desc->Data, trimmed_size * 2));
     return send_buffer();
 }
 

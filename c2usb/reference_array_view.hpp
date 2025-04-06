@@ -14,7 +14,7 @@
 #include <array>
 #include <type_traits>
 
-inline namespace utilities
+namespace c2usb
 {
 template <typename T>
 struct array_to_ref_decay
@@ -137,6 +137,6 @@ class reference_array_view : public reference_array_view_base
   private:
     pointer const* data_;
 };
-} // namespace utilities
+} // namespace c2usb
 
 #endif // __REFERENCE_ARRAY_VIEW_HPP_

@@ -61,12 +61,12 @@ result device::receive_report(const std::span<uint8_t>& data, report::type type)
     {
         // save the target buffer for when the transfer is made
         rx_buffers_[type] = data;
-        return result::OK;
+        return result::ok;
     }
     else
     {
         // the previously passed buffer is being used for receiving data
-        return result::BUSY;
+        return result::device_or_resource_busy;
     }
 }
 
@@ -87,17 +87,17 @@ result device::send_report(const std::span<const uint8_t>& data, report::type ty
         // mark completion
         get_report_.clear();
 
-        return result::OK;
+        return result::ok;
     }
     else if (type == report::type::INPUT)
     {
-        return queue_input_report(data) ? result::OK : result::BUSY;
+        return queue_input_report(data) ? result::ok : result::device_or_resource_busy;
     }
     else
     {
         // feature reports can only be sent if a GET_REPORT command is pending
         // output reports cannot be sent
-        return result::INVALID;
+        return result::invalid_argument;
     }
 }
 

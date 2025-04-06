@@ -19,7 +19,7 @@ namespace c2usb
 /// @tparam T The type to provide storage for
 /// @tparam SIZE Optional size property allows for creating contiguous array storage.
 template <typename T, std::size_t SIZE = 1>
-class alignas(alignof(T)) uninit_store
+class alignas(T) uninit_store
 {
   public:
     uninit_store() {}
@@ -30,7 +30,7 @@ class alignas(alignof(T)) uninit_store
     std::span<const T> span() const { return {&ref(), SIZE}; }
 
   private:
-    struct alignas(alignof(T)) store
+    struct alignas(T) store
     {
         std::array<unsigned char, sizeof(T)> bytes_;
     };

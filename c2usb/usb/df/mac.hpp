@@ -53,19 +53,19 @@ class mac : public polymorphic
     virtual result ep_send([[maybe_unused]] ep_handle eph,
                            [[maybe_unused]] const std::span<const uint8_t>& data)
     {
-        return result::NO_TRANSPORT;
+        return result::not_supported;
     }
     virtual result ep_receive([[maybe_unused]] ep_handle eph,
                               [[maybe_unused]] const std::span<uint8_t>& data)
     {
-        return result::NO_TRANSPORT;
+        return result::not_supported;
     }
-    virtual result ep_close([[maybe_unused]] ep_handle eph) { return result::NO_TRANSPORT; }
+    virtual result ep_close([[maybe_unused]] ep_handle eph) { return result::not_supported; }
 
     virtual bool ep_is_stalled([[maybe_unused]] ep_handle eph) const { return false; }
     virtual result ep_change_stall([[maybe_unused]] ep_handle eph, [[maybe_unused]] bool stall)
     {
-        return result::NO_TRANSPORT;
+        return result::not_supported;
     }
 
     void init(device& dev_if, const usb::speeds& speeds);

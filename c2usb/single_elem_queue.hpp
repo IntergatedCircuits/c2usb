@@ -13,7 +13,7 @@
 
 #include <cstddef>
 
-inline namespace utilities
+namespace c2usb
 {
 // a simplified single element queue
 template <typename T>
@@ -81,6 +81,6 @@ class single_elem_queue
     T _value{};
     bool set_{};
 };
-} // namespace utilities
+} // namespace c2usb
 
 #endif // __SINGLE_ELEM_QUEUE_HPP_

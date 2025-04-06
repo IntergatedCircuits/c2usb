@@ -54,7 +54,7 @@ usb::result app_base_function::send_report(const std::span<const uint8_t>& data,
         }
 
         get_report_ = {};
-        return result::OK;
+        return result::ok;
     }
     else if (type == report::type::INPUT)
     {
@@ -64,7 +64,7 @@ usb::result app_base_function::send_report(const std::span<const uint8_t>& data,
     {
         // feature reports can only be sent if a GET_REPORT command is pending
         // output reports cannot be sent
-        return result::INVALID;
+        return result::invalid_argument;
     }
 }
 
@@ -79,7 +79,7 @@ usb::result app_base_function::receive_report(const std::span<uint8_t>& data, re
     {
         // otherwise save the buffer for control transfer
         rx_buffers_[type] = data;
-        return usb::result::OK;
+        return result::ok;
     }
 }
 
@@ -194,11 +194,11 @@ void function::control_setup_request(message& msg, const config::interface& ifac
             return msg.receive_data(buffer);
         }
 #if 0
-            // fall back to generic control buffer
-            else if (msg.buffer().max_size() >= msg.request().wLength)
-            {
-                return msg.receive_to_buffer();
-            }
+        // fall back to generic control buffer
+        else if (msg.buffer().max_size() >= msg.request().wLength)
+        {
+            return msg.receive_to_buffer();
+        }
 #endif
         else
         {
@@ -207,7 +207,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     }
 
     case GET_PROTOCOL:
-        return msg.send_value(app_.get_protocol());
+        return msg.send_value(app_.has_transport(this) ? app_.get_protocol() : protocol::REPORT);
 
     case SET_PROTOCOL:
     {

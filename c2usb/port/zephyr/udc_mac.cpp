@@ -258,7 +258,7 @@ net_buf* udc_mac::ctrl_buffer_allocate(net_buf* buf)
     auto* status = net_buf_frag_del(nullptr, buf);
 
     // magic number, tune it with below code fragment
-    static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 104;
+    static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 96;
     static_assert(CONFIG_UDC_BUF_POOL_SIZE > 128);
     buf = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
                            max_alloc_size - ep_bufs_.size_bytes());
@@ -339,6 +339,11 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
     // so they must be freed
     if (info.setup)
     {
+        // the UDC driver might send a new setup packet without having
+        // processed or cleaned up the last pending response
+        // so we try to do that here instead
+        udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
+
         assert((info.ep == USB_CONTROL_EP_OUT) and (buf->len == sizeof(request())));
 
         // new setup packet resets the stall status

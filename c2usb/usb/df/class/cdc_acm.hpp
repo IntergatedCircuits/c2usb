@@ -26,30 +26,63 @@ constexpr inline usb::class_info data_class_info()
             usb::cdc::data::protocol_code::USB};
 }
 
+struct line_config : public usb::cdc::serial::line_coding
+{
+    uint8_t bControlLineState;
+
+    bool data_terminal_ready() const { return bControlLineState & 1; }
+    bool request_to_send() const { return bControlLineState & 2; }
+};
+
+enum class line_event : uint8_t
+{
+    STATE_CHANGE = 0,
+    CODING_CHANGE = 1,
+};
+
 class function : public cdc::function
 {
   public:
-    using capabilities = usb::cdc::descriptor::abstract_control_management::capabilities;
-
     constexpr function(const char_t* name = {})
         : cdc::function(name)
     {}
 
+    virtual void set_line(const line_config& cfg, line_event ev) {}
+    virtual void reset_line() {}
+    auto& get_line_config() const { return (line_config_); }
+
+    using cdc::function::notify;
+    using cdc::function::send_data;
+    virtual void data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
+    {
+        // if more data was produced, send that
+        // else if needs_zlp: send_data({});
+    }
+    using cdc::function::receive_data;
+    virtual void data_received(const std::span<uint8_t>& rx) {}
+    auto in_ep_mps() const { return in_ep_mps_; }
+
   private:
+    using capabilities = usb::cdc::descriptor::abstract_control_management::capabilities;
+
     void describe_config(const config::interface& iface, uint8_t if_index,
                          df::buffer& buffer) override;
-
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
-
     void start(const config::interface& iface, uint8_t alt_sel) override;
-
     void transfer_complete(ep_handle eph, const transfer& t) override;
 
-    C2USB_USB_TRANSFER_ALIGN(usb::cdc::serial::line_coding, line_coding_){};
+    auto& line_coding() const
+    {
+        return static_cast<const usb::cdc::serial::line_coding&>(line_config_);
+    }
+    auto& line_coding() { return static_cast<usb::cdc::serial::line_coding&>(line_config_); }
+
+    C2USB_USB_TRANSFER_ALIGN(line_config, line_config_){};
     uint16_t in_ep_mps_{};
     uint16_t tx_len_{};
 };
+
 } // namespace usb::df::cdc::acm
 
 #endif // __USB_DF_CLASS_CDC_ACM_HPP_

@@ -178,7 +178,7 @@ enum class stop_bits : uint8_t
     _2 = 2,
     TWO = _2,
 };
-enum class parity
+enum class parity : uint8_t
 {
     NONE = 0,
     ODD = 1,

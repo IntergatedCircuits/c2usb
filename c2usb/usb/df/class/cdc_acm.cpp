@@ -65,27 +65,21 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     switch (msg.request())
     {
     case SET_LINE_CODING:
-        // TODO: deinit
-        return msg.receive(line_coding_);
+        return msg.receive(line_coding());
 
     case GET_LINE_CODING:
-        return msg.send(line_coding_);
+        return msg.send(line_coding());
 
     case SET_CONTROL_LINE_STATE:
     {
-        [[maybe_unused]] bool data_terminal_ready = msg.request().wValue & 1;
-        [[maybe_unused]] bool request_to_send = msg.request().wValue & 2;
-        // TODO: forward to application
+        line_config_.bControlLineState = msg.request().wValue.low_byte();
+        set_line(line_config_, line_event::STATE_CHANGE);
         return msg.confirm();
     }
     case SEND_BREAK:
-    {
         // if 0xFFFF, then break is held until 0x0000 is received
         // uint16_t break_ms = msg.request().wValue;
         // not supported yet (see capabilities)
-        return msg.reject();
-    }
-
     default:
         return msg.reject();
     }
@@ -97,7 +91,12 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     switch (msg.request())
     {
     case SET_LINE_CODING:
-        // TODO: init
+        if (msg.data().size() != sizeof(line_coding()))
+        {
+            return msg.reject();
+        }
+        assert(msg.data().size() == sizeof(line_coding()));
+        set_line(line_config_, line_event::CODING_CHANGE);
         break;
     }
 
@@ -106,25 +105,28 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
 
 void function::start(const config::interface& iface, uint8_t alt_sel)
 {
-    if (!iface.primary())
+    if (iface.primary())
     {
+        open_notify_ep(iface);
+    }
+    else
+    {
+        open_data_eps(iface);
         in_ep_mps_ = iface.endpoints()[0].wMaxPacketSize;
         tx_len_ = 0;
-        open_eps(iface.endpoints(), data_ephs_);
     }
-    cdc::function::start(iface, alt_sel);
 }
 
 void function::transfer_complete(ep_handle eph, const transfer& t)
 {
     if (eph == ep_out_handle())
     {
-        // TODO receive callback
+        return data_received(t);
     }
-    else if (eph == ep_in_handle())
+    if (eph == ep_in_handle())
     {
+#if 0
         auto len = t.size();
-
         if (len == 0)
         {
             if (tx_len_ > 0)
@@ -141,11 +143,10 @@ void function::transfer_complete(ep_handle eph, const transfer& t)
             send_ep(eph, {});
             return;
         }
-
-        // TODO sent callback
+        return data_sent({const_cast<const uint8_t*>(t.data()), len});
+#endif
+        bool needs_zlp = t.size() and (t.size() % in_ep_mps_) == 0;
+        return data_sent(t, needs_zlp);
     }
-    else
-    {
-        // notification sent
-    }
+    // notification sent
 }

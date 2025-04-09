@@ -23,23 +23,31 @@ namespace usb::df::cdc
 {
 class function : public df::named_function
 {
-  public:
-    result notify(const usb::cdc::notification::header& data);
-
   protected:
     using df::named_function::named_function;
 
     standard::descriptor::interface*
     get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df::buffer& buffer);
 
-    void start(const config::interface& iface, uint8_t alt_sel) override;
+    void open_notify_ep(const config::interface& iface);
+    void open_data_eps(const config::interface& iface);
+
+    result notify(const usb::cdc::notification::header& data);
+    result send_data(const std::span<const uint8_t>& data) { return send_ep(ep_in_handle(), data); }
+    result receive_data(const std::span<uint8_t>& data)
+    {
+        return receive_ep(ep_out_handle(), data);
+    }
+
+    ep_handle ep_out_handle() const { return data_ephs_[0]; }
+    ep_handle ep_in_handle() const { return data_ephs_[1]; }
+    ep_handle ep_notify_handle() const { return notify_eph_; }
+
+  private:
     void stop(const config::interface& iface) override;
 
     std::array<ep_handle, 2> data_ephs_{};
-    ep_handle& ep_out_handle() { return data_ephs_[0]; }
-    ep_handle& ep_in_handle() { return data_ephs_[1]; }
     ep_handle notify_eph_{};
-    ep_handle& ep_notify_handle() { return notify_eph_; }
 };
 
 // no notification endpoint

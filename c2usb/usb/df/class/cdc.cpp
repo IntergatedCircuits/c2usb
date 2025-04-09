@@ -43,12 +43,20 @@ function::get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df
     return &descs->iface;
 }
 
-void function::start(const config::interface& iface, [[maybe_unused]] uint8_t alt_sel)
+void function::open_notify_ep(const config::interface& iface)
 {
-    if (iface.primary() and (iface.endpoints().size() > 0))
+    assert(iface.primary());
+    if (iface.endpoints().size() > 0)
     {
         notify_eph_ = open_ep(iface.endpoints()[0]);
     }
+}
+
+void function::open_data_eps(const config::interface& iface)
+{
+    assert(!iface.primary());
+    assert(iface.endpoints().size() == 2);
+    open_eps(iface.endpoints(), data_ephs_);
 }
 
 void function::stop(const config::interface& iface)

@@ -9,6 +9,7 @@
 #ifndef __PORT_ZEPHYR_MESSAGE_QUEUE_HPP
 #define __PORT_ZEPHYR_MESSAGE_QUEUE_HPP
 
+#include <cassert>
 #include <optional>
 #include <span>
 #include "port/zephyr/tick_timer.hpp"

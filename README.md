@@ -42,6 +42,12 @@ The additional transport layers supported are:
 * BLE (HID over GATT Protocol)
 * I2C
 
+#### CDC-ACM - Serial Port
+
+The Abstract Control Model of Communications Device Class is fully implemented.
+Notably the notification endpoint can be marked as unused, skipping any hardware resource allocation,
+but keeping compatibility with all hosts.
+
 ### Platforms
 
 * NXP MCUs supported via `mcux_mac` (see [c2usb/port/nxp](c2usb/port/nxp))

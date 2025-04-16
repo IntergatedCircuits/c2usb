@@ -34,6 +34,8 @@ config C2USB_UDC_MAC_BUF_POOL_RESERVE
 
 endif # C2USB_UDC_MAC
 
+rsource "Kconfig.shell"
+
 endmenu
 
 choice STD_CPP

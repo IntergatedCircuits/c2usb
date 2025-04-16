@@ -19,3 +19,10 @@ target_sources_ifdef(CONFIG_C2USB_BLUETOOTH ${PROJECT_NAME}
     PRIVATE
         bluetooth/hid.cpp
 )
+target_sources_ifdef(CONFIG_SHELL_BACKEND_C2USB ${PROJECT_NAME}
+    PUBLIC
+        usb_shell.hpp
+    PRIVATE
+        usb_shell.c
+        usb_shell.cpp
+)

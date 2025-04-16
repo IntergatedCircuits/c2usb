@@ -43,6 +43,9 @@ enum class line_event : uint8_t
 class function : public cdc::function
 {
   public:
+    using line_config = acm::line_config;
+    using line_event = acm::line_event;
+
     constexpr function(const char_t* name = {})
         : cdc::function(name)
     {}

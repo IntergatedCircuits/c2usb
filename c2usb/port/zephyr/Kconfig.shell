@@ -1,0 +1,66 @@
+
+menuconfig SHELL_BACKEND_C2USB
+	bool "c2usb shell backend"
+	help
+	  Build c2usb shell backend.
+
+if SHELL_BACKEND_C2USB
+
+config SHELL_PROMPT_C2USB
+	string "Displayed prompt name"
+	default "c2usb:~$ "
+	help
+	  Displayed prompt name for c2usb backend. If prompt is set, the shell will
+	  send two newlines during initialization.
+
+config SHELL_BACKEND_C2USB_TX_BUFFER_SIZE
+	int "c2usb shell TX double buffer overall size"
+	range 128 256
+	default 256
+
+config SHELL_BACKEND_C2USB_RX_BUFFER_SIZE
+	int "c2usb shell RX double buffer overall size"
+	range 32 128
+	default 128
+
+module = SHELL_BACKEND_C2USB
+default-timeout = 100
+source "subsys/shell/Kconfig.template.shell_log_queue_timeout"
+
+default-size = 512
+source "subsys/shell/Kconfig.template.shell_log_queue_size"
+
+choice
+	prompt "Initial log level limit"
+	default SHELL_BACKEND_C2USB_LOG_LEVEL_DEFAULT
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_DEFAULT
+	bool "System limit (LOG_MAX_LEVEL)"
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_DBG
+	bool "Debug"
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_INF
+	bool "Info"
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_WRN
+	bool "Warning"
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_ERR
+	bool "Error"
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL_NONE
+	bool "None"
+
+endchoice
+
+config SHELL_BACKEND_C2USB_LOG_LEVEL
+	int
+	default 0 if SHELL_BACKEND_C2USB_LOG_LEVEL_NONE
+	default 1 if SHELL_BACKEND_C2USB_LOG_LEVEL_ERR
+	default 2 if SHELL_BACKEND_C2USB_LOG_LEVEL_WRN
+	default 3 if SHELL_BACKEND_C2USB_LOG_LEVEL_INF
+	default 4 if SHELL_BACKEND_C2USB_LOG_LEVEL_DBG
+	default 5 if SHELL_BACKEND_C2USB_LOG_LEVEL_DEFAULT
+
+endif # SHELL_BACKEND_C2USB

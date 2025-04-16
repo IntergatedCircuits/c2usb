@@ -258,8 +258,8 @@ net_buf* udc_mac::ctrl_buffer_allocate(net_buf* buf)
     auto* status = net_buf_frag_del(nullptr, buf);
 
     // magic number, tune it with below code fragment
-    static const size_t max_alloc_size = CONFIG_UDC_BUF_POOL_SIZE - 96;
-    static_assert(CONFIG_UDC_BUF_POOL_SIZE > 128);
+    static const size_t max_alloc_size = CONFIG_C2USB_UDC_MAC_BUF_POOL_RESERVE;
+    static_assert(CONFIG_UDC_BUF_POOL_SIZE > (64 + CONFIG_C2USB_UDC_MAC_BUF_POOL_RESERVE));
     buf = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
                            max_alloc_size - ep_bufs_.size_bytes());
 #if 0
@@ -556,31 +556,32 @@ void udc_mac::allocate_endpoints(config::view config)
 
     // allocate new buffers
     auto ep_bufs_count = config.active_endpoints().count();
-    if (ep_bufs_count > 0)
+    if (ep_bufs_count == 0)
     {
-        constexpr size_t ctrl_ep_buf_demand = 3; // setup + data + status
-        assert(CONFIG_UDC_BUF_COUNT >= (ctrl_ep_buf_demand + ep_bufs_count));
+        return;
+    }
+    constexpr size_t ctrl_ep_buf_demand = 4; // 2 * (setup + data)
+    assert(CONFIG_UDC_BUF_COUNT >= (ctrl_ep_buf_demand + ep_bufs_count));
 
-        // abuse the buffer pool to allocate the pointer array storage
-        // on the first buffer
-        size_t alloc_size = ep_bufs_count * sizeof(void*);
-        uint8_t i = 0;
-        for (auto& ep : config.active_endpoints())
+    // abuse the buffer pool to allocate the pointer array storage
+    // on the first buffer
+    size_t alloc_size = ep_bufs_count * sizeof(void*);
+    uint8_t i = 0;
+    for (auto& ep : config.active_endpoints())
+    {
+        auto* buf = udc_ep_buf_alloc(dev_, ep.address(), alloc_size);
+        assert(buf != nullptr);
+
+        if (alloc_size != 0)
         {
-            auto* buf = udc_ep_buf_alloc(dev_, ep.address(), alloc_size);
-            assert(buf != nullptr);
-
-            if (alloc_size != 0)
-            {
-                assert(alignof(buf->__buf) == alignof(void*));
-                ep_bufs_ = {reinterpret_cast<::net_buf**>(buf->__buf), ep_bufs_count};
-                alloc_size = 0;
-            }
-
-            // save each buf pointer
-            ep_bufs_[i] = buf;
-            i++;
+            assert(alignof(buf->__buf) == alignof(void*));
+            ep_bufs_ = {reinterpret_cast<::net_buf**>(buf->__buf), ep_bufs_count};
+            alloc_size = 0;
         }
+
+        // save each buf pointer
+        ep_bufs_[i] = buf;
+        i++;
     }
 }
 
@@ -638,7 +639,7 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
     auto* cfg = udc_get_ep_cfg(dev_, addr);
     if (!k_fifo_is_empty(cfg->fifo))
     {
-        return result::BUSY;
+        return result::device_or_resource_busy;
     }
 #endif
     if ((dir == direction::IN) and (power_state() != power::state::L0_ON))

@@ -27,6 +27,11 @@ config C2USB_UDC_MAC_THREAD_STACK_SIZE
 	int "UDC MAC thread stack size"
 	default 1024
 
+config C2USB_UDC_MAC_BUF_POOL_RESERVE
+	int "UDC buf pool reserve that is not to be allocated by UDC MAC"
+	range 96 192
+	default 128
+
 endif # C2USB_UDC_MAC
 
 endmenu

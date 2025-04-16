@@ -56,17 +56,15 @@ target_sources(${PROJECT_NAME}
 
 # ports
 if(ZEPHYR_BUILD)
-    add_subdirectory_ifdef(CONFIG_C2USB_UDC_MAC
-        port/zephyr)
-    add_subdirectory_ifdef(CONFIG_C2USB_BLUETOOTH
-        port/zephyr/bluetooth)
-
+    add_subdirectory(port/zephyr)
     target_link_libraries(${PROJECT_NAME}
         PUBLIC
             zephyr_interface
     )
-    # until https://github.com/zephyrproject-rtos/zephyr/pull/69490 is merged
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE)
-else()
+    if(CMAKE_PROJECT_VERSION VERSION_LESS "4.1.0")
+        # until https://github.com/zephyrproject-rtos/zephyr/pull/69490 is merged
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE)
+    endif()
+elseif(MCUX_SDK_PROJECT_NAME)
     add_subdirectory(port/nxp)
 endif()

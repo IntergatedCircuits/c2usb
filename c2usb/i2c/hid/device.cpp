@@ -191,7 +191,7 @@ bool device::reply_request(size_t data_length)
             // Report descriptor lets the host interpret the raw report data
             auto& rdesc = app_.report_info().descriptor;
 
-            slave().send(rdesc);
+            slave().send(rdesc.to_span());
             return true;
         }
         else

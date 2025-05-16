@@ -131,7 +131,7 @@ void function::get_descriptor(message& msg)
         return msg.send_buffer();
 
     case hid::descriptor::type::REPORT:
-        return msg.send_data(app_.report_info().descriptor);
+        return msg.send_data(app_.report_info().descriptor.to_span());
 
     default:
         return msg.reject();

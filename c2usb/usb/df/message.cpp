@@ -57,7 +57,11 @@ void string_message::reject()
 
 void string_message::send_buffer()
 {
-    assert(request().direction() == direction::IN);
+    if (request().direction() != direction::IN) [[unlikely]]
+    {
+        assert(false);
+        return reject();
+    }
     set_reply(buffer_);
 }
 
@@ -108,13 +112,21 @@ void message::set_reply(bool accept)
 
 void message::send_data(const std::span<const uint8_t>& data)
 {
-    assert(request().direction() == direction::IN);
+    if (request().direction() != direction::IN) [[unlikely]]
+    {
+        assert(false);
+        return reject();
+    }
     string_message::set_reply(data);
 }
 
 void message::receive_data(const std::span<uint8_t>& data)
 {
-    assert(request().direction() == direction::OUT);
+    if ((request().direction() != direction::OUT) or (request().wLength == 0)) [[unlikely]]
+    {
+        assert(request().direction() == direction::OUT);
+        return reject();
+    }
     string_message::set_reply(data);
 }
 

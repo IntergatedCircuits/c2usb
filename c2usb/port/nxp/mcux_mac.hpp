@@ -37,6 +37,22 @@ class mcux_mac : public df::address_handle_mac
 
     void handle_irq();
 
+#if C2USB_HAS_NXP_KHCI
+    static mcux_mac khci();
+#endif // C2USB_HAS_NXP_KHCI
+
+#if C2USB_HAS_NXP_EHCI
+    static mcux_mac ehci();
+#endif // C2USB_HAS_NXP_EHCI
+
+#if C2USB_HAS_NXP_LPCIP3511
+    static mcux_mac lpcip3511(usb::speed speed = usb::speed::FULL);
+#endif // C2USB_HAS_NXP_LPCIP3511
+
+#if C2USB_HAS_NXP_DWC3
+    static mcux_mac dwc3();
+#endif // C2USB_HAS_NXP_DWC3
+
   protected:
     constexpr mcux_mac(int usb_controller_index, const controller_interface& driver)
         : address_handle_mac(), driver_(driver), index_(usb_controller_index)
@@ -77,37 +93,6 @@ class mcux_mac : public df::address_handle_mac
     usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
 };
 
-#if C2USB_HAS_NXP_KHCI
-class khci_mac : public mcux_mac
-{
-  public:
-    khci_mac();
-};
-#endif // C2USB_HAS_NXP_KHCI
-
-#if C2USB_HAS_NXP_EHCI
-class ehci_mac : public mcux_mac
-{
-  public:
-    ehci_mac();
-};
-#endif // C2USB_HAS_NXP_EHCI
-
-#if C2USB_HAS_NXP_LPCIP3511
-class lpcip3511_mac : public mcux_mac
-{
-  public:
-    lpcip3511_mac(usb::speed speed = usb::speed::FULL);
-};
-#endif // C2USB_HAS_NXP_LPCIP3511
-
-#if C2USB_HAS_NXP_DWC3
-class dwc3_mac : public mcux_mac
-{
-  public:
-    dwc3_mac();
-};
-#endif // C2USB_HAS_NXP_DWC3
 } // namespace usb::df::nxp
 
 #endif // C2USB_HAS_NXP_HEADERS

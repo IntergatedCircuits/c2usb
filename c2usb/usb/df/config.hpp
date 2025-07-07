@@ -51,8 +51,8 @@ class power
     constexpr auto max_power_mA() const { return value_ >> 7; }
     constexpr bool valid() const { return value_ != 0; }
 
-    friend auto operator<<(standard::descriptor::configuration* desc,
-                           const power& p) -> standard::descriptor::configuration*;
+    friend auto operator<<(standard::descriptor::configuration* desc, const power& p)
+        -> standard::descriptor::configuration*;
 
   protected:
     constexpr power(source src = source::BUS, uint16_t max_current_mA = 100,
@@ -64,6 +64,8 @@ class power
   private:
     uint16_t value_;
 };
+
+static_assert((sizeof(std::uintptr_t) == 4) or (sizeof(std::uintptr_t) == 8));
 
 /// @brief  Stores the global information of a configuration.
 class header : public power
@@ -83,7 +85,7 @@ class header : public power
     constexpr header& operator=(const header&) = default;
 
     uint8_t config_size_{};
-    uint8_t reserved_{};
+    std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_;
     const char_t* name_{};
 };
 
@@ -95,11 +97,11 @@ class interface
   public:
     constexpr interface(df::function& func, uint8_t function_index = 0, uint8_t alt_settings = 0,
                         uint8_t variant = 0)
-        : alt_settings_(alt_settings),
-          function_index_(function_index),
-          variant_(variant),
-          function_(func)
-    {}
+        : alt_settings_(alt_settings), function_index_(function_index), function_(func)
+    {
+        // only first byte is guaranteed to exist on all platforms
+        reserved_[0] = variant;
+    }
     constexpr bool valid() const
     {
         return (always_zero_ == 0) and (std::launder(&function_) != nullptr);
@@ -108,7 +110,7 @@ class interface
     constexpr uint8_t function_index() const { return function_index_; }
     constexpr bool primary() const { return function_index() == 0; }
     constexpr uint8_t alt_setting_count() const { return alt_settings_ + 1; }
-    constexpr uint8_t variant() const { return variant_; }
+    constexpr uint8_t variant() const { return reserved_[0]; }
     // only works if the interface is used through the make_config() created object
     interface_endpoint_view endpoints() const;
 
@@ -119,7 +121,7 @@ class interface
     const uint8_t always_zero_{};
     uint8_t alt_settings_{};
     uint8_t function_index_{};
-    uint8_t variant_{};
+    std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_{};
     df::function& function_;
 };
 static_assert(sizeof(header) == sizeof(interface));
@@ -131,10 +133,13 @@ class endpoint : public standard::descriptor::endpoint
     using index = uint8_t;
 
     constexpr endpoint(const standard::descriptor::endpoint& desc, bool unused = false)
-        : standard::descriptor::endpoint(desc), unused_(unused)
-    {}
+        : standard::descriptor::endpoint(desc)
+    {
+        // only first byte is guaranteed to exist on all platforms
+        reserved_[0] = unused;
+    }
     constexpr bool valid() const { return (bLength > 0); }
-    constexpr bool unused() const { return unused_; }
+    constexpr bool unused() const { return reserved_[0]; }
     // only works if the interface is used through the make_config() created object
     const config::interface& interface() const;
 
@@ -142,7 +147,7 @@ class endpoint : public standard::descriptor::endpoint
     endpoint(const endpoint&) = delete;
     endpoint& operator=(const endpoint&) = delete;
 
-    bool unused_{};
+    std::array<uint8_t, sizeof(std::uintptr_t) == 8 ? 9 : 1> reserved_{};
 };
 static_assert(sizeof(header) == sizeof(endpoint));
 
@@ -157,17 +162,23 @@ class element
     constexpr element(const header& h)
         : raw_(std::bit_cast<decltype(raw_)>(h))
     {}
+    constexpr element(const endpoint& e)
+        : raw_(std::bit_cast<decltype(raw_)>(e))
+    {}
 #else
     element(const header& h)
         : element(&h)
+    {}
+    element(const endpoint& e)
+        : element(&e)
     {}
 #endif
     element(const interface& i)
         : element(&i)
     {}
-    element(const endpoint& e)
-        : element(&e)
-    {}
+    constexpr bool operator==(const element&) const = default;
+
+    // these methods are for the view specializations
     constexpr static bool is_header([[maybe_unused]] const header& c) { return false; }
     constexpr static bool is_interface(const interface& c) { return c.valid(); }
     constexpr static bool is_endpoint(const endpoint& c) { return c.valid(); }
@@ -176,10 +187,9 @@ class element
         return c.valid() and not c.unused();
     }
     constexpr bool is_footer() const { return *this == element(); }
-    constexpr bool operator==(const element&) const = default;
 
   private:
-    std::array<uint32_t, sizeof(header) / sizeof(uint32_t)> raw_;
+    std::array<std::uintptr_t, sizeof(header) / sizeof(std::uintptr_t)> raw_;
     template <class T>
     element(const T* in)
         : raw_(*reinterpret_cast<const decltype(raw_)*>(in))

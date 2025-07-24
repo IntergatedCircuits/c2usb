@@ -13,8 +13,8 @@
 #include "usb/standard/descriptors.hpp"
 #include "usb/standard/requests.hpp"
 
-using namespace usb::df;
-
+namespace usb::df
+{
 uint8_t* buffer::allocate(size_type size)
 {
     // need to increase CONTROL_BUFFER_SIZE
@@ -135,3 +135,5 @@ void message::receive_to_buffer()
     receive_data(std::span<uint8_t>(
         buffer().begin(), std::min(buffer::size_type(request().wLength), buffer().max_size())));
 }
+
+} // namespace usb::df

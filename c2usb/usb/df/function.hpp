@@ -88,10 +88,10 @@ class function : public polymorphic
 
     virtual uint8_t get_alt_setting([[maybe_unused]] const config::interface& iface) { return 0; }
 
-    virtual void start([[maybe_unused]] const config::interface& iface,
-                       [[maybe_unused]] uint8_t alt_sel)
+    virtual void enable([[maybe_unused]] const config::interface& iface,
+                        [[maybe_unused]] uint8_t alt_sel)
     {}
-    virtual void stop([[maybe_unused]] const config::interface& iface) {}
+    virtual void disable([[maybe_unused]] const config::interface& iface) {}
 
     constexpr function(istring istr_count)
         : istr_count_(istr_count)
@@ -107,8 +107,8 @@ class function : public polymorphic
   private:
     void restart(const config::interface& iface, uint8_t alt_sel)
     {
-        stop(iface);
-        start(iface, alt_sel);
+        disable(iface);
+        enable(iface, alt_sel);
     }
 
     mac* mac_ = nullptr;

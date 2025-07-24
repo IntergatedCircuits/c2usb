@@ -50,19 +50,21 @@ class function : public cdc::function
         : cdc::function(name)
     {}
 
-    virtual void set_line(const line_config& cfg, line_event ev) {}
+    virtual void set_line([[maybe_unused]] const line_config& cfg, [[maybe_unused]] line_event ev)
+    {}
     virtual void reset_line() {}
     auto& get_line_config() const { return (line_config_); }
 
     using cdc::function::notify;
     using cdc::function::send_data;
-    virtual void data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
+    virtual void data_sent([[maybe_unused]] const std::span<const uint8_t>& tx,
+                           [[maybe_unused]] bool needs_zlp)
     {
         // if more data was produced, send that
         // else if needs_zlp: send_data({});
     }
     using cdc::function::receive_data;
-    virtual void data_received(const std::span<uint8_t>& rx) {}
+    virtual void data_received([[maybe_unused]] const std::span<uint8_t>& rx) {}
     auto in_ep_mps() const { return in_ep_mps_; }
 
   private:
@@ -72,7 +74,7 @@ class function : public cdc::function
                          df::buffer& buffer) override;
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
-    void start(const config::interface& iface, uint8_t alt_sel) override;
+    void enable(const config::interface& iface, uint8_t alt_sel) override;
     void transfer_complete(ep_handle eph, const transfer& t) override;
 
     auto& line_coding() const
@@ -81,7 +83,7 @@ class function : public cdc::function
     }
     auto& line_coding() { return static_cast<usb::cdc::serial::line_coding&>(line_config_); }
 
-    C2USB_USB_TRANSFER_ALIGN(line_config, line_config_){};
+    C2USB_USB_TRANSFER_ALIGN(line_config, line_config_) {};
     uint16_t in_ep_mps_{};
     uint16_t tx_len_{};
 };

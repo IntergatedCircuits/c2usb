@@ -45,13 +45,11 @@ constexpr inline auto make_reference_array(Args&&... args)
 class reference_array_view_base
 {
   protected:
-#if not C2USB_HAS_STATIC_CONSTEXPR
     static std::nullptr_t const* nullptr_ptr()
     {
         static const std::nullptr_t ptr{};
         return &ptr;
     }
-#endif
     constexpr reference_array_view_base() {}
 };
 
@@ -60,13 +58,6 @@ class reference_array_view_base
 template <typename T, typename TView = T*>
 class reference_array_view : public reference_array_view_base
 {
-#if C2USB_HAS_STATIC_CONSTEXPR
-    C2USB_STATIC_CONSTEXPR static T* const* nullptr_ptr()
-    {
-        static const T* ptr{};
-        return &ptr;
-    }
-#endif
   public:
     class iterator
     {
@@ -95,10 +86,7 @@ class reference_array_view : public reference_array_view_base
         }
         constexpr auto operator*() { return (const TView&)(*ptr_); }
         constexpr auto operator->() { return &(const TView&)(*ptr_); }
-        constexpr bool operator==(const iterator& rhs) const
-        {
-            return (ptr_ == rhs.ptr_) or ((*ptr_ == nullptr) and (*rhs.ptr_ == nullptr));
-        }
+        constexpr bool operator==(std::nullptr_t const*) const { return (*ptr_ == nullptr); }
 
       private:
         pointer const* ptr_;
@@ -117,13 +105,13 @@ class reference_array_view : public reference_array_view_base
         : data_((decltype(data_))(nullptr_ptr()))
     {}
     constexpr iterator begin() const { return data_; }
-    constexpr iterator end() const { return (decltype(data_))(nullptr_ptr()); }
+    constexpr auto end() const { return nullptr_ptr(); }
     constexpr std::size_t size() const
     {
         pointer const* ptr;
         for (ptr = data_; *ptr != nullptr; ++ptr)
             ;
-        return std::distance(data_, ptr);
+        return static_cast<std::size_t>(std::distance(data_, ptr));
     }
     constexpr bool empty() const { return *data_ == nullptr; }
     constexpr auto operator[](std::size_t n) const

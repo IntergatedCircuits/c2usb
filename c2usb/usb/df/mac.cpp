@@ -12,8 +12,8 @@
 #include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
 
-using namespace usb::df;
-
+namespace usb::df
+{
 void mac::init(device& dev_if, const usb::speeds& speeds)
 {
     dev_if_ = &dev_if;
@@ -186,3 +186,5 @@ ep_handle address_handle_mac::ep_address_to_handle(endpoint::address addr) const
     }
     return {};
 }
+
+} // namespace usb::df

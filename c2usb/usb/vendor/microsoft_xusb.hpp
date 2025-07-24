@@ -22,6 +22,15 @@ inline namespace xusb22
 {
 // https://www.partsnotincluded.com/understanding-the-xbox-360-wired-controllers-usb-data/
 
+/* https://github.com/nefarius/ViGEmBus/issues/40#issuecomment-619889180
+    XInput devices are exposed as an XInput and a HID device in Windows
+    How to separate the triggers in the HID device, and make it report LT/RT on Rx/Ry
+    (0x33/0x34 usage) and RStick on Z/Rz (0x32/0x35 usage) HID Axis:
+    [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\xusb22\Parameters]
+    "GamepadTriggerUsage"=dword:00003334
+    "GamepadStickUsage"=dword:31303532
+*/
+
 constexpr const char* COMPATIBLE_ID = "XUSB20";
 
 constexpr uint8_t CLASS_CODE = 0xFF;

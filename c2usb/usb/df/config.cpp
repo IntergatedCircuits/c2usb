@@ -11,7 +11,6 @@
 #include "usb/df/config.hpp"
 
 using namespace usb::df;
-using namespace usb::df::config;
 
 namespace usb::df::config
 {
@@ -22,8 +21,6 @@ usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::
     desc->bmAttributes = 0x80 | p.value_;
     return desc;
 }
-
-} // namespace usb::df::config
 
 interface_endpoint_view interface::endpoints() const
 {
@@ -59,17 +56,19 @@ interface_view::reference interface_view::operator[](size_t n) const
     return *reinterpret_cast<pointer>(&footer());
 }
 
-interface_view view::interfaces() const
+const interface_view& view::interfaces() const
 {
-    return interface_view(*this->ptr_);
+    return (const interface_view&)(*this);
 }
 
-endpoint_view view::endpoints() const
+const endpoint_view& view::endpoints() const
 {
-    return endpoint_view(*this->ptr_);
+    return (const endpoint_view&)(*this);
 }
 
-active_endpoint_view view::active_endpoints() const
+const active_endpoint_view& view::active_endpoints() const
 {
-    return active_endpoint_view(*this->ptr_);
+    return (const active_endpoint_view&)(*this);
 }
+
+} // namespace usb::df::config

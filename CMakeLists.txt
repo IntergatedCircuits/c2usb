@@ -55,3 +55,15 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 add_subdirectory(examples)
 
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    set(IS_TOPLEVEL_PROJECT TRUE)
+else()
+    set(IS_TOPLEVEL_PROJECT FALSE)
+endif()
+
+option(C2USB_TESTS "c2usb: enable unit testing" ${IS_TOPLEVEL_PROJECT})
+if(C2USB_TESTS)
+    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+    enable_testing()
+    add_subdirectory(test)
+endif()

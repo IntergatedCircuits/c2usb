@@ -30,7 +30,7 @@ class mac : public polymorphic
 
     virtual usb::speed speed() const { return speed::FULL; }
 
-    config::view active_config() const { return active_config_; }
+    const config::view& active_config() const { return active_config_; }
     bool configured() const { return active_config().valid(); }
 
     void set_config(config::view config);

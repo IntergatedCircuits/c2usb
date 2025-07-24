@@ -11,8 +11,8 @@
 #include "usb/df/function.hpp"
 #include "usb/df/mac.hpp"
 
-using namespace usb::df;
-
+namespace usb::df
+{
 void function::free_string_index()
 {
     istr_base_ = 0;
@@ -155,12 +155,12 @@ void function::init(const config::interface& iface, mac* m)
 #if C2USB_FUNCTION_SUSPEND
     std_status_.remote_wakeup = false;
 #endif
-    start(iface, 0);
+    enable(iface, 0);
 }
 
 void function::deinit(const config::interface& iface)
 {
-    stop(iface);
+    disable(iface);
     if (iface.primary())
     {
         mac_ = nullptr;
@@ -252,3 +252,5 @@ void named_function::send_string([[maybe_unused]] uint8_t rel_index, string_mess
 {
     return smsg.send_string(name_);
 }
+
+} // namespace usb::df

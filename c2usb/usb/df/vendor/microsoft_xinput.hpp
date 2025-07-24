@@ -35,7 +35,7 @@ class xfunction : public df::hid::app_base_function
 
     const char* ms_compatible_id() const override { return usb::microsoft::xusb::COMPATIBLE_ID; }
 
-    void start(const config::interface& iface, uint8_t alt_sel) override;
+    void enable(const config::interface& iface, uint8_t alt_sel) override;
 };
 
 config::elements<3> xconfig(xfunction& fn, const df::config::endpoint& in_ep,

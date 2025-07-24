@@ -32,7 +32,7 @@ class app_base_function : public df::named_function, public ::hid::transport
 
   protected:
     void start(const config::interface& iface, ::hid::protocol prot);
-    void stop(const config::interface& iface) override;
+    void disable(const config::interface& iface) override;
 
     result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
     result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;

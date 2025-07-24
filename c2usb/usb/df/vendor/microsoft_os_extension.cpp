@@ -11,8 +11,8 @@
 #include "usb/df/vendor/microsoft_os_extension.hpp"
 #include "usb/df/function.hpp"
 
-using namespace usb::df::microsoft;
-
+namespace usb::df::microsoft
+{
 void descriptors::get_msos2_function_subset(const config::interface& iface, uint8_t iface_index,
                                             df::buffer& buffer)
 {
@@ -196,3 +196,5 @@ bool alternate_enumeration_base::send_owned_string([[maybe_unused]] device& dev,
     }
     return false;
 }
+
+} // namespace usb::df::microsoft

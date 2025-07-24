@@ -11,8 +11,8 @@
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/message.hpp"
 
-using namespace usb::df::cdc::acm;
-
+namespace usb::df::cdc::acm
+{
 void function::describe_config(const config::interface& iface, uint8_t if_index, df::buffer& buffer)
 {
     if (iface.primary())
@@ -103,7 +103,7 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     return msg.confirm();
 }
 
-void function::start(const config::interface& iface, uint8_t alt_sel)
+void function::enable(const config::interface& iface, uint8_t alt_sel)
 {
     if (iface.primary())
     {
@@ -150,3 +150,5 @@ void function::transfer_complete(ep_handle eph, const transfer& t)
     }
     // notification sent
 }
+
+} // namespace usb::df::cdc::acm

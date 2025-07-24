@@ -85,7 +85,7 @@ class header : public power
     constexpr header& operator=(const header&) = default;
 
     uint8_t config_size_{};
-    std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_;
+    std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_{};
     const char_t* name_{};
 };
 
@@ -104,7 +104,8 @@ class interface
     }
     constexpr bool valid() const
     {
-        return (always_zero_ == 0) and (std::launder(&function_) != nullptr);
+        return (always_zero_ == 0) and (std::bit_cast<std::uintptr_t>(&function_) !=
+                                        std::bit_cast<std::uintptr_t>(nullptr));
     }
     constexpr df::function& function() const { return function_; }
     constexpr uint8_t function_index() const { return function_index_; }
@@ -231,7 +232,7 @@ struct detail
             chunks++;
             chunk_sizes++;
         }
-        return std::distance(begin, out);
+        return static_cast<size_t>(std::distance(begin, out));
     }
 
 #ifdef __cpp_lib_bit_cast
@@ -438,10 +439,10 @@ class view_base
     const_iterator begin() const { return safe_ptr(1); }
     const_iterator end() const { return reinterpret_cast<decltype(safe_ptr())>(&footer()); }
 
-    reverse_view reverse() const
+    const reverse_view& reverse() const
         requires(CONTINUE_ON_INVALID)
     {
-        return reverse_view(safe_ptr());
+        return (const reverse_view&)(*this);
     }
 
     template <class Predicate>
@@ -480,7 +481,7 @@ class view_base
     constexpr view_base(const element* ptr)
         : ptr_(ptr)
     {}
-    view_base(const reference& ref)
+    view_base(reference& ref)
         : view_base(reinterpret_cast<decltype(ptr_)>(&ref))
     {}
 
@@ -593,13 +594,16 @@ class view : protected view_base<header, &element::is_header, true>
     bool valid() const { return (info().config_size() > 0); }
 
     using base::info;
-    interface_view interfaces() const;
-    endpoint_view endpoints() const;
-    active_endpoint_view active_endpoints() const;
+    const interface_view& interfaces() const;
+    const endpoint_view& endpoints() const;
+    const active_endpoint_view& active_endpoints() const;
 
     template <size_t N>
     constexpr view(const elements<N>& config)
         : base(config.data())
+    {}
+    explicit view(const usb::df::config::element* const& config)
+        : base(config)
     {}
     constexpr view()
         : base(nullptr)
@@ -635,7 +639,7 @@ class view_list : public reference_array_view<const element, const view>
     constexpr view_list(const std::array<view, SIZE>& arr)
         : view_list(*reinterpret_cast<const std::array<const element*, SIZE>*>(&arr))
     {}
-    view_list()
+    constexpr view_list()
         : reference_array_view()
     {}
     template <typename... Targs>

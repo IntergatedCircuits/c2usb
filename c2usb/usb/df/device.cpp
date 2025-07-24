@@ -12,9 +12,10 @@
 #include "usb/df/function.hpp"
 #include "usb/standard/descriptors.hpp"
 
-using namespace usb::df;
 using namespace magic_enum::bitwise_operators;
 
+namespace usb::df
+{
 void device::open()
 {
     mac_.start();
@@ -519,3 +520,5 @@ void device::get_descriptor_by_speed_support<true>(message& msg)
 {
     return get_descriptor_dual_speed(msg);
 }
+
+} // namespace usb::df

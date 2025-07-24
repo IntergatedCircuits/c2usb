@@ -55,7 +55,7 @@ target_sources(${PROJECT_NAME}
 )
 
 # ports
-if(ZEPHYR_BUILD)
+if(ENV{ZEPHYR_BASE})
     add_subdirectory(port/zephyr)
     target_link_libraries(${PROJECT_NAME}
         PUBLIC

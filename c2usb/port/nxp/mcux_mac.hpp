@@ -11,17 +11,14 @@
 #ifndef __USB_DF_PORT_NXP_MCUX_MAC_HPP_
 #define __USB_DF_PORT_NXP_MCUX_MAC_HPP_
 
-#define C2USB_HAS_NXP_HEADERS   (__has_include("usb_device_config.h") and \
-                                 __has_include("usb_device.h") and \
-                                 __has_include("usb_device_dci.h"))
-#if C2USB_HAS_NXP_HEADERS
-#define C2USB_HAS_NXP_KHCI      (__has_include("usb_device_khci.h"))
-#define C2USB_HAS_NXP_EHCI      (__has_include("usb_device_ehci.h"))
-#define C2USB_HAS_NXP_LPCIP3511 (__has_include("usb_device_lpcip3511.h"))
-#define C2USB_HAS_NXP_DWC3      (__has_include("usb_device_dwc3.h"))
-
+#include <usb_device_config.h>
 #include "usb/df/ep_flags.hpp"
 #include "usb/df/mac.hpp"
+
+#define C2USB_HAS_NXP_KHCI      (USB_DEVICE_CONFIG_KHCI)
+#define C2USB_HAS_NXP_EHCI      (USB_DEVICE_CONFIG_EHCI)
+#define C2USB_HAS_NXP_LPCIP3511 (USB_DEVICE_CONFIG_LPCIP3511FS or USB_DEVICE_CONFIG_LPCIP3511HS)
+#define C2USB_HAS_NXP_DWC3      (0)
 
 struct _usb_device_callback_message_struct;
 
@@ -94,7 +91,5 @@ class mcux_mac : public df::address_handle_mac
 };
 
 } // namespace usb::df::nxp
-
-#endif // C2USB_HAS_NXP_HEADERS
 
 #endif // __USB_DF_PORT_NXP_MCUX_MAC_HPP_

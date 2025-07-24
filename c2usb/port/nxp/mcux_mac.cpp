@@ -9,10 +9,8 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "port/nxp/mcux_mac.hpp"
-#include "usb/standard/requests.hpp"
-
-#if C2USB_HAS_NXP_HEADERS
 #include "port/nxp/controller_interface.hpp"
+#include "usb/standard/requests.hpp"
 
 using namespace usb::df;
 using namespace usb;
@@ -309,5 +307,3 @@ extern "C" usb_status_t USB_DeviceNotificationTrigger(void* handle, void* msg)
 }
 
 } // namespace usb::df::nxp
-
-#endif // C2USB_HAS_NXP_HEADERS

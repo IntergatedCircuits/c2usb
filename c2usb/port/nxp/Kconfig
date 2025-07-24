@@ -1,0 +1,9 @@
+menu "c2usb configuration"
+
+menuconfig C2USB_MCUX_MAC
+	bool "c2usb MCUX MAC driver"
+	select MCUX_MISC_USB_LITE
+	select MCUX_COMPONENT_middleware.usb.common_header
+	select MCUX_COMPONENT_middleware.usb.device.common_header
+
+endmenu

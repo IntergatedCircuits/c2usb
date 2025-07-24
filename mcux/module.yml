@@ -1,0 +1,5 @@
+# the closest thing to a spec: mcuxsdk-core/scripts/mcux_module.py
+name: c2usb
+build:
+  cmake: .
+  kconfig: c2usb/port/nxp/Kconfig

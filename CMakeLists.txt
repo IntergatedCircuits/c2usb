@@ -4,7 +4,7 @@ project(c2usb
     LANGUAGES C CXX
 )
 
-if(ENV{ZEPHYR_BASE})
+if(ZEPHYR_BASE)
     if (NOT CONFIG_C2USB_CPP)
         message("Zephyr build without c2usb")
         return()

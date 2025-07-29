@@ -55,12 +55,8 @@ target_sources(${PROJECT_NAME}
 )
 
 # ports
-if(ENV{ZEPHYR_BASE})
+if(ZEPHYR_BASE)
     add_subdirectory(port/zephyr)
-    target_link_libraries(${PROJECT_NAME}
-        PUBLIC
-            zephyr_interface
-    )
     if(CMAKE_PROJECT_VERSION VERSION_LESS "4.1.0")
         # until https://github.com/zephyrproject-rtos/zephyr/pull/69490 is merged
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE)

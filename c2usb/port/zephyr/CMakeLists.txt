@@ -1,4 +1,7 @@
-
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        zephyr_interface
+)
 target_sources_ifdef(C2USB_CPP ${PROJECT_NAME}
     PUBLIC
         message_queue.hpp

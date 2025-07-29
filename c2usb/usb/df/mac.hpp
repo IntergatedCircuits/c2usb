@@ -117,7 +117,9 @@ class mac : public polymorphic
                ((t.size() % control_ep_max_packet_size(speed())) == 0);
     }
 
-    constexpr mac() = default;
+    constexpr mac(power::state power_state = power::state::L3_OFF)
+        : power_state_(power_state)
+    {}
 
   private:
     class message_control : public message
@@ -128,7 +130,7 @@ class mac : public polymorphic
     };
     message_control ctrl_msg_{};
     standard::device::status std_status_{};
-    power::state power_state_{};
+    power::state power_state_;
     bool active_{};
     config::view active_config_{};
     device* dev_if_{};

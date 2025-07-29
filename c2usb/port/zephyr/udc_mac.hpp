@@ -34,7 +34,7 @@ class udc_mac : public df::mac
     friend int ::udc_mac_preinit();
 
   public:
-    udc_mac(const ::device* dev);
+    udc_mac(const ::device* dev, usb::power::state power_state = power::state::L3_OFF);
     ~udc_mac() override;
 
     /// @brief Queues a task to be executed in the USB thread context.

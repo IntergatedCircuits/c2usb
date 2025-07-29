@@ -83,8 +83,8 @@ int udc_mac_preinit()
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
-udc_mac::udc_mac(const ::device* dev)
-    : mac(), dev_(dev)
+udc_mac::udc_mac(const ::device* dev, usb::power::state power_state)
+    : mac(power_state), dev_(dev)
 {
     if constexpr (udc_init_has_ctx)
     {

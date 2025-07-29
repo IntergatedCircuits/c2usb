@@ -53,10 +53,55 @@ TEST_CASE("full config")
     CHECK(view.info().self_powered() == config_header.self_powered());
     CHECK(view.info().remote_wakeup() == config_header.remote_wakeup());
 
+    CHECK(view.interfaces().count() == 3);
+    CHECK(view.endpoints().count() == 4);
+    CHECK(view.active_endpoints().count() == 3);
+
+    CHECK(&view.interfaces()[0].function() == &serial);
+    CHECK(view.interfaces()[0].endpoints().count() == 1);
+    CHECK(view.interfaces()[0].endpoints()[0].address() == 0x8f);
+    // CHECK(!view.interfaces()[0].endpoints()[1].valid());
+
+    CHECK(&view.interfaces()[1].function() == &serial);
+    CHECK(view.interfaces()[1].endpoints().count() == 2);
+    CHECK(view.interfaces()[1].endpoints()[0].address() == 0x01);
+    CHECK(view.interfaces()[1].endpoints()[1].address() == 0x81);
+    // CHECK(!view.interfaces()[1].endpoints()[2].valid());
+
+    CHECK(&view.interfaces()[2].function() == &hid_kb);
+    CHECK(view.interfaces()[2].endpoints().count() == 1);
+    CHECK(view.interfaces()[2].endpoints()[0].address() == 0x82);
+    // CHECK(!view.interfaces()[2].endpoints()[1].valid());
+
+    CHECK(!view.interfaces()[3].valid());
+
     view = list[1];
     CHECK(view.valid());
     CHECK(view.info().config_size() == xpad_config.size() - 1);
     CHECK(view.interfaces().reverse().size() == xpad_config.size() - 1);
+
+    CHECK(view.interfaces().count() == 3);
+    CHECK(view.endpoints().count() == 5);
+    CHECK(view.active_endpoints().count() == 4);
+
+    CHECK(&view.interfaces()[0].function() == &serial);
+    CHECK(view.interfaces()[0].endpoints().count() == 1);
+    CHECK(view.interfaces()[0].endpoints()[0].address() == 0x8f);
+    // CHECK(!view.interfaces()[0].endpoints()[1].valid());
+
+    CHECK(&view.interfaces()[1].function() == &serial);
+    CHECK(view.interfaces()[1].endpoints().count() == 2);
+    CHECK(view.interfaces()[1].endpoints()[0].address() == 0x01);
+    CHECK(view.interfaces()[1].endpoints()[1].address() == 0x81);
+    // CHECK(!view.interfaces()[1].endpoints()[2].valid());
+
+    CHECK(&view.interfaces()[2].function() == &xpad_kb);
+    CHECK(view.interfaces()[2].endpoints().count() == 2);
+    CHECK(view.interfaces()[2].endpoints()[0].address() == 0x83);
+    CHECK(view.interfaces()[2].endpoints()[1].address() == 0x03);
+    // CHECK(!view.interfaces()[2].endpoints()[2].valid());
+
+    CHECK(!view.interfaces()[3].valid());
 
     view = list[2];
     CHECK(!view.valid());

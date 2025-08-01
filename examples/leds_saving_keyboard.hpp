@@ -1,30 +1,24 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: Apache-2.0
 #ifndef __LEDS_SAVING_KEYBOARD_HPP_
 #define __LEDS_SAVING_KEYBOARD_HPP_
 
+#include "hid/application.hpp"
 #include <hid/app/keyboard.hpp>
 #include <hid/report_protocol.hpp>
 
-#include "hid/application.hpp"
-
 /// @brief  An HID keyboard application that keeps your selected keyboard LED off.
 ///         Its purpose is to demonstrate USB communication without any user action.
+template <std::uint8_t REPORT_ID = 0>
 class leds_saving_keyboard : public hid::application
 {
-    using keys_report = hid::app::keyboard::keys_input_report<0>;
-    using kb_leds_report = hid::app::keyboard::output_report<0>;
+    using keys_report = hid::app::keyboard::keys_input_report<REPORT_ID>;
+    using kb_leds_report = hid::app::keyboard::output_report<REPORT_ID>;
 
   public:
-    static constexpr auto report_desc() { return hid::app::keyboard::app_report_descriptor<0>(); }
+    static constexpr auto report_desc()
+    {
+        return hid::app::keyboard::app_report_descriptor<REPORT_ID>();
+    }
     static const hid::report_protocol& report_prot()
     {
         static constexpr const auto rd{report_desc()};

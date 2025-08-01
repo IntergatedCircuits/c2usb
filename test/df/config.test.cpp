@@ -1,5 +1,7 @@
 #include "usb/df/config.hpp"
+#include "high_resolution_mouse.hpp"
 #include "leds_saving_keyboard.hpp"
+#include "simple_keyboard.hpp"
 #include "usb/df/class/cdc.hpp"
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/hid.hpp"

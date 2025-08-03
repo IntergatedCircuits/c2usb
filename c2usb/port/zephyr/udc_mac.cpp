@@ -162,7 +162,8 @@ static int udc_mac_event_dispatch(const ::device*, const udc_event* event)
     last_full = !message_queue().try_post(*event);
     if (last_full)
     {
-        LOG_ERR("udc_mac_msgq full");
+        __ASSERT_PRINT("udc_mac_msgq full\n");
+        __ASSERT_POST_ACTION();
     }
 #if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
     static auto min_free_msgq_space = message_queue().free_space();

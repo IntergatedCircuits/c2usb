@@ -34,7 +34,8 @@ class udc_mac : public df::mac
     friend int ::udc_mac_preinit();
 
   public:
-    udc_mac(const ::device* dev, usb::power::state power_state = power::state::L3_OFF);
+    udc_mac(const ::device* dev);
+    udc_mac(const ::device* dev, usb::power::state power_state);
     ~udc_mac() override;
 
     /// @brief Queues a task to be executed in the USB thread context.
@@ -52,6 +53,7 @@ class udc_mac : public df::mac
 
     static void worker(void*, void*, void*);
     static int event_callback(const ::udc_event& event);
+    void set_driver_ctx();
     bool ctrl_buf_valid(::net_buf* buf);
     void ctrl_stall(::net_buf* buf, int err = 0);
     ::net_buf* ctrl_buffer_allocate(::net_buf* buf);

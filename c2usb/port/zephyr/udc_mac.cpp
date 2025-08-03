@@ -83,8 +83,20 @@ int udc_mac_preinit()
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
+udc_mac::udc_mac(const ::device* dev)
+    : mac(can_detect_vbus(udc_caps(dev)) ? power::state::L3_OFF : power::state::L2_SUSPEND),
+      dev_(dev)
+{
+    set_driver_ctx();
+}
+
 udc_mac::udc_mac(const ::device* dev, usb::power::state power_state)
     : mac(power_state), dev_(dev)
+{
+    set_driver_ctx();
+}
+
+void udc_mac::set_driver_ctx()
 {
     if constexpr (udc_init_has_ctx)
     {
@@ -175,10 +187,6 @@ void udc_mac::init(const usb::speeds& speeds)
 {
     [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, udc_mac_event_dispatch, this);
     assert(ret == 0);
-    if (!can_detect_vbus(udc_caps(dev_)))
-    {
-        set_power_state(power::state::L0_ON);
-    }
 }
 
 void udc_mac::deinit()

@@ -1,6 +1,8 @@
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         zephyr_interface
+    INTERFACE
+        kernel
 )
 target_sources_ifdef(C2USB_CPP ${PROJECT_NAME}
     PUBLIC

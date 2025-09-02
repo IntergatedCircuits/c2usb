@@ -20,6 +20,11 @@ extern "C"
 #include <zephyr/drivers/usb/udc.h>
 }
 
+#if defined(CONFIG_DEBUG) == defined(NDEBUG)
+// for assert() to be active in debug configuration only, this is necessary
+#error "Either CONFIG_DEBUG or NDEBUG must be defined"
+#endif
+
 using namespace usb::zephyr;
 using namespace usb::df;
 
@@ -425,7 +430,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             if (addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
                 [[unlikely]]
             {
-                auto ret = udc_set_address(dev_, request().wValue.low_byte());
+                [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
                 assert(ret == 0);
             }
         }
@@ -441,7 +446,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         if (!addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
             [[unlikely]]
         {
-            auto ret = udc_set_address(dev_, request().wValue.low_byte());
+            [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
             assert(ret == 0);
         }
     }
@@ -476,8 +481,7 @@ int udc_mac::event_callback(const udc_event& event)
 
 int udc_mac::process_event(const udc_event& event)
 {
-    if ((power_state() == power::state::L3_OFF) and (event.type != UDC_EVT_VBUS_READY))
-        [[unlikely]]
+    if ((power_state() == power::state::L3_OFF) and (event.type != UDC_EVT_VBUS_READY)) [[unlikely]]
     {
         // flush late events after Vbus removal
         return 0;
@@ -505,7 +509,6 @@ int udc_mac::process_event(const udc_event& event)
         set_power_state(power::state::L0_ON);
         break;
     case UDC_EVT_VBUS_READY:
-        assert(power_state() == power::state::L3_OFF);
         set_power_state(power::state::L2_SUSPEND);
         set_attached(active());
         break;
@@ -558,7 +561,7 @@ void udc_mac::allocate_endpoints(config::view config)
     // first clean up the previous allocation
     for (auto* buf : ep_bufs_)
     {
-        auto ret = udc_ep_buf_free(dev_, buf);
+        [[maybe_unused]] auto ret = udc_ep_buf_free(dev_, buf);
         assert(ret == 0);
     }
     ep_bufs_ = {};
@@ -569,7 +572,7 @@ void udc_mac::allocate_endpoints(config::view config)
     {
         return;
     }
-    constexpr size_t ctrl_ep_buf_demand = 4; // 2 * (setup + data)
+    [[maybe_unused]] constexpr size_t ctrl_ep_buf_demand = 4; // 2 * (setup + data)
     assert(CONFIG_UDC_BUF_COUNT >= (ctrl_ep_buf_demand + ep_bufs_count));
 
     // abuse the buffer pool to allocate the pointer array storage

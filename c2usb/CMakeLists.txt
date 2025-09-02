@@ -61,6 +61,10 @@ if(ZEPHYR_BASE)
         # until https://github.com/zephyrproject-rtos/zephyr/pull/69490 is merged
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE)
     endif()
+    target_compile_definitions(zephyr_interface INTERFACE
+        # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended
+        $<IF:$<BOOL:${CONFIG_DEBUG}>,DEBUG,NDEBUG>
+    )
 elseif(MCUX_SDK_PROJECT_NAME)
     add_subdirectory(port/nxp)
 endif()

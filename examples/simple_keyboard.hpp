@@ -14,20 +14,12 @@ class simple_keyboard : public hid::application
     using keys_report = hid::app::keyboard::keys_input_report<REPORT_ID>;
     using kb_leds_report = hid::app::keyboard::output_report<REPORT_ID>;
 
-    static constexpr auto report_desc()
-    {
-        return hid::app::keyboard::app_report_descriptor<REPORT_ID>();
-    }
-    static const hid::report_protocol& report_prot()
-    {
-        static constexpr const auto rd{report_desc()};
-        static constexpr const hid::report_protocol rp{rd};
-        return rp;
-    }
     using leds_callback = etl::delegate<void(const kb_leds_report&)>;
 
     simple_keyboard(leds_callback cbk)
-        : hid::application(report_prot()), cbk_(cbk)
+        : hid::application(hid::report_protocol::from_descriptor<
+                           hid::app::keyboard::app_report_descriptor<REPORT_ID>()>()),
+          cbk_(cbk)
     {}
     auto send_key(hid::page::keyboard_keypad key, bool set)
     {
@@ -55,6 +47,12 @@ class simple_keyboard : public hid::application
     }
     // void in_report_sent([[maybe_unused]] const std::span<const uint8_t>& data) override {}
     hid::protocol get_protocol() const override { return prot_; }
+
+    void set_report_protocol(const hid::report_protocol& rp)
+    {
+        assert(!has_transport());
+        report_info_ = rp;
+    }
 
   private:
     alignas(std::uintptr_t) keys_report keys_buffer_{};

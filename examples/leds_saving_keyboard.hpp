@@ -15,19 +15,11 @@ class leds_saving_keyboard : public hid::application
     using kb_leds_report = hid::app::keyboard::output_report<REPORT_ID>;
 
   public:
-    static constexpr auto report_desc()
-    {
-        return hid::app::keyboard::app_report_descriptor<REPORT_ID>();
-    }
-    static const hid::report_protocol& report_prot()
-    {
-        static constexpr const auto rd{report_desc()};
-        static constexpr const hid::report_protocol rp{rd};
-        return rp;
-    }
-
     leds_saving_keyboard(hid::page::keyboard_keypad key, hid::page::leds led)
-        : hid::application(report_prot()), key_(key), led_(led)
+        : hid::application(hid::report_protocol::from_descriptor<
+                           hid::app::keyboard::app_report_descriptor<REPORT_ID>()>()),
+          key_(key),
+          led_(led)
     {}
     auto send_key(bool set)
     {

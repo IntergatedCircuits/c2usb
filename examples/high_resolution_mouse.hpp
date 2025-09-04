@@ -87,15 +87,9 @@ class high_resolution_mouse : public hid::application
         );
         // clang-format on
     }
-    static const hid::report_protocol& report_prot()
-    {
-        static constexpr const auto rd{report_desc()};
-        static constexpr const hid::report_protocol rp{rd};
-        return rp;
-    }
 
     high_resolution_mouse(resolution_callback cbk)
-        : hid::application(report_prot()), cbk_(cbk)
+        : hid::application(hid::report_protocol::from_descriptor<report_desc()>()), cbk_(cbk)
     {}
     auto send(const mouse_report& report)
     {

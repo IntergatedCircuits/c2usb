@@ -103,7 +103,7 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     return msg.confirm();
 }
 
-void function::enable(const config::interface& iface, uint8_t alt_sel)
+void function::enable(const config::interface& iface, [[maybe_unused]] uint8_t alt_sel)
 {
     if (iface.primary())
     {

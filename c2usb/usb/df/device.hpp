@@ -32,7 +32,7 @@ struct language_id_provider
         using namespace standard::descriptor;
         C2USB_USB_TRANSFER_ALIGN(constexpr static language_id<SIZE>,
                                  lang_id_desc){// The default Unicode language ID is en-US
-                                               .wLANGID{0x0409}};
+                                               0x0409};
         return lang_id_desc;
     }
 };

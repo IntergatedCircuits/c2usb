@@ -48,7 +48,7 @@ class power
     }
     constexpr bool self_powered() const { return static_cast<bool>(power_source()); }
     constexpr auto remote_wakeup() const { return static_cast<bool>((value_ >> 5) & 1); }
-    constexpr auto max_power_mA() const { return value_ >> 7; }
+    constexpr unsigned max_power_mA() const { return value_ >> 7; }
     constexpr bool valid() const { return value_ != 0; }
 
     friend auto operator<<(standard::descriptor::configuration* desc, const power& p)
@@ -68,7 +68,7 @@ class power
 static_assert((sizeof(std::uintptr_t) == 4) or (sizeof(std::uintptr_t) == 8));
 
 /// @brief  Stores the global information of a configuration.
-class header : public power
+class alignas(std::uintptr_t) header : public power
 {
   public:
     constexpr header(const power& p, const char_t* name = {})
@@ -92,7 +92,7 @@ class header : public power
 class interface_endpoint_view;
 
 /// @brief Stores information of an interface in a configuration.
-class interface
+class alignas(std::uintptr_t) interface
 {
   public:
     constexpr interface(df::function& func, uint8_t function_index = 0, uint8_t alt_settings = 0,
@@ -128,7 +128,7 @@ class interface
 static_assert(sizeof(header) == sizeof(interface));
 
 /// @brief Stores information of an endpoint in a configuration.
-class endpoint : public standard::descriptor::endpoint
+class alignas(std::uintptr_t) endpoint : public standard::descriptor::endpoint
 {
   public:
     using index = uint8_t;
@@ -153,7 +153,7 @@ class endpoint : public standard::descriptor::endpoint
 static_assert(sizeof(header) == sizeof(endpoint));
 
 /// @brief  Common storage type for configuration elements.
-class element
+class alignas(std::uintptr_t) element
 {
   public:
     constexpr element()

@@ -117,6 +117,11 @@ struct language_id : public usb::descriptor<language_id<SIZE>>
 
     std::array<le_uint16_t, SIZE>
         wLANGID; /// Supported Language Codes (e.g. 0x0409 English - United States)
+
+    template <typename... TArgs>
+    constexpr language_id(TArgs&&... args)
+        : usb::descriptor<language_id<SIZE>>(), wLANGID{{static_cast<le_uint16_t>(args)...}}
+    {}
 };
 
 struct string : public usb::descriptor<string>
@@ -124,7 +129,7 @@ struct string : public usb::descriptor<string>
     constexpr static auto TYPE_CODE = standard::descriptor::type::STRING;
 
     // TODO: https://people.kernel.org/kees/bounded-flexible-arrays-in-c
-    le_uint16_t Data[0];
+    alignas(char16_t) le_uint16_t Data[0];
 
     constexpr string() {}
     constexpr string(uint8_t length)
@@ -133,8 +138,11 @@ struct string : public usb::descriptor<string>
     std::enable_if_t<std::endian::native == std::endian::little, std::u16string_view>
     u16string() const
     {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
         // return { Data, bLength - offsetof(string, Data) };
         return {reinterpret_cast<const char16_t*>(Data), bLength - sizeof(usb::descriptor_header)};
+#pragma GCC diagnostic pop
     }
 };
 

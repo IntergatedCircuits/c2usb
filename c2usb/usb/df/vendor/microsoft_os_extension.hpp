@@ -113,7 +113,7 @@ class alternate_enumeration : public alternate_enumeration_base
     }
 
   private:
-    config::view_list configs_by_speed(device& dev, usb::speed speed) override
+    config::view_list configs_by_speed([[maybe_unused]] device& dev, usb::speed speed) override
     {
         assert(SPEEDS.includes(speed));
         if (alternate_enumerated())

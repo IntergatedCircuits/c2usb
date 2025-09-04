@@ -302,7 +302,7 @@ bool device::set_report(report::type type, const std::span<const uint8_t>& data)
     if ((data.size() == length) and (report_length <= output_buffer.size()))
     {
         // copy/move the output report into the requested buffer
-        size_t header_size = (data.data() - buffer_.data()) + sizeof(length);
+        size_t header_size = static_cast<size_t>(data.data() - buffer_.data()) + sizeof(length);
         size_t offset = buffer_.size() - header_size;
 
         // move the output buffer contents down by offset
@@ -467,7 +467,7 @@ void device::process_input_complete(size_t data_length)
     }
 }
 
-void device::process_reply_complete(size_t data_length)
+void device::process_reply_complete([[maybe_unused]] size_t data_length)
 {
 #if C2USB_I2C_HID_FULL_COMMAND_SUPPORT
     uint16_t reg = *reinterpret_cast<const le_uint16_t*>(buffer_.data());

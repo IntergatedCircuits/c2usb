@@ -20,7 +20,7 @@ void mac::init(device& dev_if, const usb::speeds& speeds)
     init(speeds);
 }
 
-void mac::deinit(device& dev_if)
+void mac::deinit([[maybe_unused]] device& dev_if)
 {
     assert(&dev_if == dev_if_);
     stop();
@@ -150,7 +150,7 @@ void mac::ep_transfer_complete(endpoint::address addr, ep_handle eph, const tran
     ep_address_to_config(addr).interface().function().transfer_complete(eph, t);
 }
 
-message* mac::get_pending_message(const function* caller)
+message* mac::get_pending_message([[maybe_unused]] const function* caller)
 {
     assert((caller == nullptr) or
            (configured() and (request().recipient() == control::request::recipient::INTERFACE) and

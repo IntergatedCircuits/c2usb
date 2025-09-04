@@ -33,7 +33,7 @@ void app_base_function::start(const config::interface& iface, ::hid::protocol pr
     assert(success); // support for not success case requires a lot more complicated design
 }
 
-void app_base_function::disable(const config::interface& iface)
+void app_base_function::disable([[maybe_unused]] const config::interface& iface)
 {
     if (app_.teardown(this))
     {
@@ -231,7 +231,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     }
 }
 
-void function::control_data_complete(message& msg, const config::interface& iface)
+void function::control_data_complete(message& msg, [[maybe_unused]] const config::interface& iface)
 {
     using namespace standard::interface;
     using namespace hid::control;

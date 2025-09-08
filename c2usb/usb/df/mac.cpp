@@ -43,7 +43,6 @@ void mac::stop()
     {
         set_attached(false);
         active_ = false;
-        set_power_state(power::state::L3_OFF);
     }
 }
 

@@ -89,19 +89,25 @@ enum class ccc_flags : uint16_t
     INDICATE = BT_GATT_CCC_INDICATE,
 };
 
+#ifdef BT_GATT_CCC_MANAGED_USER_DATA_INIT
+using ccc_store_base = ::bt_gatt_ccc_managed_user_data;
+#else
+using ccc_store_base = ::_bt_gatt_ccc;
+#endif
+
 /// @brief This class stores the context information for GATT CCC descriptors,
 ///        which have different value per connected client.
-class ccc_store : public ::_bt_gatt_ccc
+class ccc_store : public ccc_store_base
 {
   public:
     constexpr ccc_store()
-        : _bt_gatt_ccc()
+        : ccc_store_base()
     {}
 
     ccc_store(void (*changed)(const attribute*, ccc_flags),
               ssize_t (*cfg_write)(::bt_conn*, const attribute*, ccc_flags),
               bool (*cfg_match)(::bt_conn*, const attribute*) = nullptr)
-        : _bt_gatt_ccc{
+        : ccc_store_base{
               .cfg_changed = reinterpret_cast<void (*)(const ::bt_gatt_attr*, uint16_t)>(changed),
               .cfg_write =
                   reinterpret_cast<ssize_t (*)(::bt_conn*, const ::bt_gatt_attr*, uint16_t)>(

@@ -328,21 +328,40 @@ ssize_t service::set_boot_report(::bt_conn* conn, const gatt::attribute* attr, c
     return len;
 }
 
-std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id id)
+const gatt::attribute* service::input_boot_attr() const
 {
-    service_instance<report_protocol_properties(2, 2, 2, 255, 255, 255)>* instance =
-        static_cast<decltype(instance)>(this);
+    auto attrs = attributes();
+    auto* attr = &attrs[attrs.size() - boot_attribute_count(report::type::INPUT)];
+    return attr;
+}
 
-    if (prot == protocol::BOOT)
+const gatt::attribute* service::input_report_attr(::hid::report::id::type id) const
+{
+    const gatt::attribute* attr = &attributes()[base_attribute_count()];
+    for (report::id::type index = 0; index < app_.report_info().input_report_count;
+         ++index, attr += report_attribute_count(report::type::INPUT))
     {
-        return instance->pending_notify_[0];
+        if (attr[report_reference_offset()].user_value<report::selector>() ==
+            report::selector(report::type::INPUT, id))
+        {
+            return attr;
+        }
     }
-    size_t index = (boot_mode_ != boot_protocol_mode::NONE) ? 1 : 0;
-    if (id > 0)
+    return nullptr;
+}
+
+std::span<const uint8_t>& service::get_pending_notify(const gatt::attribute* attr)
+{
+    attr += report_reference_offset();
+    if (attr->uuid == &uuid16<BT_UUID_HIDS_REPORT_REF_VAL>())
     {
-        index += id - 1;
+        // if we find the report reference descriptor, next is the CCC descriptor
+        // otherwise it's a boot report, where the CCC is this one
+        attr++;
     }
-    return instance->pending_notify_[index];
+    // now attr points to the CCC descriptor
+    assert(attr->uuid == &uuid16<BT_UUID_GATT_CCC_VAL>());
+    return static_cast<ccc_data*>(const_cast<void*>(attr->user_data))->pending_notify;
 }
 
 ::hid::result service::send_report(const std::span<const uint8_t>& data, report::type type)
@@ -381,7 +400,7 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
         return result::INVALID;
     }
 
-    auto& pending_notify = get_pending_notify(prot, id);
+    auto& pending_notify = get_pending_notify(attr);
     if (pending_notify.size() > 0)
     {
         return result::BUSY;
@@ -393,18 +412,8 @@ std::span<const uint8_t>& service::get_pending_notify(protocol prot, report::id 
         [](::bt_conn*, void* user_data)
         {
             auto* attr = static_cast<gatt::attribute*>(user_data);
-
-            // get report selector / boot report info
-            report::selector sel{report::type::INPUT};
-            protocol prot = protocol::BOOT;
-            if (attr[1].uuid == input_report_info().uuid)
-            {
-                sel = attr[report_reference_offset()].user_value<report::selector>();
-                prot = protocol::REPORT;
-            }
             auto* this_ = static_cast<service*>(attr[1].user_data);
-
-            auto& pending_notify = this_->get_pending_notify(prot, sel.id());
+            auto& pending_notify = this_->get_pending_notify(attr);
             auto buf = pending_notify;
             pending_notify = {};
             LOG_DBG("input report sent (size %u)", buf.size());
@@ -468,11 +477,11 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
 }
 
 gatt::attribute::builder service::add_input_report(gatt::attribute::builder attr_tail,
-                                                   gatt::ccc_store* ccc, ::hid::report::id::type id)
+                                                   ccc_data* ccc, ::hid::report::id::type id)
 {
     using namespace ::hid::report;
 
-    *ccc = gatt::ccc_store(nullptr, &service::ccc_cfg_write, nullptr);
+    *ccc = ccc_data(nullptr, &service::ccc_cfg_write, nullptr);
 
     return attr_tail
         .characteristic(input_report_info(), read_access(), &service::get_report, nullptr, this)
@@ -540,7 +549,7 @@ bool service::start_app(::bt_conn* conn, ::hid::protocol protocol)
     }
 
     auto result = app_.setup(this, protocol);
-    LOG_INF("starting HID app %s: %u", magic_enum::enum_name(protocol).data(), result);
+    LOG_INF("starting HID app %s: %u", magic_enum::enum_name(protocol).data(), (unsigned)result);
     if (!result)
     {
         active_conn_.compare_exchange_strong(conn, nullptr);
@@ -556,11 +565,13 @@ void service::stop_app(::bt_conn* conn)
     }
 
     auto result = app_.teardown(this);
-    LOG_INF("stopping HID app %u", result);
+    LOG_INF("stopping HID app %u", (unsigned)result);
 }
 
-std::span<gatt::attribute> service::fill_attributes(const std::span<gatt::attribute>& attrs,
-                                                    const std::span<gatt::ccc_store>& cccs, flags f)
+std::span<gatt::attribute>
+service::fill_attributes(const std::span<const ::hid::report::selector>& report_table,
+                         const std::span<gatt::attribute>& attrs, const std::span<ccc_data>& cccs,
+                         flags f)
 {
     auto* ccc_ptr = cccs.data();
 
@@ -582,48 +593,23 @@ std::span<gatt::attribute> service::fill_attributes(const std::span<gatt::attrib
     assert(attr_tail.data() == (attrs.data() + base_attribute_count()));
 
     // report protocol attributes
-    if (app_.report_info().max_input_size > 0)
+    for (auto selector : report_table)
     {
-        if (!app_.report_info().uses_report_ids())
+        switch (selector.type())
         {
-            attr_tail = add_input_report(attr_tail, ccc_ptr);
+        case ::hid::report::type::INPUT:
+            attr_tail = add_input_report(attr_tail, ccc_ptr, selector.id());
             ccc_ptr++;
-        }
-        else
-        {
-            for (auto id = ::hid::report::id::min(); id <= app_.report_info().max_input_id; id++)
-            {
-                attr_tail = add_input_report(attr_tail, ccc_ptr, id);
-                ccc_ptr++;
-            }
-        }
-    }
-    if (app_.report_info().max_output_size > 0)
-    {
-        if (!app_.report_info().uses_report_ids())
-        {
-            attr_tail = add_output_report(attr_tail);
-        }
-        else
-        {
-            for (auto id = ::hid::report::id::min(); id <= app_.report_info().max_output_id; id++)
-            {
-                attr_tail = add_output_report(attr_tail, id);
-            }
-        }
-    }
-    if (app_.report_info().max_feature_size > 0)
-    {
-        if (!app_.report_info().uses_report_ids())
-        {
-            attr_tail = add_feature_report(attr_tail);
-        }
-        else
-        {
-            for (auto id = ::hid::report::id::min(); id <= app_.report_info().max_feature_id; id++)
-            {
-                attr_tail = add_feature_report(attr_tail, id);
-            }
+            break;
+        case ::hid::report::type::OUTPUT:
+            attr_tail = add_output_report(attr_tail, selector.id());
+            break;
+        case ::hid::report::type::FEATURE:
+            attr_tail = add_feature_report(attr_tail, selector.id());
+            break;
+        default:
+            assert(false);
+            break;
         }
     }
 
@@ -631,7 +617,7 @@ std::span<gatt::attribute> service::fill_attributes(const std::span<gatt::attrib
     if (boot_mode_ != boot_protocol_mode::NONE)
     {
         auto& ccc = *ccc_ptr;
-        ccc = gatt::ccc_store(nullptr, &service::ccc_cfg_write, nullptr);
+        ccc = ccc_data(nullptr, &service::ccc_cfg_write, nullptr);
         ccc_ptr++;
 
         if (boot_mode_ == boot_protocol_mode::KEYBOARD)
@@ -655,34 +641,6 @@ std::span<gatt::attribute> service::fill_attributes(const std::span<gatt::attrib
     assert(ccc_ptr == (cccs.data() + cccs.size()));
 
     return attrs;
-}
-
-const gatt::attribute* service::input_report_attr(::hid::report::id::type id) const
-{
-    if (app_.report_info().max_input_size == 0)
-    {
-        return nullptr;
-    }
-
-    const gatt::attribute* attr = &attributes()[base_attribute_count()];
-    if (id != 0)
-    {
-        if ((id > app_.report_info().max_input_id) or (id < report::id::min()))
-        {
-            return nullptr;
-        }
-        attr += report_attribute_count(report::type::INPUT) * (id - report::id::min());
-    }
-    assert(attr[report_reference_offset()].user_value<report::selector>() ==
-           report::selector(report::type::INPUT, id));
-    return attr;
-}
-
-const gatt::attribute* service::input_boot_attr() const
-{
-    auto attrs = attributes();
-    auto* attr = &attrs[attrs.size() - boot_attribute_count(report::type::INPUT)];
-    return attr;
 }
 
 BT_CONN_CB_DEFINE(hid_service_conn_callbacks) = {

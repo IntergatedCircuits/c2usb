@@ -97,9 +97,8 @@ using ccc_store_base = ::_bt_gatt_ccc;
 
 /// @brief This class stores the context information for GATT CCC descriptors,
 ///        which have different value per connected client.
-class ccc_store : public ccc_store_base
+struct ccc_store : ccc_store_base
 {
-  public:
     constexpr ccc_store()
         : ccc_store_base()
     {}
@@ -115,7 +114,6 @@ class ccc_store : public ccc_store_base
               .cfg_match = reinterpret_cast<bool (*)(::bt_conn*, const ::bt_gatt_attr*)>(cfg_match)}
     {}
 
-  protected:
     constexpr size_t cfg_size() const { return sizeof(cfg) / sizeof(cfg[0]); }
 };
 

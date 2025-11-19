@@ -11,14 +11,14 @@
 #ifndef __USB_DF_PORT_NXP_MCUX_MAC_HPP_
 #define __USB_DF_PORT_NXP_MCUX_MAC_HPP_
 
-#include <usb_device_config.h>
 #include "usb/df/ep_flags.hpp"
 #include "usb/df/mac.hpp"
+#include <usb_device_config.h>
 
-#define C2USB_HAS_NXP_KHCI      (USB_DEVICE_CONFIG_KHCI)
-#define C2USB_HAS_NXP_EHCI      (USB_DEVICE_CONFIG_EHCI)
+#define C2USB_HAS_NXP_KHCI (USB_DEVICE_CONFIG_KHCI)
+#define C2USB_HAS_NXP_EHCI (USB_DEVICE_CONFIG_EHCI)
 #define C2USB_HAS_NXP_LPCIP3511 (USB_DEVICE_CONFIG_LPCIP3511FS or USB_DEVICE_CONFIG_LPCIP3511HS)
-#define C2USB_HAS_NXP_DWC3      (0)
+#define C2USB_HAS_NXP_DWC3 (0)
 
 struct _usb_device_callback_message_struct;
 

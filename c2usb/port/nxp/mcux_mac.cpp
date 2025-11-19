@@ -9,14 +9,87 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "port/nxp/mcux_mac.hpp"
-#include "port/nxp/controller_interface.hpp"
 #include "usb/standard/requests.hpp"
-
-using namespace usb::df;
-using namespace usb;
+#include <usb_device.h>
+#include <usb_device_config.h>
+#include <usb_device_dci.h>
+#if C2USB_HAS_NXP_DWC3
+#include <usb_device_dwc3.h>
+#endif
+#if C2USB_HAS_NXP_EHCI
+#include <usb_device_ehci.h>
+#endif
+#if C2USB_HAS_NXP_KHCI
+#include <fsl_device_registers.h>
+#include <usb_device_khci.h>
+#endif
+#if C2USB_HAS_NXP_LPCIP3511
+#include <usb_device_lpcip3511.h>
+#endif
 
 namespace usb::df::nxp
 {
+struct controller_interface : public ::_usb_device_controller_interface_struct
+{
+    void (*isr)(void* param);
+
+    template <typename T = void>
+    usb_status_t device_control(void* handle, usb_device_control_type_t type,
+                                T* param = nullptr) const
+    {
+        return deviceControl(handle, type, static_cast<void*>(param));
+    }
+};
+
+#if C2USB_HAS_NXP_DWC3
+mcux_mac mcux_mac::dwc3(const std::span<uint8_t>& control_buffer)
+{
+    static const controller_interface dwc3_mac_interface = {
+        USB_DeviceDwc3Init,   USB_DeviceDwc3Deinit,  USB_DeviceDwc3Send,       USB_DeviceDwc3Recv,
+        USB_DeviceDwc3Cancel, USB_DeviceDwc3Control, USB_DeviceDwc3IsrFunction};
+    return mcux_mac(kUSB_ControllerDwc30, dwc3_mac_interface, control_buffer);
+}
+#endif // C2USB_HAS_NXP_DWC3
+#if C2USB_HAS_NXP_EHCI
+
+mcux_mac mcux_mac::ehci(const std::span<uint8_t>& control_buffer)
+{
+    static const controller_interface ehci_mac_interface = {
+        USB_DeviceEhciInit,   USB_DeviceEhciDeinit,  USB_DeviceEhciSend,       USB_DeviceEhciRecv,
+        USB_DeviceEhciCancel, USB_DeviceEhciControl, USB_DeviceEhciIsrFunction};
+    return mcux_mac(kUSB_ControllerEhci0, ehci_mac_interface, control_buffer);
+}
+#endif // C2USB_HAS_NXP_EHCI
+#if C2USB_HAS_NXP_KHCI
+mcux_mac mcux_mac::khci(const std::span<uint8_t>& control_buffer)
+{
+    static const controller_interface khci_mac_interface = {
+        USB_DeviceKhciInit,   USB_DeviceKhciDeinit,  USB_DeviceKhciSend,       USB_DeviceKhciRecv,
+        USB_DeviceKhciCancel, USB_DeviceKhciControl, USB_DeviceKhciIsrFunction};
+
+    // allow USB controller to read from Flash
+#ifdef FMC_PFAPR_M3AP_SHIFT
+    FMC->PFAPR |= (1 << FMC_PFAPR_M3AP_SHIFT);
+#endif
+#ifdef FMC_PFAPR_M4AP_SHIFT
+    FMC->PFAPR |= (1 << FMC_PFAPR_M4AP_SHIFT);
+#endif
+    return mcux_mac(kUSB_ControllerKhci0, khci_mac_interface, control_buffer);
+}
+#endif // C2USB_HAS_NXP_KHCI
+#if C2USB_HAS_NXP_LPCIP3511
+mcux_mac mcux_mac::lpcip3511(const std::span<uint8_t>& control_buffer, usb::speed speed)
+{
+    static const controller_interface lpcip3511_mac_interface = {
+        USB_DeviceLpc3511IpInit,       USB_DeviceLpc3511IpDeinit, USB_DeviceLpc3511IpSend,
+        USB_DeviceLpc3511IpRecv,       USB_DeviceLpc3511IpCancel, USB_DeviceLpc3511IpControl,
+        USB_DeviceLpcIp3511IsrFunction};
+    return mcux_mac(speed == usb::speed::HIGH ? kUSB_ControllerLpcIp3511Hs0
+                                              : kUSB_ControllerLpcIp3511Fs0,
+                    lpcip3511_mac_interface, control_buffer);
+}
+#endif // C2USB_HAS_NXP_LPCIP3511
+
 static IRQn_Type usb_irqn(int index)
 {
     static constexpr IRQn_Type usb_irqs[] = USB_IRQS;

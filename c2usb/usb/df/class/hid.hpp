@@ -36,6 +36,7 @@ class app_base_function : public df::named_function, public ::hid::transport
 
     result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
     result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
+    ::hid::transport::type transport_type() const override { return ::hid::transport::type::USB; }
 
     void transfer_complete(ep_handle eph, const transfer& t) override;
 

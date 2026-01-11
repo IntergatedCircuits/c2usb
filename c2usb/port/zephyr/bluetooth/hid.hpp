@@ -124,6 +124,7 @@ class service : public ::hid::transport
     ::hid::result send_report(const std::span<const uint8_t>& data,
                               ::hid::report::type type) override;
     ::hid::result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
+    ::hid::transport::type transport_type() const override { return ::hid::transport::type::BLE; }
 
     std::span<const uint8_t>& get_pending_notify(const gatt::attribute* attr);
 
@@ -236,13 +237,13 @@ class service : public ::hid::transport
     static constexpr size_t report_reference_offset() { return 2; }
     static constexpr size_t boot_mode_attribute_count(boot_protocol_mode boot)
     {
-        using namespace ::hid::report;
         switch (boot)
         {
         case boot_protocol_mode::KEYBOARD:
-            return boot_attribute_count(type::INPUT) + boot_attribute_count(type::OUTPUT);
+            return boot_attribute_count(::hid::report::type::INPUT) +
+                   boot_attribute_count(::hid::report::type::OUTPUT);
         case boot_protocol_mode::MOUSE:
-            return boot_attribute_count(type::INPUT);
+            return boot_attribute_count(::hid::report::type::INPUT);
         default:
             return 0;
         }
@@ -250,19 +251,18 @@ class service : public ::hid::transport
     static constexpr size_t attribute_count(const ::hid::report_protocol_properties& props,
                                             auto boot = boot_protocol_mode::NONE)
     {
-        using namespace ::hid::report;
         size_t size = base_attribute_count();
-        size += report_attribute_count(type::INPUT) * props.input_report_count;
-        size += report_attribute_count(type::OUTPUT) * props.output_report_count;
-        size += report_attribute_count(type::FEATURE) * props.feature_report_count;
+        size += report_attribute_count(::hid::report::type::INPUT) * props.input_report_count;
+        size += report_attribute_count(::hid::report::type::OUTPUT) * props.output_report_count;
+        size += report_attribute_count(::hid::report::type::FEATURE) * props.feature_report_count;
         switch (boot)
         {
         case boot_protocol_mode::KEYBOARD:
-            size += report_attribute_count(type::INPUT) - 1;
-            size += report_attribute_count(type::OUTPUT) - 1;
+            size += report_attribute_count(::hid::report::type::INPUT) - 1;
+            size += report_attribute_count(::hid::report::type::OUTPUT) - 1;
             break;
         case boot_protocol_mode::MOUSE:
-            size += report_attribute_count(type::INPUT) - 1;
+            size += report_attribute_count(::hid::report::type::INPUT) - 1;
             break;
         default:
             break;

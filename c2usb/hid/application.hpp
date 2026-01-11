@@ -28,10 +28,19 @@ struct report_protocol;
 class transport : public interface
 {
   public:
+    enum class type : uint8_t
+    {
+        NONE,
+        I2C,
+        SPI,
+        USB,
+        BLE,
+    };
     virtual result send_report(const std::span<const uint8_t>& data,
                                report::type type = report::type::INPUT) = 0;
     virtual result receive_report(const std::span<uint8_t>& data,
                                   report::type type = report::type::OUTPUT) = 0;
+    virtual type transport_type() const = 0;
 };
 
 /// @brief  The application is the base class for transport-agnostic HID device-side applications.
@@ -157,6 +166,17 @@ class application : public polymorphic
 
     bool has_transport() const { return transport_.load() != nullptr; }
     bool has_transport(transport* tp) const { return transport_.load() == tp; }
+    transport::type transport_type() const
+    {
+        if (auto tp = transport_.load(); tp)
+        {
+            return tp->transport_type();
+        }
+        else
+        {
+            return transport::type::NONE;
+        }
+    }
 
     bool setup(transport* tp, protocol prot)
     {

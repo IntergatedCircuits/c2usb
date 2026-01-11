@@ -479,37 +479,32 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
 gatt::attribute::builder service::add_input_report(gatt::attribute::builder attr_tail,
                                                    ccc_data* ccc, ::hid::report::id::type id)
 {
-    using namespace ::hid::report;
-
     *ccc = ccc_data(nullptr, &service::ccc_cfg_write, nullptr);
 
     return attr_tail
         .characteristic(input_report_info(), read_access(), &service::get_report, nullptr, this)
-        .descriptor(uuid16<BT_UUID_HIDS_REPORT_REF_VAL>(), read_access(), selector(type::INPUT, id))
+        .descriptor(uuid16<BT_UUID_HIDS_REPORT_REF_VAL>(), read_access(),
+                    ::hid::report::selector(::hid::report::type::INPUT, id))
         .ccc_descriptor(*ccc, access());
 }
 
 gatt::attribute::builder service::add_output_report(gatt::attribute::builder attr_tail,
                                                     ::hid::report::id::type id)
 {
-    using namespace ::hid::report;
-
     return attr_tail
         .characteristic(output_report_info(), write_access(), nullptr, &service::set_report, this)
         .descriptor(uuid16<BT_UUID_HIDS_REPORT_REF_VAL>(), read_access(),
-                    selector(type::OUTPUT, id));
+                    ::hid::report::selector(::hid::report::type::OUTPUT, id));
 }
 
 gatt::attribute::builder service::add_feature_report(gatt::attribute::builder attr_tail,
                                                      ::hid::report::id::type id)
 {
-    using namespace ::hid::report;
-
     return attr_tail
         .characteristic(feature_report_info(), access(), &service::get_report, &service::set_report,
                         this)
         .descriptor(uuid16<BT_UUID_HIDS_REPORT_REF_VAL>(), read_access(),
-                    selector(type::FEATURE, id));
+                    ::hid::report::selector(::hid::report::type::FEATURE, id));
 }
 
 void service::connected(::bt_conn* conn) {}

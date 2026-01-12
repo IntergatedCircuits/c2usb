@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.21)
 
 project(c2usb
     LANGUAGES C CXX
@@ -17,21 +17,14 @@ else()
     set(CMAKE_CXX_EXTENSIONS ON)
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(get_cpm)
+CPMAddPackage("gh:IntergatedCircuits/hid-rp#266a533b938b4a7729856a211a92f7d4e76954c3")
+CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
+CPMAddPackage("gh:ETLCPP/etl#20.36.1")
+
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})
-
-find_package(Git REQUIRED)
-
-# fetch all submodules explicitly as there are nested ones
-execute_process(
-    COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND_ERROR_IS_FATAL ANY
-)
-
-add_subdirectory(modules/magic_enum)
-add_subdirectory(modules/etl)
-add_subdirectory(modules/hid-rp)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
     magic_enum
@@ -41,15 +34,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 add_subdirectory(examples)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(IS_TOPLEVEL_PROJECT TRUE)
-else()
-    set(IS_TOPLEVEL_PROJECT FALSE)
-endif()
-
-option(C2USB_TESTS "c2usb: enable unit testing" ${IS_TOPLEVEL_PROJECT})
+option(C2USB_TESTS "c2usb: enable unit testing" ${PROJECT_IS_TOP_LEVEL})
 if(C2USB_TESTS)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
     enable_testing()
     add_subdirectory(test)
 endif()

@@ -1,4 +1,4 @@
-add_library(${PROJECT_NAME}-example-hid)
+add_library(${PROJECT_NAME}-example-hid INTERFACE)
 target_sources(${PROJECT_NAME}-example-hid
     PUBLIC
         high_resolution_mouse.hpp
@@ -6,9 +6,9 @@ target_sources(${PROJECT_NAME}-example-hid
         simple_keyboard.hpp
 )
 target_include_directories(${PROJECT_NAME}-example-hid
-    PUBLIC
+    INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(${PROJECT_NAME}-example-hid PUBLIC
+target_link_libraries(${PROJECT_NAME}-example-hid INTERFACE
     ${PROJECT_NAME}
 )

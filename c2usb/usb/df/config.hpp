@@ -614,6 +614,12 @@ class view : protected view_base<header, &element::is_header, true>
     {
         return make_reference_array<const element>((*view(args).ptr_)...);
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const view& cfg)
+    {
+        os << std::hex << reinterpret_cast<std::uintptr_t>(cfg.ptr_) << std::dec << "\n";
+        return os;
+    }
 };
 
 /// @brief  Creates a reference array out of the input list of configuration views.

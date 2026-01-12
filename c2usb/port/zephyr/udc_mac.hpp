@@ -11,10 +11,6 @@
 #ifndef __PORT_ZEPHYR_UDC_MAC_HPP_
 #define __PORT_ZEPHYR_UDC_MAC_HPP_
 
-#define C2USB_HAS_ZEPHYR_HEADERS    (__has_include("zephyr/drivers/usb/udc.h") and \
-                                     __has_include("zephyr/device.h") and CONFIG_C2USB_UDC_MAC)
-#if C2USB_HAS_ZEPHYR_HEADERS
-
 #include "etl/delegate.h"
 #include "usb/df/ep_flags.hpp"
 #include "usb/df/mac.hpp"
@@ -24,15 +20,11 @@ struct net_buf;
 struct udc_buf_info;
 struct udc_event;
 
-int udc_mac_preinit();
-
 namespace usb::zephyr
 {
 /// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
 class udc_mac : public df::mac
 {
-    friend int ::udc_mac_preinit();
-
   public:
     udc_mac(const ::device* dev);
     udc_mac(const ::device* dev, usb::power::state power_state);
@@ -45,13 +37,14 @@ class udc_mac : public df::mac
 
     const ::device* driver_device() const { return dev_; }
 
+    static void worker(void*, void*, void*);
+
   private:
     const ::device* dev_;
     usb::df::ep_flags stall_flags_{};
     usb::df::ep_flags busy_flags_{};
     std::span<::net_buf*> ep_bufs_{};
 
-    static void worker(void*, void*, void*);
     static int event_callback(const ::udc_event& event);
     void set_driver_ctx();
     bool ctrl_buf_valid(::net_buf* buf);
@@ -90,7 +83,5 @@ class udc_mac : public df::mac
 };
 
 } // namespace usb::zephyr
-
-#endif // C2USB_HAS_ZEPHYR_HEADERS
 
 #endif // __PORT_ZEPHYR_UDC_MAC_HPP_

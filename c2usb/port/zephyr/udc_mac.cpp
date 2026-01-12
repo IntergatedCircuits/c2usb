@@ -9,12 +9,10 @@
 ///         https://mozilla.org/MPL/2.0/.
 ///
 #include "port/zephyr/udc_mac.hpp"
-
-#if C2USB_HAS_ZEPHYR_HEADERS
 #include <atomic>
 #include "port/compatibility_helper.hpp"
-#include "port/zephyr/message_queue.hpp"
 #include <zephyr/logging/log.h>
+#include <zephyr/message_queue.hpp>
 extern "C"
 {
 #include <zephyr/drivers/usb/udc.h>
@@ -25,7 +23,6 @@ extern "C"
 #error "Either CONFIG_DEBUG or NDEBUG must be defined"
 #endif
 
-using namespace usb::zephyr;
 using namespace usb::df;
 
 LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
@@ -52,6 +49,8 @@ UDC_CAPS_FLAG(addr_before_status)
 UDC_CAPS_FLAG(can_detect_vbus)
 UDC_CAPS_FLAG(rwup)
 
+namespace usb::zephyr
+{
 constexpr bool udc_init_has_ctx = c2usb::function_arg_count(udc_init) == 3;
 template <typename T>
 udc_mac* get_event_ctx(T* dev)
@@ -75,7 +74,7 @@ udc_mac* get_event_ctx(T* dev)
     return nullptr;
 }
 
-int udc_mac_preinit()
+static int udc_mac_preinit()
 {
     static K_THREAD_STACK_DEFINE(stack, CONFIG_C2USB_UDC_MAC_THREAD_STACK_SIZE);
     static k_thread thread_data;
@@ -138,7 +137,7 @@ udc_mac::~udc_mac()
 K_MSGQ_DEFINE(udc_mac_msgq, sizeof(udc_event), CONFIG_C2USB_UDC_MAC_MSGQ_SIZE, sizeof(uint32_t));
 static auto& message_queue()
 {
-    return *reinterpret_cast<os::zephyr::message_queue<udc_event>*>(&udc_mac_msgq);
+    return *reinterpret_cast<::zephyr::message_queue<udc_event>*>(&udc_mac_msgq);
 }
 
 void udc_mac::worker(void*, void*, void*)
@@ -755,4 +754,4 @@ usb::result udc_mac::ep_change_stall(usb::df::ep_handle eph, bool stall)
     }
 }
 
-#endif // C2USB_HAS_ZEPHYR_HEADERS
+} // namespace usb::zephyr

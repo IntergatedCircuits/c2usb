@@ -1,0 +1,12 @@
+manifest:
+  defaults:
+    remote: IntergatedCircuits
+
+  remotes:
+    - name: IntergatedCircuits
+      url-base: https://github.com/IntergatedCircuits
+
+  projects:
+    - name: zephyrrtos-mcpp
+      revision: 167d407866db5024886a5acb9252a8d5d7ec0977
+      path: modules/lib/zephyrrtos-mcpp

@@ -26,10 +26,11 @@ CPMAddPackage("gh:ETLCPP/etl#20.36.1")
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-    magic_enum
-    etl
-    hid-rp
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        magic_enum
+        etl
+        hid-rp
 )
 
 add_subdirectory(examples)

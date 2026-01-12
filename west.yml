@@ -1,0 +1,10 @@
+manifest:
+  self:
+    path: c2usb
+    west-commands: scripts/west-commands.yml
+    import:
+      - zephyr/imports.yml
+
+  remotes:
+    - name: IntergatedCircuits
+      url-base: https://github.com/IntergatedCircuits

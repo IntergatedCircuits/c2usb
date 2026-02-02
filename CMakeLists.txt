@@ -17,14 +17,23 @@ else()
     set(CMAKE_CXX_EXTENSIONS ON)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(get_cpm)
-CPMAddPackage("gh:IntergatedCircuits/hid-rp#266a533b938b4a7729856a211a92f7d4e76954c3")
-CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
-CPMAddPackage("gh:ETLCPP/etl#20.36.1")
-
 add_library(${PROJECT_NAME})
 add_subdirectory(${PROJECT_NAME})
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(get_cpm)
+CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
+
+include(cmake/get_cpm.cmake)
+if(ZEPHYR_HID_RP_MODULE_DIR)
+else()
+    CPMAddPackage("gh:IntergatedCircuits/hid-rp#61e9e5d8e6acbad89a4a5be66fed29ea4f84ce1d")
+endif()
+
+if(ZEPHYR_ETL_MODULE_DIR)
+else()
+    CPMAddPackage("gh:ETLCPP/etl#20.36.1")
+endif()
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC

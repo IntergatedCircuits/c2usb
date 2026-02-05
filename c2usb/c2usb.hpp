@@ -72,6 +72,7 @@ class result
     constexpr explicit result(int err)
         : code_(err)
     {}
+    constexpr int to_int() const { return code_; }
     static inline constexpr std::errc ok = static_cast<std::errc>(0);
     static inline constexpr std::errc OK = static_cast<std::errc>(0);
     static inline constexpr std::errc INVALID = static_cast<std::errc>(EINVAL);

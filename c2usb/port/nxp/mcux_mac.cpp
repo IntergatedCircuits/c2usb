@@ -279,8 +279,10 @@ void mcux_mac::process_notification(const _usb_device_callback_message_struct& m
 
     case kUSB_DeviceNotifyDetach:
         set_power_state(power::state::L3_OFF);
+        break;
     case kUSB_DeviceNotifyAttach:
         set_power_state(power::state::L2_SUSPEND);
+        break;
         // case kUSB_DeviceNotifyDcdDetectFinished:
     case kUSB_DeviceNotifyError:
         break;

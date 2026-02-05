@@ -64,7 +64,7 @@ class buffer
     buffer& operator=(const buffer&) = delete;
 
     friend class mac;
-    void assign(uint8_t* data, size_type size)
+    constexpr void assign(uint8_t* data, size_type size)
     {
         data_ = data;
         size_ = size;

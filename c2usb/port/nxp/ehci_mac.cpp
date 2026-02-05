@@ -9,9 +9,9 @@ static const controller_interface ehci_mac_interface = {
     USB_DeviceEhciInit,   USB_DeviceEhciDeinit,  USB_DeviceEhciSend,       USB_DeviceEhciRecv,
     USB_DeviceEhciCancel, USB_DeviceEhciControl, USB_DeviceEhciIsrFunction};
 
-mcux_mac mcux_mac::ehci()
+mcux_mac mcux_mac::ehci(const std::span<uint8_t>& control_buffer)
 {
-    return mcux_mac(kUSB_ControllerEhci0, ehci_mac_interface);
+    return mcux_mac(kUSB_ControllerEhci0, ehci_mac_interface, control_buffer);
 }
 
 } // namespace usb::df::nxp

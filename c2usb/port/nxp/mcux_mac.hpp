@@ -35,25 +35,29 @@ class mcux_mac : public df::address_handle_mac
     void handle_irq();
 
 #if C2USB_HAS_NXP_KHCI
-    static mcux_mac khci();
+    static mcux_mac khci(const std::span<uint8_t>& control_buffer);
 #endif // C2USB_HAS_NXP_KHCI
 
 #if C2USB_HAS_NXP_EHCI
-    static mcux_mac ehci();
+    static mcux_mac ehci(const std::span<uint8_t>& control_buffer);
 #endif // C2USB_HAS_NXP_EHCI
 
 #if C2USB_HAS_NXP_LPCIP3511
-    static mcux_mac lpcip3511(usb::speed speed = usb::speed::FULL);
+    static mcux_mac lpcip3511(const std::span<uint8_t>& control_buffer,
+                              usb::speed speed = usb::speed::FULL);
 #endif // C2USB_HAS_NXP_LPCIP3511
 
 #if C2USB_HAS_NXP_DWC3
-    static mcux_mac dwc3();
+    static mcux_mac dwc3(const std::span<uint8_t>& control_buffer);
 #endif // C2USB_HAS_NXP_DWC3
 
   protected:
-    constexpr mcux_mac(int usb_controller_index, const controller_interface& driver)
+    constexpr mcux_mac(int usb_controller_index, const controller_interface& driver,
+                       const std::span<uint8_t>& control_buffer)
         : address_handle_mac(), driver_(driver), index_(usb_controller_index)
-    {}
+    {
+        set_control_buffer(control_buffer);
+    }
 
   private:
     void* handle_{};

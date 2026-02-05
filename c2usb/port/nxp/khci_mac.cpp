@@ -10,7 +10,7 @@ static const controller_interface khci_mac_interface = {
     USB_DeviceKhciInit,   USB_DeviceKhciDeinit,  USB_DeviceKhciSend,       USB_DeviceKhciRecv,
     USB_DeviceKhciCancel, USB_DeviceKhciControl, USB_DeviceKhciIsrFunction};
 
-mcux_mac mcux_mac::khci()
+mcux_mac mcux_mac::khci(const std::span<uint8_t>& control_buffer)
 {
     // allow USB controller to read from Flash
 #ifdef FMC_PFAPR_M3AP_SHIFT
@@ -19,7 +19,7 @@ mcux_mac mcux_mac::khci()
 #ifdef FMC_PFAPR_M4AP_SHIFT
     FMC->PFAPR |= (1 << FMC_PFAPR_M4AP_SHIFT);
 #endif
-    return mcux_mac(kUSB_ControllerKhci0, khci_mac_interface);
+    return mcux_mac(kUSB_ControllerKhci0, khci_mac_interface, control_buffer);
 }
 
 } // namespace usb::df::nxp

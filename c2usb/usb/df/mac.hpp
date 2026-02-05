@@ -38,7 +38,7 @@ class mac : public polymorphic
     /// @brief  Sets the buffer used for control transfers to the passed span.
     /// @note   The buffer must be aligned with @ref C2USB_USB_TRANSFER_ALIGN()
     /// @param  buffer: the buffer span available for control transfers
-    void set_control_buffer(const std::span<uint8_t>& buffer)
+    constexpr void set_control_buffer(const std::span<uint8_t>& buffer)
     {
         ctrl_msg_.buffer_.assign(buffer.data(), buffer.size());
     }

@@ -9,9 +9,9 @@ static const controller_interface dwc3_mac_interface = {
     USB_DeviceDwc3Init,   USB_DeviceDwc3Deinit,  USB_DeviceDwc3Send,       USB_DeviceDwc3Recv,
     USB_DeviceDwc3Cancel, USB_DeviceDwc3Control, USB_DeviceDwc3IsrFunction};
 
-mcux_mac mcux_mac::dwc3()
+mcux_mac mcux_mac::dwc3(const std::span<uint8_t>& control_buffer)
 {
-    return mcux_mac(kUSB_ControllerDwc30, dwc3_mac_interface);
+    return mcux_mac(kUSB_ControllerDwc30, dwc3_mac_interface, control_buffer);
 }
 
 } // namespace usb::df::nxp

@@ -28,9 +28,12 @@ class descriptors : public device::extension
         return d;
     }
 
+    bool msos2_support() const { return status_ & MSOS2_SUPPORT_FLAG; }
+
   protected:
     void control_setup_request(device& dev, message& msg) override;
     unsigned bos_capabilities(device& dev, df::buffer& buffer) override;
+    void bus_reset([[maybe_unused]] device& dev) override { status_ = 0; }
 
     static void get_msos2_descriptor(device& dev, df::buffer& buffer);
     static void get_msos2_config_subset(const config::view& config, uint8_t config_index,
@@ -43,19 +46,21 @@ class descriptors : public device::extension
     constexpr descriptors()
         : device::extension()
     {}
+
+    static constexpr uint8_t MSOS2_SUPPORT_FLAG = 0x01;
+    uint8_t status_{};
 };
 
 /// @brief Non-template base class for @ref alternate_enumeration.
 class alternate_enumeration_base : public descriptors
 {
   public:
-    bool alternate_enumerated() const { return using_alt_enum_; }
+    bool alternate_enumerated() const { return status_ & ALT_ENUM_FLAG; }
 
   protected:
     constexpr alternate_enumeration_base(usb::speeds speeds, uint8_t max_configs_count)
         : descriptors(), speeds_(speeds), max_config_count_(max_configs_count)
     {}
-    void bus_reset([[maybe_unused]] device& dev) override { using_alt_enum_ = false; }
 
     void assign_istrings(device& dev, istring* index) override;
     bool send_owned_string(device& dev, istring index, string_message& smsg) override;
@@ -65,9 +70,10 @@ class alternate_enumeration_base : public descriptors
     constexpr usb::speeds speeds() const { return speeds_; }
     virtual config::view_list alt_configs_by_speed(usb::speed speed) = 0;
 
+    static constexpr uint8_t ALT_ENUM_FLAG = 0x02;
+
     const usb::speeds speeds_;
     const uint8_t max_config_count_{};
-    bool using_alt_enum_{};
 };
 
 /// @brief This device extension implements Microsoft OS 2.0 alternate enumeration,

@@ -95,6 +95,7 @@ void descriptors::control_setup_request(device& dev, message& msg)
     {
     case GET_DESCRIPTOR:
         // assert(msg.request().wIndex == 0x0007);
+        status_ |= MSOS2_SUPPORT_FLAG;
         get_msos2_descriptor(dev, msg.buffer());
         if (msg.buffer().used_length() > 0)
         {
@@ -134,8 +135,16 @@ void alternate_enumeration_base::control_setup_request(device& dev, message& msg
     switch (msg.request())
     {
     case SET_ALT_ENUM:
+        status_ |= MSOS2_SUPPORT_FLAG;
         // assert(msg.request().wIndex == 0x0008);
-        using_alt_enum_ = msg.request().wValue.high_byte();
+        if (msg.request().wValue.high_byte())
+        {
+            status_ |= ALT_ENUM_FLAG;
+        }
+        else
+        {
+            status_ &= uint8_t(~ALT_ENUM_FLAG);
+        }
         return msg.confirm();
 
     default:

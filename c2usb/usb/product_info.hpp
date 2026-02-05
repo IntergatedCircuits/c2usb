@@ -26,31 +26,31 @@ struct product_info
     version product_version;
 
   public:
-    constexpr product_info(uint16_t vendor_id, uint16_t product_id, version product_version)
-        : vendor_id(vendor_id), product_id(product_id), product_version(product_version)
+    constexpr product_info(uint16_t vend_id, uint16_t pr_id, version pr_ver)
+        : vendor_id(vend_id), product_id(pr_id), product_version(pr_ver)
     {}
 
-    constexpr product_info(uint16_t vendor_id, const char_t* vendor_name, uint16_t product_id,
-                           const char_t* product_name, version product_version,
+    constexpr product_info(uint16_t vend_id, const char_t* vend_name, uint16_t pr_id,
+                           const char_t* pr_name, version pr_ver,
                            const std::span<const uint8_t>& serial_number = {})
-        : vendor_name(vendor_name),
-          product_name(product_name),
-          vendor_id(vendor_id),
-          product_id(product_id),
-          product_version(product_version),
+        : vendor_name(vend_name),
+          product_name(pr_name),
+          vendor_id(vend_id),
+          product_id(pr_id),
+          product_version(pr_ver),
           serial_number_size_(serial_number.size()),
           serial_number_(static_cast<const void*>(serial_number.data())),
           serial_number_is_raw_(true)
     {}
 
-    constexpr product_info(uint16_t vendor_id, const char_t* vendor_name, uint16_t product_id,
-                           const char_t* product_name, version product_version,
+    constexpr product_info(uint16_t vend_id, const char_t* vend_name, uint16_t pr_id,
+                           const char_t* pr_name, version pr_ver,
                            const std::string_view& serial_number)
-        : vendor_name(vendor_name),
-          product_name(product_name),
-          vendor_id(vendor_id),
-          product_id(product_id),
-          product_version(product_version),
+        : vendor_name(vend_name),
+          product_name(pr_name),
+          vendor_id(vend_id),
+          product_id(pr_id),
+          product_version(pr_ver),
           serial_number_size_(serial_number.size()),
           serial_number_(static_cast<const void*>(serial_number.data())),
           serial_number_is_raw_(false)

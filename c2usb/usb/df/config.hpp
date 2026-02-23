@@ -115,6 +115,12 @@ class alignas(std::uintptr_t) interface
     // only works if the interface is used through the make_config() created object
     interface_endpoint_view endpoints() const;
 
+    friend std::ostream& operator<<(std::ostream& os, const interface& iface)
+    {
+        os << std::hex << reinterpret_cast<std::uintptr_t>(&iface) << std::dec << "\n";
+        return os;
+    }
+
   private:
     interface(const interface&) = delete;
     interface& operator=(const interface&) = delete;
@@ -349,13 +355,19 @@ class view_base
                 return (ptr_ == rhs.ptr_) or (is_footer() and (rhs.is_footer()));
             }
 
+            friend std::ostream& operator<<(std::ostream& os, const iterator& it)
+            {
+                os << std::hex << reinterpret_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
+                return os;
+            }
+
           private:
             bool valid() const { return valid_test(*ptr_); }
             constexpr bool is_footer() const
             {
                 return reinterpret_cast<const element*>(ptr_)->is_footer();
             }
-            bool skip_position() const { return not valid() and (ptr_ > begin_); }
+            bool skip_position() const { return (ptr_ > begin_) and not valid(); }
 
             pointer ptr_;
             pointer const begin_;
@@ -367,7 +379,7 @@ class view_base
         const_iterator end() const { return const_iterator(ptr(), ptr()); }
         size_t size() const
         {
-            return reinterpret_cast<const config::header*>(ptr())->config_size();
+            return view_base::safe_ptr<const config::header*>(ptr_)->config_size();
         }
 
       private:
@@ -491,14 +503,18 @@ class view_base
         return *reinterpret_cast<const config::header*>(safe_ptr());
     }
 
+    template <typename Tout, typename Tin>
+    static Tout safe_ptr(Tin ptr, size_t offset = 0)
+    {
+        if (ptr != nullptr)
+        {
+            return reinterpret_cast<Tout>(ptr + offset);
+        }
+        return reinterpret_cast<Tout>(&footer());
+    }
     const_pointer safe_ptr(size_t offset = 0) const
     {
-        if (ptr_ != nullptr)
-        {
-            assert(not ptr_->is_footer());
-            return reinterpret_cast<const_pointer>(ptr_ + offset);
-        }
-        return reinterpret_cast<const_pointer>(&footer());
+        return safe_ptr<const_pointer>(ptr_, offset);
     }
 
     const element* ptr_;

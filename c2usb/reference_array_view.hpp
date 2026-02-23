@@ -12,6 +12,8 @@
 #define __REFERENCE_ARRAY_VIEW_HPP_
 
 #include <array>
+#include <cstdint>
+#include <ostream>
 #include <type_traits>
 
 namespace c2usb
@@ -84,9 +86,15 @@ class reference_array_view : public reference_array_view_base
             ++(*this);
             return retval;
         }
-        constexpr auto operator*() { return (const TView&)(*ptr_); }
+        constexpr TView operator*() const { return (*ptr_ != nullptr) ? TView(*ptr_) : TView{}; }
         constexpr auto operator->() { return &(const TView&)(*ptr_); }
         constexpr bool operator==(std::nullptr_t const*) const { return (*ptr_ == nullptr); }
+
+        friend std::ostream& operator<<(std::ostream& os, const iterator& it)
+        {
+            os << std::hex << reinterpret_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
+            return os;
+        }
 
       private:
         pointer const* ptr_;
@@ -114,12 +122,12 @@ class reference_array_view : public reference_array_view_base
         return static_cast<std::size_t>(std::distance(data_, ptr));
     }
     constexpr bool empty() const { return *data_ == nullptr; }
-    constexpr auto operator[](std::size_t n) const
+    constexpr TView operator[](std::size_t n) const
     {
-        pointer const* ptr;
-        for (ptr = data_; (*ptr != nullptr) and (n > 0); ++ptr, --n)
+        auto it = begin();
+        for (; (it != end()) and (n > 0); ++it, --n)
             ;
-        return (const TView&)(*ptr);
+        return *it;
     }
 
   private:

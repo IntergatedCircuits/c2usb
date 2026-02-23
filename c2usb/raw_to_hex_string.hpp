@@ -11,17 +11,18 @@
 #ifndef __RAW_TO_HEX_STRING_HPP_
 #define __RAW_TO_HEX_STRING_HPP_
 
+#include <cstdint>
 #include <span>
 
 namespace c2usb
 {
 template <typename T>
-constexpr std::size_t raw_to_hex_string(std::span<const uint8_t> data, std::span<T> buffer)
+constexpr std::size_t raw_to_hex_string(std::span<const std::uint8_t> data, std::span<T> buffer)
 {
     auto trimmed_size = std::min(data.size(), buffer.size() / 2);
     data = data.subspan(0, trimmed_size);
 
-    auto convert = [](uint8_t v)
+    auto convert = [](std::uint8_t v)
     {
         if (v < 10)
         {
@@ -32,7 +33,7 @@ constexpr std::size_t raw_to_hex_string(std::span<const uint8_t> data, std::span
             return 'A' + v - 10;
         }
     };
-    size_t offset = 0;
+    std::size_t offset = 0;
     for (auto byte : data)
     {
         buffer[offset++] = convert(byte >> 4);

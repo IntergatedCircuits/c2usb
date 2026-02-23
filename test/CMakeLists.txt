@@ -6,6 +6,8 @@ target_sources(${PROJECT_NAME}-test
     PRIVATE
         df/config.test.cpp
         main.cpp
+        raw_to_hex_string.test.cpp
+        reference_array_view.test.cpp
 )
 target_include_directories(${PROJECT_NAME}-test
     PRIVATE

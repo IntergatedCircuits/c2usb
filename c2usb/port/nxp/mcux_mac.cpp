@@ -122,6 +122,10 @@ usb::df::ep_handle mcux_mac::ep_open(const config::endpoint& ep)
 usb::result mcux_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& data)
 {
     auto addr = ep_handle_to_address(eph);
+    if (power_state() != power::state::L0_ON)
+    {
+        return result::network_down;
+    }
     if (busy_flags_.test_and_set(addr))
     {
         return usb::result::device_or_resource_busy;

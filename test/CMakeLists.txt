@@ -4,10 +4,11 @@ include(CTest)
 add_executable(${PROJECT_NAME}-test)
 target_sources(${PROJECT_NAME}-test
     PRIVATE
-        df/config.test.cpp
         main.cpp
         raw_to_hex_string.test.cpp
         reference_array_view.test.cpp
+        usb/df/config.test.cpp
+        usb/version.test.cpp
 )
 target_include_directories(${PROJECT_NAME}-test
     PRIVATE

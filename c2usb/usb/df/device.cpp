@@ -458,7 +458,10 @@ void device::get_bos_descriptor(message& msg)
     using namespace standard::descriptor;
 
     auto* bos_desc = msg.buffer().allocate<binary_object_store>();
-    msg.buffer().allocate<device_capability::usb_2p0_extension>(mac_.lpm_support());
+
+    // the only mandatory device capability descriptor is the USB 2.0 extension
+    auto* lpm_desc = msg.buffer().allocate<device_capability::usb_2p0_extension>();
+    lpm_desc->bmAttributes = mac_.lpm_support();
 
     bos_desc->bNumDeviceCaps = 1 + extension_.bos_capabilities(*this, msg.buffer());
     bos_desc->wTotalLength = msg.buffer().used_length();

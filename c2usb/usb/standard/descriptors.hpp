@@ -14,6 +14,7 @@
 #include "usb/control.hpp"
 #include "usb/endpoint.hpp"
 #include "usb/version.hpp"
+#include <bitfilled.hpp>
 #include <string_view>
 
 namespace usb
@@ -159,6 +160,25 @@ struct interface : public usb::descriptor<interface>
     istring iInterface;         /// Index of String Descriptor Describing this interface
 };
 
+template <std::endian E>
+struct endpoint_attributes_impl;
+template <>
+struct endpoint_attributes_impl<std::endian::little>
+{
+    usb::endpoint::type type : 2;
+    usb::endpoint::isochronous::sync iso_sync : 2;
+    usb::endpoint::isochronous::usage iso_usage : 2;
+    uint8_t : 2;
+};
+template <>
+struct endpoint_attributes_impl<std::endian::big>
+{
+    uint8_t : 2;
+    usb::endpoint::isochronous::usage iso_usage : 2;
+    usb::endpoint::isochronous::sync iso_sync : 2;
+    usb::endpoint::type type : 2;
+};
+
 struct endpoint : public usb::descriptor<endpoint>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::ENDPOINT;
@@ -166,23 +186,10 @@ struct endpoint : public usb::descriptor<endpoint>
     /// Endpoint Address 0b[0=Out / 1=In]000[Endpoint Number]
     usb::endpoint::address bEndpointAddress;
 
-    /// Bits 0..1 Transfer Type
-    ///     00 = Control
-    ///     01 = Isochronous
-    ///     10 = Bulk
-    ///     11 = Interrupt
-    /// Bits 2..7 are reserved. If Isochronous endpoint,
-    /// Bits 3..2 = Synchronisation Type (Iso Mode)
-    ///     00 = No Synchonisation
-    ///     01 = Asynchronous
-    ///     10 = Adaptive
-    ///     11 = Synchronous
-    /// Bits 5..4 = Usage Type (Iso Mode)
-    ///     00 = Data Endpoint
-    ///     01 = Feedback Endpoint
-    ///     10 = Explicit Feedback Data Endpoint
-    ///     11 = Reserved
-    uint8_t bmAttributes;
+    using attributes = endpoint_attributes_impl<std::endian::native>;
+    static_assert(sizeof(attributes) == 1);
+
+    attributes bmAttributes{};
 
     /// Maximum Packet Size this endpoint is capable of sending or receiving
     le_uint16_t wMaxPacketSize;
@@ -194,18 +201,9 @@ struct endpoint : public usb::descriptor<endpoint>
 
     constexpr usb::endpoint::address address() const { return bEndpointAddress; }
 
-    constexpr usb::endpoint::type type() const
-    {
-        return static_cast<usb::endpoint::type>(bmAttributes & 3);
-    }
-    constexpr usb::endpoint::isochronous::sync synchronization() const
-    {
-        return static_cast<usb::endpoint::isochronous::sync>((bmAttributes >> 2) & 3);
-    }
-    constexpr usb::endpoint::isochronous::usage usage() const
-    {
-        return static_cast<usb::endpoint::isochronous::usage>((bmAttributes >> 4) & 3);
-    }
+    auto type() const { return bmAttributes.type; }
+    auto synchronization() const { return bmAttributes.iso_sync; }
+    auto usage() const { return bmAttributes.iso_usage; }
     constexpr uint16_t max_packet_size() const { return wMaxPacketSize; }
     constexpr uint8_t interval() const { return bInterval; }
 
@@ -241,7 +239,9 @@ struct endpoint : public usb::descriptor<endpoint>
     constexpr endpoint(usb::endpoint::address addr, std::uint16_t mps, usb::endpoint::type t,
                        uint8_t interval = 0)
         : bEndpointAddress(addr),
-          bmAttributes(static_cast<uint8_t>(t)),
+          bmAttributes{.type = t,
+                       .iso_sync = usb::endpoint::isochronous::sync::NONE,
+                       .iso_usage = usb::endpoint::isochronous::usage::DATA},
           wMaxPacketSize(mps),
           bInterval(interval)
     {}
@@ -250,8 +250,8 @@ struct endpoint : public usb::descriptor<endpoint>
                        usb::endpoint::isochronous::sync sync,
                        usb::endpoint::isochronous::usage usage)
         : bEndpointAddress(addr),
-          bmAttributes(static_cast<uint8_t>(usb::endpoint::type::ISOCHRONOUS) |
-                       (static_cast<uint8_t>(sync) << 2) | (static_cast<uint8_t>(usage) << 4)),
+          bmAttributes{
+              .type = usb::endpoint::type::ISOCHRONOUS, .iso_sync = sync, .iso_usage = usage},
           wMaxPacketSize(mps),
           bInterval(1)
     {}
@@ -327,31 +327,16 @@ struct usb_2p0_extension : public device_capability::descriptor<usb_2p0_extensio
 {
     constexpr static auto CAP_TYPE_CODE = device_capability::type::USB_2p0_EXTENSION;
 
-    le_uint32_t bmAttributes{};
-
-    union attributes
+    struct attributes : le_uint32_t
     {
-        uint32_t w{};
-        struct
-        {
-            uint32_t : 1;
-            bool link_power_mgmt : 1;     /// Link Power Management support
-            bool besl_alt_hird : 1;       /// BESL and alternate HIRD definitions support
-            bool baseline_besl_valid : 1; /// Recommended Baseline BESL valid
-            bool deep_besl_valid : 1;     /// Recommended Deep BESL valid
-            uint32_t : 3;
-            uint32_t baseline_besl_value : 4; /// Recommended Baseline BESL value
-            uint32_t deep_besl_value : 4;     /// Recommended Deep BESL value
-            uint32_t : 16;
-        };
-        constexpr operator uint32_t() const { return w; }
-        constexpr operator uint32_t&() { return w; };
-    };
-
-    constexpr usb_2p0_extension() = default;
-    constexpr usb_2p0_extension(attributes attr)
-        : device_capability::descriptor<usb_2p0_extension>(), bmAttributes(attr)
-    {}
+        BF_COPY_SUPERCLASS(attributes)
+        BF_BITS(bool, 1) link_power_mgmt;     /// Link Power Management support
+        BF_BITS(bool, 2) besl_alt_hird;       /// BESL and alternate HIRD definitions support
+        BF_BITS(bool, 3) baseline_besl_valid; /// Recommended Baseline BESL valid
+        BF_BITS(bool, 4) deep_besl_valid;     /// Recommended Deep BESL valid
+        BF_BITS(uint32_t, 8, 11) baseline_besl_value; /// Recommended Baseline BESL value
+        BF_BITS(uint32_t, 12, 15) deep_besl_value;    /// Recommended Deep BESL value
+    } bmAttributes{};
 };
 
 template <class T>

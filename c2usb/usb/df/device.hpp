@@ -89,7 +89,7 @@ class device : public polymorphic
     void set_power_source(usb::power::source src) { mac_.set_power_source(src); }
     auto power_source() const
     {
-        return static_cast<usb::power::source>(mac_.std_status().self_powered);
+        return static_cast<usb::power::source>(static_cast<bool>(mac_.std_status().self_powered));
     }
     uint32_t granted_bus_current_uA() const { return mac_.granted_bus_current_uA(); }
     bool allows_remote_wakeup() const { return mac_.std_status().remote_wakeup; }

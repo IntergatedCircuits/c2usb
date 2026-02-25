@@ -13,6 +13,7 @@
 
 #include "usb/control.hpp"
 #include "usb/version.hpp"
+#include <bitfilled.hpp>
 
 namespace usb::cdc
 {
@@ -202,23 +203,16 @@ struct line_coding
     uint8_t bDataBits;     /// Data bits: (5, 6, 7, 8 or 16)
 };
 
-struct state
+struct state : le_uint16_t
 {
-    uint16_t w{};
-    struct
-    {
-        uint16_t
-            bRxCarrier : 1; /// State of receiver carrier detection mechanism (RS-232 signal DCD)
-        uint16_t bTxCarrier : 1;  /// State of transmission carrier (RS-232 signal DSR.)
-        uint16_t bBreak : 1;      /// State of break detection mechanism
-        uint16_t bRingSignal : 1; /// State of ring signal detection
-        uint16_t bFraming : 1;    /// A framing error has occurred
-        uint16_t bParity : 1;     /// A parity error has occurred
-        uint16_t bOverRun : 1;    /// Received data has been discarded due to overrun
-        uint16_t : 9;
-    };
-    constexpr operator uint16_t() const { return w; }
-    constexpr operator uint16_t&() { return w; };
+    BF_BITS(bool, 0)
+    bRxCarrier; /// State of receiver carrier detection mechanism (RS-232 signal DCD)
+    BF_BITS(bool, 1) bTxCarrier;  /// State of transmission carrier (RS-232 signal DSR.)
+    BF_BITS(bool, 2) bBreak;      /// State of break detection mechanism
+    BF_BITS(bool, 3) bRingSignal; /// State of ring signal detection
+    BF_BITS(bool, 4) bFraming;    /// A framing error has occurred
+    BF_BITS(bool, 5) bParity;     /// A parity error has occurred
+    BF_BITS(bool, 6) bOverRun;    /// Received data has been discarded due to overrun
 };
 } // namespace serial
 
@@ -293,7 +287,7 @@ struct ring_detect : public header
 
 struct serial_state : public header
 {
-    constexpr serial_state(serial::state s)
+    serial_state(serial::state s)
         : header(code::SERIAL_STATE, 0, sizeof(serial_state) - sizeof(header)), SerialState(s)
     {}
 
@@ -447,25 +441,18 @@ struct abstract_control_management : public descriptor<abstract_control_manageme
 {
     constexpr static auto FUNC_TYPE_CODE = comm::type::ABSTRACT_CONTROL_MANAGEMENT;
 
-    uint8_t bmCapabilities{};
-
-    union capabilities
+    struct capabilities : bitfilled::host_integer<uint8_t>
     {
-        uint8_t w{};
-        struct
-        {
-            bool comm_feature : 1; /// Device supports the request combination of
-                                   /// Set_Comm_Feature, Clear_Comm_Feature, and Get_Comm_Feature
-            bool line_control : 1; /// Device supports the request combination of
-                                   /// Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding,
-                                   /// and the notification Serial_State
-            bool send_break : 1;   /// Device supports the request Send_Break
-            bool network_connection : 1; /// Device supports the notification Network_Connection
-            uint8_t : 4;
-        };
-        constexpr operator uint8_t() const { return w; }
-        constexpr operator uint8_t&() { return w; };
-    };
+        BF_BITS(bool, 0)
+        comm_feature; /// Device supports the request combination of
+                      /// Set_Comm_Feature, Clear_Comm_Feature, and Get_Comm_Feature
+        BF_BITS(bool, 1)
+        line_control;                /// Device supports the request combination of
+                                     /// Set_Line_Coding, Set_Control_Line_State, Get_Line_Coding,
+                                     /// and the notification Serial_State
+        BF_BITS(bool, 2) send_break; /// Device supports the request Send_Break
+        BF_BITS(bool, 3) network_connection; /// Device supports the notification Network_Connection
+    } bmCapabilities;
 };
 
 struct ethernet_networking : public descriptor<ethernet_networking>
@@ -490,14 +477,18 @@ struct network_control : public descriptor<ethernet_networking>
     constexpr static auto FUNC_TYPE_CODE = comm::type::NCM;
 
     version bcdNcmVersion{ncm::SPEC_VERSION};
-    uint8_t
-        bmNetworkCapabilities{}; /// Specifies the capabilities of this function.
-                                 /// D5: 8-byte forms of GetNtbInputSize and SetNtbInputSize
-                                 /// requests D4: SetCrcMode and GetCrcMode requests D3:
-                                 /// SetMaxDatagramSize and GetMaxDatagramSize requests. D2:
-                                 /// SendEncapsulated-Command and GetEncapsulatedResponse requests.
-                                 /// D1: GetNetAddress and SetNetAddress requests.
-                                 /// D0: SetEthenetPacketFilter requests.
+
+    struct capabilities : bitfilled::host_integer<uint8_t>
+    {
+        BF_BITS(bool, 0) eth_packet_filter; /// SetEthernetPacketFilter requests.
+        BF_BITS(bool, 1) net_address;       /// GetNetAddress and SetNetAddress requests.
+        BF_BITS(bool, 2)
+        encapsulated_cmd; /// SendEncapsulated-Command and GetEncapsulatedResponse requests.
+        BF_BITS(bool, 3) max_datagram_size; /// SetMaxDatagramSize and GetMaxDatagramSize requests.
+        BF_BITS(bool, 4) crc_mode;          /// SetCrcMode and GetCrcMode requests.
+        BF_BITS(bool, 5)
+        ntb_input_size_8byte; /// 8-byte forms of GetNtbInputSize and SetNtbInputSize requests.
+    } bmNetworkCapabilities{};
 };
 } // namespace descriptor
 } // namespace usb::cdc

@@ -626,7 +626,8 @@ usb::endpoint::address udc_mac::ep_handle_to_address(ep_handle eph) const
 
 usb::df::ep_handle udc_mac::ep_open(const usb::df::config::endpoint& ep)
 {
-    auto ret = udc_ep_enable(dev_, ep.address(), ep.bmAttributes, ep.wMaxPacketSize, ep.bInterval);
+    auto ret = udc_ep_enable(dev_, ep.address(), std::bit_cast<uint8_t>(ep.bmAttributes),
+                             ep.wMaxPacketSize, ep.bInterval);
     if (ret != 0)
     {
         return {};

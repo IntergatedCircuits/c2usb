@@ -12,6 +12,7 @@
 #define __USB_STANDARD_REQUESTS_HPP_
 
 #include "usb/control.hpp"
+#include <bitfilled.hpp>
 
 namespace usb::standard
 {
@@ -73,33 +74,20 @@ enum class status_type : uint8_t
         0x01, /// Returns PTM (Precision Time Measurement) Status Request information (wLength == 4)
 };
 
-union status
+struct status : le_uint16_t
 {
-    uint16_t w{};
-    struct
-    {
-        bool self_powered : 1;
-        bool remote_wakeup : 1;
-        bool u1_enable : 1;
-        bool u2_enable : 1;
-        bool ltm_enable : 1;
-    };
-    constexpr operator uint16_t() const { return w; }
-    constexpr operator uint16_t&() { return w; };
+    BF_BITS(bool, 0) self_powered;
+    BF_BITS(bool, 1) remote_wakeup;
+    BF_BITS(bool, 2) u1_enable;
+    BF_BITS(bool, 3) u2_enable;
+    BF_BITS(bool, 4) ltm_enable;
 };
 
-union ptm_status
+struct ptm_status : le_uint32_t
 {
-    uint32_t dw{};
-    struct
-    {
-        bool ldm_enable : 1;
-        bool ldm_valid : 1;
-        uint16_t : 14;
-        uint16_t ldm_link_delay : 16;
-    };
-    constexpr operator uint32_t() const { return dw; }
-    constexpr operator uint32_t&() { return dw; };
+    BF_BITS(bool, 0) ldm_enable;
+    BF_BITS(bool, 1) ldm_valid;
+    BF_BITS(uint16_t, 16, 31) ldm_link_delay;
 };
 
 constexpr control::request_id GET_STATUS{direction::IN, control::request::type::STANDARD,
@@ -156,16 +144,10 @@ enum class feature : uint8_t
     FUNCTION_SUSPEND = 0x00,
 };
 
-union status
+struct status : le_uint16_t
 {
-    uint16_t w{};
-    struct
-    {
-        bool remote_wake_capable : 1;
-        bool remote_wakeup : 1;
-    };
-    constexpr operator uint16_t() const { return w; }
-    constexpr operator uint16_t&() { return w; };
+    BF_BITS(bool, 0) remote_wake_capable;
+    BF_BITS(bool, 1) remote_wakeup;
 };
 
 constexpr control::request_id GET_STATUS{direction::IN, control::request::type::STANDARD,

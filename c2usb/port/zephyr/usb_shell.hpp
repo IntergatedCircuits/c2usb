@@ -1,7 +1,6 @@
 #ifndef __USB_SHELL_HPP
 #define __USB_SHELL_HPP
 
-#if ((__has_include("zephyr/shell/shell.h")) && CONFIG_SHELL_BACKEND_C2USB)
 #include <atomic>
 #include <optional>
 #include <zephyr/shell/shell.h>
@@ -78,7 +77,9 @@ class acm_tx_buffer : public double_buffer<uint8_t>
 class usb_shell : public usb::df::cdc::acm::function
 {
   public:
+#if CONFIG_SHELL_BACKEND_C2USB
     static usb_shell& handle();
+#endif
 
   private:
     usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer);
@@ -99,7 +100,7 @@ class usb_shell : public usb::df::cdc::acm::function
                               size_t* cnt);
     static int shell_tp_read(const ::shell_transport* transport, void* data, size_t length,
                              size_t* cnt);
-    static void shell_tp_update(const ::shell_transport* transport);
+    void change_active(bool active);
     static const ::shell_transport_api& shell_tp_api();
 
     void tp_handler(::shell_transport_evt evt)
@@ -115,11 +116,8 @@ class usb_shell : public usb::df::cdc::acm::function
     void* shell_context_{};
     acm_tx_buffer tx_buffer_;
     acm_rx_buffer rx_buffer_;
-    std::atomic_bool active_{IS_ENABLED(CONFIG_SHELL_AUTOSTART)};
 };
 
 } // namespace usb::zephyr
-
-#endif // ((__has_include("zephyr/shell/shell.h")) && CONFIG_SHELL_BACKEND_C2USB)
 
 #endif // __USB_SHELL_HPP

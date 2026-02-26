@@ -1,4 +1,3 @@
-#if ((__has_include("zephyr/shell/shell.h")) && CONFIG_SHELL_BACKEND_C2USB)
 #include <zephyr/shell/shell.h>
 #include <zephyr/sys/atomic.h>
 
@@ -15,4 +14,3 @@ const struct shell* c2usb_shell_handle()
 {
     return &shell_c2usb;
 }
-#endif

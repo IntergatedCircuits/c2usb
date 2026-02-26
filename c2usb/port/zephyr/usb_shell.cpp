@@ -1,5 +1,4 @@
 #include "port/zephyr/usb_shell.hpp"
-#if ((__has_include("zephyr/shell/shell.h")) && CONFIG_SHELL_BACKEND_C2USB)
 #include <cassert>
 
 extern "C" const struct shell* c2usb_shell_handle();
@@ -29,27 +28,28 @@ const ::shell_transport_api& usb_shell::shell_tp_api()
         .enable = shell_tp_enable,
         .write = shell_tp_write,
         .read = shell_tp_read,
-        .update = shell_tp_update,
     };
     return api;
 }
 
-void usb_shell::shell_tp_update(const ::shell_transport* transport)
+void usb_shell::change_active(bool active)
 {
-    auto* this_ = static_cast<usb_shell*>(transport->ctx);
-    // update this state in shell thread context to avoid trapped in mutex deadlock
-    auto ready = this_->get_line_config().data_terminal_ready();
-    if (this_->active_ != ready)
+    if (active == ::shell_ready(c2usb_shell_handle()))
     {
-        this_->active_ = ready;
-        if (ready)
-        {
-            ::shell_start(c2usb_shell_handle());
-        }
-        else
-        {
-            ::shell_stop(c2usb_shell_handle());
-        }
+        return;
+    }
+    if (active)
+    {
+        receive_buffer_data();
+        ::shell_start(c2usb_shell_handle());
+    }
+    else
+    {
+        tx_buffer_.reset();
+        rx_buffer_.reset();
+        ::k_sem_take(&c2usb_shell_handle()->ctx->lock_sem, K_FOREVER);
+        ::shell_stop(c2usb_shell_handle());
+        ::k_sem_give(&c2usb_shell_handle()->ctx->lock_sem);
     }
 }
 
@@ -57,18 +57,13 @@ void usb_shell::set_line(const line_config& cfg, line_event ev)
 {
     if (ev == line_event::STATE_CHANGE)
     {
-        if (cfg.data_terminal_ready())
-        {
-            receive_buffer_data();
-        }
+        change_active(cfg.data_terminal_ready());
     }
 }
 
 void usb_shell::reset_line()
 {
-    ::shell_stop(c2usb_shell_handle());
-    tx_buffer_.reset();
-    rx_buffer_.reset();
+    change_active(false);
 }
 
 usb_shell::usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer)
@@ -330,5 +325,3 @@ void usb_shell::data_received(const std::span<uint8_t>& rx)
 }
 
 } // namespace usb::zephyr
-
-#endif // ((__has_include("zephyr/shell/shell.h")) && CONFIG_SHELL_BACKEND_C2USB)

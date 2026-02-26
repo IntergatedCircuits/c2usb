@@ -72,8 +72,11 @@ void function::control_setup_request(message& msg, const config::interface& ifac
 
     case SET_CONTROL_LINE_STATE:
     {
-        line_config_.bControlLineState = msg.request().wValue.low_byte();
-        set_line(line_config_, line_event::STATE_CHANGE);
+        if (line_config_.bControlLineState != msg.request().wValue.low_byte())
+        {
+            line_config_.bControlLineState = msg.request().wValue.low_byte();
+            set_line(line_config_, line_event::STATE_CHANGE);
+        }
         return msg.confirm();
     }
     case SEND_BREAK:
@@ -115,6 +118,16 @@ void function::enable(const config::interface& iface, [[maybe_unused]] uint8_t a
         in_ep_mps_ = iface.endpoints()[0].wMaxPacketSize;
         tx_len_ = 0;
     }
+}
+
+void function::disable(const config::interface& iface)
+{
+    if (iface.primary())
+    {
+        reset_line();
+        line_config_ = {};
+    }
+    cdc::function::disable(iface);
 }
 
 void function::transfer_complete(ep_handle eph, const transfer& t)

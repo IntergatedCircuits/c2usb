@@ -43,9 +43,9 @@ class function : public df::named_function
     ep_handle ep_in_handle() const { return data_ephs_[1]; }
     ep_handle ep_notify_handle() const { return notify_eph_; }
 
-  private:
     void disable(const config::interface& iface) override;
 
+  private:
     std::array<ep_handle, 2> data_ephs_{};
     ep_handle notify_eph_{};
 };

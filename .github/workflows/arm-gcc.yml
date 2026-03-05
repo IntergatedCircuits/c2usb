@@ -1,0 +1,50 @@
+name: ARM GNU Toolchain
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        board: [frdmk22f]
+        preset: [release]
+    runs-on: ${{ matrix.os }}
+    env:
+      ARM_GCC_DIR: /usr
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install Arm GNU Toolchain (arm-none-eabi-gcc)
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: latest
+          path-env-var: GNUARMEMB_TOOLCHAIN_PATH
+
+      - name: Set ARM_GCC_DIR environment variable
+        run: |
+          echo "ARM_GCC_DIR=$(dirname $GNUARMEMB_TOOLCHAIN_PATH)" >> "$GITHUB_ENV"
+
+      - name: West workspace setup
+        uses: ./.github/template/west-update
+        with:
+          manifest: west4mcuxsdk.yml
+
+      - name: Build usb-keyboard example
+        working-directory: mcux/examples/usb-keyboard
+        run: |
+          BOARD=${{ matrix.board }} west build -d ${{ matrix.preset }} -- --preset ${{ matrix.preset }}

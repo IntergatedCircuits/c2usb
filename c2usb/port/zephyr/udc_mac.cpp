@@ -10,7 +10,7 @@
 ///
 #include "port/zephyr/udc_mac.hpp"
 #include <atomic>
-#include "port/compatibility_helper.hpp"
+#include "compatibility_helper.hpp"
 #include <zephyr/logging/log.h>
 #include <zephyr/message_queue.hpp>
 extern "C"

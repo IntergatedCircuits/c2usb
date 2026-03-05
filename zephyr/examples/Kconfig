@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+menu "C2USB demo options"
+
+config DEMO_MANUFACTURER
+	string "USB/BLE device manufacturer string"
+	default "Zephyr Project"
+
+config DEMO_MANUFACTURER_ID
+	hex "USB/BLE device manufacturer ID"
+	default 0x2fe3
+
+config DEMO_PRODUCT
+	string "USB/BLE device product string"
+	default "Demo Product"
+
+config DEMO_PRODUCT_ID
+	hex "USB/BLE device product ID"
+	default 0x0001
+
+endmenu
+
+configdefault USB_DEVICE_STACK_NEXT
+    default n
+
+# configdefaults must come before sourcing "Kconfig.zephyr" in order to give precedence
+# to these application-specific defaults instead of the unconditional default in the Zephyr Kconfig tree.
+source "Kconfig.zephyr"

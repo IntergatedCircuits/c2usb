@@ -1,0 +1,5 @@
+manifest:
+  self:
+    import:
+      - west.yml
+      - mcux/import_mcuxsdk.yml

@@ -1,0 +1,51 @@
+name: Build for Zephyr
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        board: [nrf52840dk/nrf52840]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Setup Zephyr project
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: .
+          manifest-file-name: west4nrfsdk.yml
+          toolchains: arm-zephyr-eabi
+
+      - name: Workspace setup
+        uses: ./.github/template/west-update
+        with:
+          manifest: west4nrfsdk.yml
+
+      - name: Build usb-keyboard firmware
+        working-directory: zephyr/examples/usb-keyboard
+        shell: bash
+        run: |
+          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}
+
+      - name: Build usb-shell firmware
+        working-directory: zephyr/examples/usb-shell
+        shell: bash
+        run: |
+          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}

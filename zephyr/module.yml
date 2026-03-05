@@ -1,3 +1,6 @@
 build:
-  cmake: .
-  kconfig: c2usb/port/zephyr/Kconfig
+  cmake: c2usb
+  kconfig: zephyr/Kconfig
+
+samples:
+  - zephyr/examples

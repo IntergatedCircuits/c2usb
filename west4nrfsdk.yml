@@ -1,0 +1,5 @@
+manifest:
+  self:
+    import:
+      - west.yml
+      - zephyr/import_nrfsdk.yml

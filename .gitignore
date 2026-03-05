@@ -72,4 +72,6 @@ $RECYCLE.BIN/
 # Mac crap
 .DS_Store
 
-.vscode
+**/.vscode/c_cpp_properties.json
+**/.vscode/launch.json
+__pycache__/

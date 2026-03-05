@@ -1,9 +1,27 @@
+# This is the shared manifest file for west module use, regardless of SDK
 manifest:
   self:
     path: c2usb
-    import:
-      - zephyr/imports.yml
+    west-commands: scripts/west-commands.yml
+  defaults:
+    remote: IntergatedCircuits
 
   remotes:
     - name: IntergatedCircuits
       url-base: https://github.com/IntergatedCircuits
+
+  projects:
+    - name: zephyrrtos-mcpp
+      revision: 167d407866db5024886a5acb9252a8d5d7ec0977
+      path: modules/lib/zephyrrtos-mcpp
+
+    - name: hid-rp
+      revision: ceb9a63678114790e58ad884fe79998b952968c8
+      import:
+        path-prefix: modules/lib
+
+    - name: etl
+      url: https://github.com/ETLCPP/etl
+      revision: 20.36.1
+      clone-depth: 1
+      path: modules/lib/etl

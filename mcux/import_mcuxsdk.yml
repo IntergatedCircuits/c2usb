@@ -1,0 +1,23 @@
+manifest:
+  remotes:
+    - name: nxp-mcuxpresso
+      url-base: https://github.com/nxp-mcuxpresso
+  #group-filter:
+  #  - +optional # mcux-soc-svd
+
+  projects:
+    - name: mcuxsdk-manifests
+      remote: nxp-mcuxpresso
+      path: mcuxsdk/manifest_int
+      revision: v25.12.00
+      clone-depth: 1
+      import:
+        name-allowlist:
+          - core
+          - CMSIS
+          - mcu-sdk-components
+          - mcu-sdk-examples
+          - mcuxsdk-tool-data
+          - mcux-soc-svd
+          - mcux-devices-kinetis
+          - usb

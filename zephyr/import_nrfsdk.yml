@@ -1,0 +1,21 @@
+manifest:
+  remotes:
+    - name: nrfconnect
+      url-base: https://github.com/nrfconnect
+
+  projects:
+    - name: nrf
+      repo-path: sdk-nrf
+      remote: nrfconnect
+      revision: v3.2.3
+      clone-depth: 1
+      import:
+        # By using name-allowlist we can clone only the modules that are
+        # strictly needed by the application.
+        name-allowlist:
+          - zephyr
+          - cmsis_6
+          - hal_nordic
+          - nrfxlib
+          - mbedtls
+          - oberon-psa-crypto

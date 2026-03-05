@@ -1,0 +1,113 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Select c2usb as manifest repository",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"runOptions": {
+				"runOn": "folderOpen"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"config",
+				"manifest.path",
+				"c2usb"
+			]
+		},
+		{
+			"label": "Select nRF Connect SDK",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"config",
+				"manifest.file",
+				"west4nrfsdk.yml"
+			]
+		},
+		{
+			"label": "Select McuXpresso SDK",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"config",
+				"manifest.file",
+				"west4mcuxsdk.yml"
+			]
+		},
+		{
+			"label": "West update",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"update"
+			]
+		},
+		{
+			"label": "West update && patch",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"patch"
+			],
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"West update"
+			]
+		},
+		{
+			"label": "Select SDK by vscode workspace",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"runOptions": {
+				"runOn": "folderOpen"
+			},
+			"type": "process",
+			"command": "west",
+			"args": [
+				"config",
+				"manifest.file",
+				"west4${config:c2usb.startupSdk}.yml"
+			]
+		}
+	]
+}

@@ -1,0 +1,30 @@
+ # https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
+name: Run west update
+description: Run west update to fetch and patch the SDK
+
+inputs:
+  manifest:
+    description: The project's manifest file
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install python dependencies of scripts
+      shell: bash
+      run: pip3 install -r scripts/requirements.txt
+
+    - name: Git config
+      shell: bash
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+    - name: West init
+      shell: bash
+      continue-on-error: true
+      run: west init --mf ${{ inputs.manifest }} -l .
+
+    - name: Fetch SDK
+      shell: bash
+      run: west update --fetch-opt=--filter=tree:0 && west patch

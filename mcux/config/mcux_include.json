@@ -1,0 +1,39 @@
+{
+  "version": 7,
+  "cmakeMinimumRequired": {
+    "major": 3
+  },
+  "configurePresets": [
+    {
+      "name": "shared-env",
+      "hidden": true,
+      "environment": {
+        "ARMGCC_DIR": "$env{ARM_GCC_DIR}",
+        "SdkRootDirPath": "${fileDir}/../../../..",
+        "BOARD": "frdmk22f",
+        "MCUX_VENV_PATH": "",
+        "PATH": "$env{MCUX_VENV_PATH}${pathListSep}$penv{PATH}",
+        "POSTPROCESS_UTILITY": "",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "cacheVariables": {}
+    },
+    {
+      "name": "debug-env",
+      "displayName": "debug-env",
+      "hidden": true,
+      "inherits": [
+        "shared-env"
+      ]
+    },
+    {
+      "name": "release-env",
+      "displayName": "release-env",
+      "hidden": true,
+      "inherits": [
+        "shared-env"
+      ]
+    }
+  ],
+  "buildPresets": []
+}

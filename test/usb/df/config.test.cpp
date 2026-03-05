@@ -5,7 +5,7 @@
 #include "usb/df/class/cdc.hpp"
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/hid.hpp"
-#include "usb/df/vendor/microsoft_xinput.hpp"
+#include "usb/df/vendor/microsoft/xinput.hpp"
 
 using namespace usb::df;
 using namespace usb::df::config;

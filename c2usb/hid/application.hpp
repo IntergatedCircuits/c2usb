@@ -22,8 +22,6 @@ namespace hid
 {
 using namespace c2usb;
 
-struct report_protocol;
-
 /// @brief  Interface for different transport layers.
 class transport : public interface
 {

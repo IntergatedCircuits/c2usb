@@ -8,7 +8,7 @@
 ///         If a copy of the MPL was not distributed with this file, You can obtain one at
 ///         https://mozilla.org/MPL/2.0/.
 ///
-#include "usb/df/vendor/microsoft_os_extension.hpp"
+#include "usb/df/vendor/microsoft/os_extension.hpp"
 #include "usb/df/function.hpp"
 
 namespace usb::df::microsoft

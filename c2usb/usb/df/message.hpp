@@ -11,6 +11,7 @@
 #ifndef __USB_DF_MESSAGE_HPP_
 #define __USB_DF_MESSAGE_HPP_
 
+#include <cassert>
 #include <cstring>
 #include <new>
 #include <string_view>
@@ -144,7 +145,7 @@ class message : protected string_message
     {
         using integral_type = sized_unsigned_t<sizeof(T)>;
         assert(buffer().empty() and (request().direction() == direction::IN));
-        buffer().append(etl::unaligned_type<integral_type, etl::endian::little>(
+        buffer().append(bitfilled::packed_integer<std::endian::little, sizeof(T)>(
             static_cast<integral_type>(value)));
         send_buffer();
     }

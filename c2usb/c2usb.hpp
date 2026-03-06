@@ -14,7 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
-#include <etl/unaligned_type.h>
+#include <bitfilled/integer.hpp>
 #include <system_error>
 #include <type_traits>
 
@@ -44,21 +44,21 @@ using uint16_t = std::uint16_t;
 using uint32_t = std::uint32_t;
 using uint64_t = std::uint64_t;
 using le_uint8_t = std::uint8_t;
-using le_uint16_t = etl::le_uint16_t;
-using le_uint32_t = etl::le_uint32_t;
-using le_uint64_t = etl::le_uint64_t;
+using le_uint16_t = bitfilled::packed_integer<std::endian::little, 2>;
+using le_uint32_t = bitfilled::packed_integer<std::endian::little, 4>;
+using le_uint64_t = bitfilled::packed_integer<std::endian::little, 8>;
 using le_int8_t = std::int8_t;
-using le_int16_t = etl::le_int16_t;
-using le_int32_t = etl::le_int32_t;
-using le_int64_t = etl::le_int64_t;
+using le_int16_t = bitfilled::packed_integer<std::endian::little, 2, std::int16_t>;
+using le_int32_t = bitfilled::packed_integer<std::endian::little, 4, std::int32_t>;
+using le_int64_t = bitfilled::packed_integer<std::endian::little, 8, std::int64_t>;
 using be_uint8_t = std::uint8_t;
-using be_uint16_t = etl::be_uint16_t;
-using be_uint32_t = etl::be_uint32_t;
-using be_uint64_t = etl::be_uint64_t;
+using be_uint16_t = bitfilled::packed_integer<std::endian::big, 2>;
+using be_uint32_t = bitfilled::packed_integer<std::endian::big, 4>;
+using be_uint64_t = bitfilled::packed_integer<std::endian::big, 8>;
 using be_int8_t = std::int8_t;
-using be_int16_t = etl::be_int16_t;
-using be_int32_t = etl::be_int32_t;
-using be_int64_t = etl::be_int64_t;
+using be_int16_t = bitfilled::packed_integer<std::endian::big, 2, std::int16_t>;
+using be_int32_t = bitfilled::packed_integer<std::endian::big, 4, std::int32_t>;
+using be_int64_t = bitfilled::packed_integer<std::endian::big, 8, std::int64_t>;
 
 class result
 {

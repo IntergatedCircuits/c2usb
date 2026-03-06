@@ -36,9 +36,9 @@ template <typename T>
 constexpr auto ad_struct(std::uint8_t type, const T& data)
     requires(std::is_integral_v<T>)
 {
-    const etl::unaligned_type<T, etl::endian::little> value{data};
+    const bitfilled::packed_integer<std::endian::little, sizeof(T), T> value{data};
     std::array<std::uint8_t, 2 + sizeof(T)> elem{1 + sizeof(T), type};
-    std::copy_n(value.data(), sizeof(T), elem.data() + 2);
+    std::copy_n(value.as_array().data(), sizeof(T), elem.data() + 2);
     return elem;
 }
 
@@ -50,8 +50,8 @@ constexpr auto ad_struct(std::uint8_t type, const T (&items)[N])
     std::size_t offset = 2;
     for (const auto& data : items)
     {
-        const etl::unaligned_type<T, etl::endian::little> value{data};
-        std::copy_n(value.data(), sizeof(T), elem.data() + offset);
+        const bitfilled::packed_integer<std::endian::little, sizeof(T), T> value{data};
+        std::copy_n(value.as_array().data(), sizeof(T), elem.data() + offset);
         offset += sizeof(T);
     }
     return elem;

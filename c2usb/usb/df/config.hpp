@@ -11,6 +11,7 @@
 #ifndef __USB_DF_CONFIG_HPP_
 #define __USB_DF_CONFIG_HPP_
 
+#include <cassert>
 #include <cstring>
 
 #include "reference_array_view.hpp"
@@ -671,7 +672,7 @@ class view_list : public reference_array_view<const element, const view>
         {
             for (auto& iface : c.interfaces())
             {
-                (iface.function().*method)(args...);
+                (iface.function().*method)(std::forward<Targs>(args)...);
             }
         }
     }

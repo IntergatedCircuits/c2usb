@@ -67,15 +67,6 @@ void mac::set_power_state(power::state new_state)
     dev_if_->on_power_state_change(new_state);
 }
 
-void mac::set_remote_wakeup(bool enabled)
-{
-    std_status_.remote_wakeup = enabled;
-}
-void mac::set_power_source(usb::power::source src)
-{
-    std_status_.self_powered = (src == usb::power::source::BUS);
-}
-
 uint32_t mac::granted_bus_current_uA() const
 {
     switch (power_state())
@@ -113,12 +104,6 @@ usb::result mac::remote_wakeup()
     return signal_remote_wakeup();
 }
 
-void mac::set_config(config::view config)
-{
-    allocate_endpoints(config);
-    active_config_ = config;
-}
-
 transfer mac::control_ep_setup()
 {
     ctrl_msg_.set_pending();
@@ -147,14 +132,6 @@ void mac::ep_transfer_complete(endpoint::address addr, ep_handle eph, const tran
 {
     assert(configured());
     ep_address_to_config(addr).interface().function().transfer_complete(eph, t);
-}
-
-message* mac::get_pending_message([[maybe_unused]] const function* caller)
-{
-    assert((caller == nullptr) or
-           (configured() and (request().recipient() == control::request::recipient::INTERFACE) and
-            (&(active_config().interfaces()[request().wIndex].function()) == caller)));
-    return ctrl_msg_.pending_ ? &ctrl_msg_ : nullptr;
 }
 
 const config::endpoint& mac::ep_address_to_config(endpoint::address addr) const

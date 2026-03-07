@@ -30,11 +30,6 @@ void buffer::free(size_type size)
     used_length_ -= size;
 }
 
-usb::control::stage string_message::stage() const
-{
-    return stage_;
-}
-
 void string_message::set_pending(const transfer& data)
 {
     buffer_.clear();

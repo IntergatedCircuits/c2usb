@@ -16,7 +16,7 @@
         "$gcc"
       ],
       "detail": "CMake template build task",
-      "preset": "debug"
+      "preset": "release"
     },
     {
       "type": "cmake",
@@ -26,7 +26,7 @@
         "$gcc"
       ],
       "detail": "CMake template clean task",
-      "preset": "debug"
+      "preset": "release"
     },
     {
       "type": "cmake",
@@ -36,7 +36,7 @@
         "$gcc"
       ],
       "detail": "CMake template configure task",
-      "preset": "debug"
+      "preset": "release"
     }
   ]
 }

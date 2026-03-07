@@ -86,7 +86,7 @@ class string_message
     istring index() const { return request().wValue.low_byte(); }
     uint16_t language_id() const { return request().wIndex; }
 
-    control::stage stage() const;
+    control::stage stage() const { return stage_; }
 
     void reject();
 

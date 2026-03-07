@@ -16,7 +16,9 @@
         "POSTPROCESS_UTILITY": "",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       },
-      "cacheVariables": {}
+      "cacheVariables": {
+        "CPM_SOURCE_CACHE": "$env{SdkRootDirPath}/cpm"
+      }
     },
     {
       "name": "debug-env",

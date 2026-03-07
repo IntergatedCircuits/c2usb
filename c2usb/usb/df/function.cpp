@@ -13,20 +13,6 @@
 
 namespace usb::df
 {
-void function::free_string_index()
-{
-    istr_base_ = 0;
-}
-
-void function::allocate_string_index(istring* pindex)
-{
-    if ((istr_base_ == 0) and (istr_count_ > 0))
-    {
-        istr_base_ = *pindex;
-        *pindex += istr_count_;
-    }
-}
-
 bool function::send_owned_string(istring index, string_message& smsg)
 {
     if ((istr_base_ <= index) and (index < (istr_base_ + istr_count_)))

@@ -35,8 +35,15 @@ class function : public polymorphic
     virtual void describe_config(const config::interface& iface, uint8_t if_index,
                                  df::buffer& buffer) = 0;
 
-    void free_string_index();
-    void allocate_string_index(istring* pindex);
+    void free_string_index() { istr_base_ = 0; }
+    void allocate_string_index(istring* pindex)
+    {
+        if ((istr_base_ == 0) and (istr_count_ > 0))
+        {
+            istr_base_ = *pindex;
+            *pindex += istr_count_;
+        }
+    }
     bool send_owned_string(istring index, string_message& smsg);
 
     void init(const config::interface& iface, mac* m);

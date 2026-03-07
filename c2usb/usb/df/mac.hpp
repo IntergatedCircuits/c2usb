@@ -33,7 +33,11 @@ class mac : public polymorphic
     const config::view& active_config() const { return active_config_; }
     bool configured() const { return active_config().valid(); }
 
-    void set_config(config::view config);
+    void set_config(config::view config)
+    {
+        allocate_endpoints(config);
+        active_config_ = config;
+    }
 
     /// @brief  Sets the buffer used for control transfers to the passed span.
     /// @note   The buffer must be aligned with @ref C2USB_USB_TRANSFER_ALIGN()
@@ -47,7 +51,14 @@ class mac : public polymorphic
     {
         return endpoint::packet_size_limit(endpoint::type::CONTROL, speed);
     }
-    message* get_pending_message(const function* caller = nullptr);
+    message* get_pending_message([[maybe_unused]] const function* caller = nullptr)
+    {
+        assert((caller == nullptr) or
+               (configured() and
+                (request().recipient() == control::request::recipient::INTERFACE) and
+                (&(active_config().interfaces()[request().wIndex].function()) == caller)));
+        return ctrl_msg_.pending_ ? &ctrl_msg_ : nullptr;
+    }
 
     virtual ep_handle ep_open([[maybe_unused]] const config::endpoint& ep) { return {}; }
     virtual result ep_send([[maybe_unused]] ep_handle eph,
@@ -83,8 +94,11 @@ class mac : public polymorphic
     uint32_t granted_bus_current_uA() const;
     result remote_wakeup();
 
-    void set_remote_wakeup(bool enabled);
-    void set_power_source(usb::power::source src);
+    void set_remote_wakeup(bool enabled) { std_status_.remote_wakeup = enabled; }
+    void set_power_source(usb::power::source src)
+    {
+        std_status_.self_powered = (src == usb::power::source::BUS);
+    }
 
     virtual const config::endpoint& ep_address_to_config(endpoint::address addr) const;
     virtual ep_handle ep_address_to_handle(endpoint::address addr) const = 0;

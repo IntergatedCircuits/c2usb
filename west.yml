@@ -16,12 +16,12 @@ manifest:
       path: modules/lib/zephyrrtos-mcpp
 
     - name: hid-rp
-      revision: ceb9a63678114790e58ad884fe79998b952968c8
+      revision: 84b98bd8e0dbfe237c316a62331bc35e6188bd1b
       import:
         path-prefix: modules/lib
 
     - name: etl
       url: https://github.com/ETLCPP/etl
-      revision: 20.36.1
+      revision: 20.46.2
       clone-depth: 1
       path: modules/lib/etl

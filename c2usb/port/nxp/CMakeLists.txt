@@ -1,10 +1,7 @@
 if(CONFIG_C2USB_MCUX_MAC)
     # add these sources to the firmware executable target
     target_sources(${MCUX_SDK_PROJECT_NAME}
-        PUBLIC
-            mcux_mac.hpp
         PRIVATE
-            controller_interface.hpp
             dwc3_mac.cpp
             ehci_mac.cpp
             khci_mac.cpp

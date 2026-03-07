@@ -2,26 +2,6 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Select c2usb as manifest repository",
-			"group": {
-				"kind": "none",
-				"isDefault": true
-			},
-			"options": {
-				"cwd": "${workspaceFolder:c2usb}"
-			},
-			"runOptions": {
-				"runOn": "folderOpen"
-			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"config",
-				"manifest.path",
-				"c2usb"
-			]
-		},
-		{
 			"label": "Select nRF Connect SDK",
 			"group": {
 				"kind": "none",
@@ -30,13 +10,8 @@
 			"options": {
 				"cwd": "${workspaceFolder:c2usb}"
 			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"config",
-				"manifest.file",
-				"west4nrfsdk.yml"
-			]
+			"type": "shell",
+			"command": "west config manifest.file west4nrfsdk.yml && west config manifest.path c2usb"
 		},
 		{
 			"label": "Select McuXpresso SDK",
@@ -47,16 +22,11 @@
 			"options": {
 				"cwd": "${workspaceFolder:c2usb}"
 			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"config",
-				"manifest.file",
-				"west4mcuxsdk.yml"
-			]
+			"type": "shell",
+			"command": "west config manifest.file west4mcuxsdk.yml && west config manifest.path c2usb"
 		},
 		{
-			"label": "West update",
+			"label": "West update and patch",
 			"group": {
 				"kind": "none",
 				"isDefault": true
@@ -64,30 +34,8 @@
 			"options": {
 				"cwd": "${workspaceFolder:c2usb}"
 			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"update"
-			]
-		},
-		{
-			"label": "West update && patch",
-			"group": {
-				"kind": "none",
-				"isDefault": true
-			},
-			"options": {
-				"cwd": "${workspaceFolder:c2usb}"
-			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"patch"
-			],
-			"dependsOrder": "sequence",
-			"dependsOn": [
-				"West update"
-			]
+			"type": "shell",
+			"command": "west update && west patch"
 		},
 		{
 			"label": "Select SDK by vscode workspace",
@@ -101,13 +49,8 @@
 			"runOptions": {
 				"runOn": "folderOpen"
 			},
-			"type": "process",
-			"command": "west",
-			"args": [
-				"config",
-				"manifest.file",
-				"west4${config:c2usb.startupSdk}.yml"
-			]
+			"type": "shell",
+			"command": "west config manifest.file west4${config:c2usb.startupSdk}.yml && west config manifest.path c2usb"
 		}
 	]
 }

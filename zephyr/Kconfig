@@ -1,1 +1,19 @@
+menu "c2usb configuration"
+
+config C2USB
+    bool "c2usb library"
+    select CPP
+    select REQUIRES_FULL_LIBCPP
+    select HID_RP
+    select ETL
+
 rsource "../c2usb/port/zephyr/Kconfig"
+
+endmenu
+
+choice STD_CPP
+	default STD_CPP20 if C2USB
+endchoice
+
+configdefault SHELL_STACK_SIZE
+    default 1280 if SHELL_BACKEND_C2USB

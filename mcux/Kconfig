@@ -1,1 +1,9 @@
+menu "c2usb configuration"
+
+config C2USB
+    bool "c2usb library"
+    select HID_RP
+
 rsource "../c2usb/port/nxp/Kconfig"
+
+endmenu

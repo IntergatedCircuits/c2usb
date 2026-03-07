@@ -1,6 +1,8 @@
 build:
   cmake: c2usb
   kconfig: zephyr/Kconfig
+  # it would be possible to add non-module dependencies:
+  # https://docs.zephyrproject.org/latest/develop/modules.html#modules-module-ext-root
 
 samples:
   - zephyr/examples

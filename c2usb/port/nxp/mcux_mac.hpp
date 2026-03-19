@@ -51,6 +51,10 @@ class mcux_mac : public df::address_handle_mac
     static mcux_mac dwc3(const std::span<uint8_t>& control_buffer);
 #endif // C2USB_HAS_NXP_DWC3
 
+#if CONFIG_C2USB_MCUX_USB_COEXISTENCE
+    static inline bool notification_routing{};
+#endif
+
   protected:
     constexpr mcux_mac(int usb_controller_index, const controller_interface& driver,
                        const std::span<uint8_t>& control_buffer)

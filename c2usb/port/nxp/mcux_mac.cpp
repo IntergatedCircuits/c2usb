@@ -96,8 +96,16 @@ static IRQn_Type usb_irqn(int index)
     return usb_irqs[index & 1];
 }
 
+#if CONFIG_C2USB_MCUX_USB_COEXISTENCE
+// patch usb_device_dci.c: USB_DeviceNotificationTrigger -> _USB_DeviceNotificationTrigger
+extern "C" usb_status_t _USB_DeviceNotificationTrigger(void* handle, void* msg);
+#endif
+
 void mcux_mac::init(const speeds& speeds)
 {
+#if CONFIG_C2USB_MCUX_USB_COEXISTENCE
+    notification_routing = true;
+#endif
     [[maybe_unused]] auto status = driver_.deviceInit(index_, this, &handle_);
     assert(status == kStatus_USB_Success);
 
@@ -376,6 +384,12 @@ extern "C" usb_status_t USB_DeviceNotificationTrigger(void* handle, void* msg)
     {
         return kStatus_USB_InvalidHandle;
     }
+#if CONFIG_C2USB_MCUX_USB_COEXISTENCE
+    else if (not mcux_mac::notification_routing)
+    {
+        return _USB_DeviceNotificationTrigger(handle, msg);
+    }
+#endif
     else
     {
         auto* mac = reinterpret_cast<mcux_mac*>(handle);

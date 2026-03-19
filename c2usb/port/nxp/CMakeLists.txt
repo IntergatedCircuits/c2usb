@@ -8,10 +8,12 @@ if(CONFIG_C2USB_MCUX_MAC)
         PRIVATE
             c2usb
     )
-    # since MCUX_COMPONENT_middleware.usb.device.controller.driver cannot be disabled
-    mcux_project_remove_source(BASE_PATH ${SdkRootDirPath}/middleware/usb/device
-        SOURCES usb_device_dci.c
-    )
+    if(NOT DEFINED CONFIG_C2USB_MCUX_USB_COEXISTENCE)
+        # since MCUX_COMPONENT_middleware.usb.device.controller.driver cannot be disabled
+        mcux_project_remove_source(BASE_PATH ${SdkRootDirPath}/middleware/usb/device
+            SOURCES usb_device_dci.c
+        )
+    endif()
 else()
     set_target_properties(c2usb PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()

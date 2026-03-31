@@ -9,6 +9,7 @@ set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 # ports
 if(ZEPHYR_BASE)
+    add_subdirectory(bluetooth)
     add_subdirectory(port/zephyr)
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE) # https://github.com/zephyrproject-rtos/zephyr/pull/69490
 
@@ -37,7 +38,7 @@ CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
 include(../cmake/get_cpm.cmake)
 if(ZEPHYR_HID_RP_MODULE_DIR OR MCUX_HID_RP_MODULE_DIR)
 else()
-    CPMAddPackage("gh:IntergatedCircuits/hid-rp#be90bc4cee05b2a329c0024157b7668e31eb00d4")
+    CPMAddPackage("gh:IntergatedCircuits/hid-rp#85d86f7fa37d3a846c3197b7b599cf7bc0c21b04")
 endif()
 
 if(ZEPHYR_ETL_MODULE_DIR OR MCUX_ETL_MODULE_DIR)
@@ -59,7 +60,7 @@ target_include_directories(c2usb
 
 target_sources(c2usb
     PRIVATE
-        i2c/hid/device.cpp
+        hid/application.cpp
         usb/df/class/cdc.cpp
         usb/df/class/cdc_acm.cpp
         usb/df/class/hid.cpp
@@ -72,5 +73,11 @@ target_sources(c2usb
         usb/df/message.cpp
         usb/standard/descriptors.cpp
 )
+if(CONFIG_C2USB_I2C_HID)
+    target_sources(c2usb
+        PRIVATE
+            i2c/hid/device.cpp
+    )
+endif()
 
 add_subdirectory(examples)

@@ -17,7 +17,7 @@ target_include_directories(${PROJECT_NAME}-test
 target_link_libraries(${PROJECT_NAME}-test
     PRIVATE
         ${PROJECT_NAME}
-        ${PROJECT_NAME}-example-hid
+        ${PROJECT_NAME}-examples
         ut
 )
 add_test(NAME ${PROJECT_NAME}-test COMMAND ${PROJECT_NAME}-test)

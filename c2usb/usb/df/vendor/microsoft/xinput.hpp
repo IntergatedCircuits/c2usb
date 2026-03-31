@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_MICROSOFT_XINPUT_HPP_
-#define __USB_DF_MICROSOFT_XINPUT_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/df/class/hid.hpp"
 #include "usb/vendor/microsoft_xusb.hpp"
 
@@ -25,9 +14,8 @@ class xfunction : public df::hid::app_base_function
     {}
 
     /// @brief  Use a custom non-HID protocol code, as this report layout cannot be made compatible
-    /// with
-    ///         HID report protocol (due to using report ID 0)
-    constexpr static inline auto PROTOCOL = static_cast<::hid::protocol>('X');
+    ///         with HID report protocol (due to using report ID 0)
+    constexpr static inline auto PROTOCOL = static_cast<::hid::boot::mode>('X');
 
   private:
     void describe_config(const config::interface& iface, uint8_t if_index,
@@ -46,6 +34,5 @@ config::elements<3> xconfig(xfunction& fn, const df::config::endpoint& in_ep,
 
 config::elements<3> xconfig(xfunction& fn, endpoint::address in_addr, uint8_t in_interval,
                             endpoint::address out_addr, uint8_t out_interval);
-} // namespace usb::df::microsoft
 
-#endif // __USB_DF_MICROSOFT_XINPUT_HPP_
+} // namespace usb::df::microsoft

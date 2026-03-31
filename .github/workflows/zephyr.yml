@@ -38,6 +38,12 @@ jobs:
         with:
           manifest: west4nrfsdk.yml
 
+      - name: Build ble-keyboard firmware
+        working-directory: zephyr/examples/ble-keyboard
+        shell: bash
+        run: |
+          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}
+
       - name: Build usb-keyboard firmware
         working-directory: zephyr/examples/usb-keyboard
         shell: bash

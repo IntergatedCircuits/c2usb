@@ -27,19 +27,30 @@ static void input_cb(input_event* evt, void*)
 
 INPUT_CALLBACK_DEFINE(nullptr, input_cb, nullptr);
 
+static void update_leds(keyboard_leds_data leds)
+{
+    leds::set(0, leds.test(hid::page::leds::CAPS_LOCK));
+}
+
 auto& keyboard_app()
 {
-    static simple_keyboard<> keyb{[](const simple_keyboard<>::kb_leds_report& report)
-                                  {
-                                      leds::set(0, report.leds.test(hid::page::leds::CAPS_LOCK));
-                                  }};
+    static simple_keyboard<&update_leds> keyb{};
     return keyb;
 }
 
-static uint8_t serial_number[16]{};
-constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID, CONFIG_DEMO_MANUFACTURER,
-                                         CONFIG_DEMO_PRODUCT_ID,      CONFIG_DEMO_PRODUCT,
-                                         usb::version("1.0"),         serial_number};
+#if CONFIG_HWINFO
+static uint8_t serial_number[CONFIG_HWINFO_DEVICE_ID_LENGTH]{};
+#endif
+constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID,
+                                         CONFIG_DEMO_MANUFACTURER,
+                                         CONFIG_DEMO_PRODUCT_ID,
+                                         CONFIG_DEMO_PRODUCT,
+                                         usb::version("1.0")
+#if CONFIG_HWINFO
+                                             ,
+                                         serial_number
+#endif
+};
 
 auto& mac()
 {
@@ -56,6 +67,11 @@ auto& device()
 //[[noreturn]]
 int main(void)
 {
+#if CONFIG_HWINFO
+    // use HW info as serial number
+    hwinfo_get_device_id(serial_number, sizeof(serial_number));
+#endif
+
     // observing device state
     device().set_power_event_delegate(
         [](usb::df::device& dev, usb::df::device::event ev)
@@ -73,11 +89,6 @@ int main(void)
             }
         });
 
-    // use HW info as serial number
-    if (IS_ENABLED(CONFIG_HWINFO))
-    {
-        hwinfo_get_device_id(serial_number, sizeof(serial_number));
-    }
     // define configuration and start device
     {
         constexpr auto speed = usb::speed::FULL;
@@ -89,7 +100,7 @@ int main(void)
 
         static const auto base_config = usb::df::config::make_config(
             config_header, usb::df::hid::config(usb_kb, speed, usb::endpoint::address(0x81), 1
-#if 0
+#if CONFIG_DEMO_USB_HID_OUT_EP
                                                 ,
                                                 usb::endpoint::address(0x01), 10
 #endif

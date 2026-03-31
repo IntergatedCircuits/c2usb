@@ -1,0 +1,23 @@
+menuconfig C2USB_HOGP
+	bool "c2usb HID over GATT"
+    select C2USB
+    depends on BT
+
+if C2USB_HOGP
+
+module = C2USB_HOGP
+module-str = c2usb HID over GATT
+source "subsys/logging/Kconfig.template.log_config"
+
+config C2USB_HOGP_POWER_EVENT
+    bool "Enable HOGP control point power event callback"
+
+config C2USB_HOGP_BT_DISCONN_CB
+    bool "HOGP registers its own Bluetooth disconnection callback through BT_CONN_CB_DEFINE"
+    default y
+    help
+      If enabled, HOGP registers its own Bluetooth disconnection callback through BT_CONN_CB_DEFINE.
+      If disabled, the application must register its own Bluetooth disconnection callback and call
+      bluetooth::hid_over_gatt::service::disconnect_callback() from it.
+
+endif # C2USB_HOGP

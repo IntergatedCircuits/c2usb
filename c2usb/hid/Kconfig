@@ -1,0 +1,11 @@
+
+menu "c2usb HID configuration"
+
+config C2USB_HID_BOOT_PROTOCOL
+    bool "c2usb HID boot protocol support"
+    default n
+    help
+      This option enables support for the HID boot protocol in the supported transports (BLE, USB),
+      allowing the creation of boot protocol compliant keyboard and mouse devices.
+
+endmenu

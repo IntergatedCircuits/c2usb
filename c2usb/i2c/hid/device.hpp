@@ -1,22 +1,11 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __I2C_HID_DEVICE_HPP_
-#define __I2C_HID_DEVICE_HPP_
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 
-#include <etl/delegate.h>
-
-#include "hid/application.hpp"
+#include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
 #include "single_elem_queue.hpp"
+#include <etl/delegate.h>
 
 inline namespace utilities
 {
@@ -35,7 +24,7 @@ constexpr T pack_str(const char* str)
 namespace i2c::hid
 {
 /// @brief  Implementation of the I2C HID protocol on the slave device side.
-class device : public slave::module, public ::hid::transport
+class device : public i2c::slave::module, public ::hid::transport
 {
     enum registers : uint16_t
     {
@@ -70,9 +59,9 @@ class device : public slave::module, public ::hid::transport
 
     uint16_t hid_descriptor_reg_address() const { return hid_descriptor_reg_; }
     void get_hid_descriptor(descriptor& desc) const;
-    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
-    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
-    ::hid::transport::type transport_type() const override { return ::hid::transport::type::I2C; }
+    c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
+    c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
+                                 ::hid::report::type type) override;
 
     void delegate_power_event(event ev);
 
@@ -108,17 +97,16 @@ class device : public slave::module, public ::hid::transport
     device& operator=(const device&) = delete;
 
     ::hid::application& app_;
+    ::hid::session* session_{};
     const hid::product_info& pinfo_;
     power_event_delegate power_event_delegate_{};
-    ::hid::reports_receiver rx_buffers_{};
+    reports_receiver rx_buffers_{};
     i2c::slave& slave_;
     uint16_t hid_descriptor_reg_;
-    single_elem_queue<std::span<const uint8_t>> in_queue_{};
     uint8_t stage_{};
     bool powered_{};
-    ::hid::report::selector get_report_{};
+    single_elem_queue<std::span<const uint8_t>> in_queue_{};
     std::array<uint8_t, sizeof(descriptor)> buffer_{};
 };
-} // namespace i2c::hid
 
-#endif // __I2C_HID_DEVICE_HPP_
+} // namespace i2c::hid

@@ -1,21 +1,9 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __I2C_HID_STANDARD_HPP_
-#define __I2C_HID_STANDARD_HPP_
-
-#include <hid/report_protocol.hpp>
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 
 #include "i2c/base.hpp"
 #include "usb/product_info.hpp"
-#include "usb/version.hpp"
+#include <hid/report_protocol.hpp>
 
 namespace i2c::hid
 {
@@ -164,5 +152,3 @@ struct short_data
     constexpr bool valid_size() const { return length == static_cast<uint16_t>(sizeof(*this)); }
 };
 } // namespace i2c::hid
-
-#endif // __I2C_HID_STANDARD_HPP_

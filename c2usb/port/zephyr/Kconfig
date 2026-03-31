@@ -1,5 +1,3 @@
-rsource "bluetooth/Kconfig"
-
 menuconfig C2USB_UDC_MAC
 	bool "c2usb UDC MAC driver"
 	select UDC_DRIVER

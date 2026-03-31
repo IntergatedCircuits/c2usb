@@ -17,6 +17,13 @@ config DEMO_PRODUCT_ID
 	hex "USB/BLE device product ID"
 	default 0x0001
 
+config DEMO_USB_HID_OUT_EP
+	bool "Enable USB HID OUT endpoint"
+	default n
+	help
+	  Enable USB HID OUT endpoint for receiving data from host.
+	  Otherwise OUT data is received through the control endpoint.
+
 endmenu
 
 configdefault USB_DEVICE_STACK_NEXT

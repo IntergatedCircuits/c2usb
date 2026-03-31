@@ -1,22 +1,17 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __C2USB_HPP_
-#define __C2USB_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <array>
 #include <cstdint>
 #include <span>
 #include <bitfilled/integer.hpp>
 #include <system_error>
 #include <type_traits>
+
+#if __has_include("autoconf.h")
+#include "autoconf.h"
+#elif __has_include("mcux_config.h")
+#include "mcux_config.h"
+#endif
 
 #ifndef C2USB_UNUSED
 #define C2USB_UNUSED(A) (void)sizeof(A)
@@ -119,5 +114,3 @@ constexpr auto join(const std::array<Type, sizes>&... arrays)
 }
 
 } // namespace c2usb
-
-#endif // __C2USB_HPP_

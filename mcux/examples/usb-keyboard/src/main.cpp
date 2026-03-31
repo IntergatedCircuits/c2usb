@@ -127,12 +127,12 @@ extern "C" void USB_DeviceClockInit(void)
 
 auto& keyboard_app()
 {
-    static simple_keyboard<> kb(
-        [](const simple_keyboard<>::kb_leds_report& report)
-        {
-            GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN,
-                          !report.leds.test(hid::page::leds::CAPS_LOCK));
-        });
+    static simple_keyboard<[](keyboard_leds_data leds)
+                           {
+                               GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN,
+                                             !leds.test(hid::page::leds::CAPS_LOCK));
+                           }>
+        kb{};
     return kb;
 }
 

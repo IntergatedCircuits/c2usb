@@ -1,0 +1,14 @@
+if HWINFO
+
+config HWINFO_DEVICE_ID_LENGTH
+    int "HW Info device ID length"
+    default 8 if HWINFO_NRF
+    default 16 if SOC_SERIES_IMXRT118X
+    default 8 if SOC_SERIES_IMXRT10XX || SOC_SERIES_IMXRT11XX
+    default 4 if HWINFO_NATIVE
+    default 12 if HWINFO_STM32
+    default 8 if HWINFO_RPI_PICO
+    default 8 if HWINFO_MCUX_SIM # it's more complicated, but hard to express in Kconfig
+    default 6
+
+endif # HWINFO

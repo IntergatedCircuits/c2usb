@@ -1,23 +1,11 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2025
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __PORT_ZEPHYR_BLUETOOTH_LE_HPP_
-#define __PORT_ZEPHYR_BLUETOOTH_LE_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
+#include <array>
+#include "c2usb.hpp"
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 
-#include <array>
-#include <c2usb.hpp>
-
-namespace bluetooth::zephyr
+namespace bluetooth
 {
 
 /// @brief Creates a string out of a Bluetooth address.
@@ -26,6 +14,8 @@ struct address_str : public std::array<char, BT_ADDR_LE_STR_LEN>
     address_str(const ::bt_conn* conn) { bt_addr_le_to_str(bt_conn_get_dst(conn), data(), size()); }
 };
 
+namespace le
+{
 /* Advertisement data structure:
  * length of the remaining bytes (1 byte)
  * type (1 byte)
@@ -94,7 +84,7 @@ constexpr std::size_t ad_struct_count(const std::array<std::uint8_t, N>& data)
 template <std::size_t COUNT, std::size_t N>
 constexpr auto to_adv_data(const std::array<std::uint8_t, N>& bytes)
 {
-    std::array<bt_data, COUNT> elems{};
+    std::array<::bt_data, COUNT> elems{};
     std::size_t offset = 0;
     for (std::size_t i = 0; i < COUNT; i++)
     {
@@ -106,6 +96,6 @@ constexpr auto to_adv_data(const std::array<std::uint8_t, N>& bytes)
     return elems;
 }
 
-} // namespace bluetooth::zephyr
+} // namespace le
 
-#endif // __PORT_ZEPHYR_BLUETOOTH_LE_HPP_
+} // namespace bluetooth

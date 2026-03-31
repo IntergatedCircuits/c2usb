@@ -1,3 +1,6 @@
+# make mcux_config.h available for c2usb
+target_include_directories(c2usb PUBLIC ${CMAKE_BINARY_DIR})
+
 if(CONFIG_C2USB_MCUX_MAC)
     # add these sources to the firmware executable target
     target_sources(${MCUX_SDK_PROJECT_NAME}

@@ -1,30 +1,16 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_CLASS_HID_HPP_
-#define __USB_CLASS_HID_HPP_
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 
 #include "usb/standard/requests.hpp"
 #include "usb/version.hpp"
+#include <hid/report.hpp>
 
 namespace usb::hid
 {
 constexpr uint8_t CLASS_CODE = 0x03;
 constexpr version SPEC_VERSION{"1.11"};
 
-enum class boot_protocol_mode : uint8_t
-{
-    NONE = 0,
-    KEYBOARD = 1,
-    MOUSE = 2,
-};
+using boot_protocol_mode = ::hid::boot::mode;
 
 enum class request : uint8_t
 {
@@ -138,5 +124,3 @@ struct hid : public usb::descriptor<hid<CLASS_DESC_COUNT>>
 };
 } // namespace descriptor
 } // namespace usb::hid
-
-#endif // __USB_CLASS_HID_HPP_

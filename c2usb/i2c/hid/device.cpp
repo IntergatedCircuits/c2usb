@@ -1,20 +1,11 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
+#include "i2c/hid/device.hpp"
 #include <magic_enum.hpp>
 
-#include "i2c/hid/device.hpp"
-
 using namespace ::hid;
-using namespace i2c::hid;
 
+namespace i2c::hid
+{
 device::device(application& app, const product_info& pinfo, i2c::slave& slave, i2c::address address,
                uint16_t hid_descriptor_reg_address)
     : module(address),
@@ -34,8 +25,9 @@ device::~device()
     // disable I2C
     slave().unregister_module(*this);
 
+    transport::stop(app_, session_);
+
     // clear context
-    get_report_.clear();
     in_queue_.clear();
     rx_buffers_ = {};
 }
@@ -43,10 +35,9 @@ device::~device()
 void device::link_reset()
 {
     // reset application
-    app_.teardown(this);
+    transport::stop(app_, session_);
 
     // clear context
-    get_report_.clear();
     in_queue_.clear();
     rx_buffers_ = {};
 
@@ -54,51 +45,27 @@ void device::link_reset()
     queue_input_report(std::span<const uint8_t>());
 }
 
-result device::receive_report(const std::span<uint8_t>& data, report::type type)
+c2usb::result device::receive_report([[maybe_unused]] session& sess, const std::span<uint8_t>& data,
+                                     report::type type)
 {
     assert(type != report::type::INPUT);
     if ((rx_buffers_[type].size() == 0) or (stage_ == 0))
     {
         // save the target buffer for when the transfer is made
         rx_buffers_[type] = data;
-        return result::ok;
+        return c2usb::result::ok;
     }
     else
     {
         // the previously passed buffer is being used for receiving data
-        return result::device_or_resource_busy;
+        return c2usb::result::device_or_resource_busy;
     }
 }
 
-result device::send_report(const std::span<const uint8_t>& data, report::type type)
+c2usb::result device::send_report([[maybe_unused]] session& sess,
+                                  const std::span<const uint8_t>& data)
 {
-    assert(type != report::type::OUTPUT);
-    // if the function is invoked in the GET_REPORT callback context,
-    // and the report type and ID matches, transmit immediately (without interrupt)
-    if ((get_report_.type() == type) and
-        ((get_report_.id() == 0) or (get_report_.id() == data.front())))
-    {
-        auto& report_length = *get_buffer<le_uint16_t>();
-        report_length = static_cast<uint16_t>(data.size());
-
-        // send the length 2 bytes, followed by the report data
-        slave().send(&report_length, data);
-
-        // mark completion
-        get_report_.clear();
-
-        return result::ok;
-    }
-    else if (type == report::type::INPUT)
-    {
-        return queue_input_report(data) ? result::ok : result::device_or_resource_busy;
-    }
-    else
-    {
-        // feature reports can only be sent if a GET_REPORT command is pending
-        // output reports cannot be sent
-        return result::invalid_argument;
-    }
+    return queue_input_report(data) ? c2usb::result::ok : c2usb::result::device_or_resource_busy;
 }
 
 void device::get_hid_descriptor(descriptor& desc) const
@@ -112,14 +79,21 @@ void device::get_hid_descriptor(descriptor& desc) const
 
 bool device::get_report(report::selector select)
 {
-    // mark which report needs to be redirected through the data register
-    get_report_ = select;
+    if (session_ == nullptr)
+    {
+        return false;
+    }
+    auto data = session_->get_report(select, std::span(buffer_).subspan(sizeof(le_uint16_t)));
+    if (!data.empty())
+    {
+        auto& report_length = *get_buffer<le_uint16_t>();
+        report_length = static_cast<uint16_t>(data.size());
 
-    // issue request to application, let it provide report through send_report()
-    app_.get_report(select, buffer_);
-
-    // if application provided the report, the request has been cleared
-    return !get_report_.valid();
+        // send the length 2 bytes, followed by the report data
+        slave().send(&report_length, data);
+        return true;
+    }
+    return false;
 }
 
 bool device::get_command(const std::span<const uint8_t>& command_data)
@@ -139,21 +113,29 @@ bool device::get_command(const std::span<const uint8_t>& command_data)
     case opcode::GET_REPORT:
     {
         auto type = cmd.report_type();
-        if ((type != report::type::FEATURE) and (type != report::type::INPUT))
+        if (not magic_enum::enum_contains<report::type>(type))
         {
             return false;
         }
         return get_report(cmd.report_selector());
     }
 
-#if C2USB_I2C_HID_FULL_COMMAND_SUPPORT
+#if CONFIG_C2USB_I2C_HID_FULL_COMMAND_SUPPORT
     case opcode::GET_IDLE:
-        send_short_data(static_cast<uint16_t>(app_.get_idle(cmd.report_id())));
-        return true;
+        if (session_ != nullptr)
+        {
+            send_short_data(static_cast<uint16_t>(session_->get_idle(cmd.report_id())));
+            return true;
+        }
+        return false;
 
     case opcode::GET_PROTOCOL:
-        send_short_data(static_cast<uint16_t>(app_.get_protocol()));
-        return true;
+        if (session_ != nullptr)
+        {
+            send_short_data(static_cast<uint16_t>(session_->protocol()));
+            return true;
+        }
+        return false;
 #endif
     default:
         return false;
@@ -321,14 +303,14 @@ bool device::set_report(report::type type, const std::span<const uint8_t>& data)
         output_buffer = {};
 
         // pass it to the app
-        app_.set_report(type, report);
+        if (session_ != nullptr)
+        {
+            session_->set_report(type, report);
 
-        return true;
+            return true;
+        }
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 bool device::set_command(const std::span<const uint8_t>& command_data)
@@ -377,7 +359,7 @@ bool device::set_command(const std::span<const uint8_t>& command_data)
         break;
     }
 
-#if C2USB_I2C_HID_FULL_COMMAND_SUPPORT
+#if CONFIG_C2USB_I2C_HID_FULL_COMMAND_SUPPORT
     const short_data& u16_data =
         *reinterpret_cast<const short_data*>(command_data.data() + cmd_size + sizeof(data_reg));
 
@@ -392,27 +374,29 @@ bool device::set_command(const std::span<const uint8_t>& command_data)
     switch (cmd.opcode())
     {
     case opcode::SET_IDLE:
-        return app_.set_idle(value, cmd.report_id());
+        if (session_ != nullptr)
+        {
+            return session_->set_idle(cmd.report_id(), value);
+        }
+        return false;
 
+#if CONFIG_C2USB_I2C_HID_BOOT_MODE
     case opcode::SET_PROTOCOL:
         // SPEC WTF: why isn't the 8-bit protocol value in the command_data.data instead of in the
         // data register?
 
         if (not magic_enum::enum_contains<protocol>(value))
         {
-            // invalid size or register
             return false;
         }
-        if (app_.get_protocol() != static_cast<protocol>(value))
-        {
-            app_.setup(this, static_cast<protocol>(value));
-        }
+        transport::start(app_, session_, {this, channel::I2C, CONFIG_C2USB_I2C_HID_BOOT_MODE});
         return true;
+#endif // CONFIG_C2USB_I2C_HID_BOOT_MODE
 
     default:
         break;
     }
-#endif
+#endif // CONFIG_C2USB_I2C_HID_FULL_COMMAND_SUPPORT
     return false;
 }
 
@@ -420,16 +404,17 @@ void device::process_write(size_t data_length)
 {
     std::span<uint8_t> data{buffer_.data(), data_length};
     uint16_t reg = *reinterpret_cast<const le_uint16_t*>(data.data());
+    data = data.subspan(sizeof(reg));
 
     if (reg == registers::OUTPUT_REPORT)
     {
         // output report received
-        set_report(report::type::OUTPUT, data.subspan(sizeof(reg)));
+        set_report(report::type::OUTPUT, data);
     }
     else if (reg == registers::COMMAND)
     {
         // set command received
-        set_command(data.subspan(sizeof(reg)));
+        set_command(data);
     }
     else
     {
@@ -450,14 +435,14 @@ void device::process_input_complete(size_t data_length)
         // if the sent data is a reset response (instead of length, the first 2 bytes are 0)
         if (input_data.size() == 0)
         {
-#if not C2USB_I2C_HID_FULL_COMMAND_SUPPORT
+#if !CONFIG_C2USB_I2C_HID_FULL_COMMAND_SUPPORT
             // completed reset, initialize application
-            app_.setup(this, protocol::REPORT);
+            transport::start(app_, session_, {this, channel::I2C, boot::mode::NONE});
 #endif
         }
-        else
+        else if (session_ != nullptr)
         {
-            app_.in_report_sent(input_data);
+            session_->report_sent(input_data);
         }
     }
     else if (!in_queue_.empty())
@@ -469,13 +454,13 @@ void device::process_input_complete(size_t data_length)
 
 void device::process_reply_complete([[maybe_unused]] size_t data_length)
 {
-#if C2USB_I2C_HID_FULL_COMMAND_SUPPORT
+#if CONFIG_C2USB_I2C_HID_FULL_COMMAND_SUPPORT
     uint16_t reg = *reinterpret_cast<const le_uint16_t*>(buffer_.data());
 
     if (reg == registers::REPORT_DESCRIPTOR)
     {
         // initialize applications
-        app_.setup(this, protocol::REPORT);
+        transport::start(app_, session_, {this, channel::I2C, boot::mode::NONE});
     }
 #endif
 }
@@ -501,3 +486,5 @@ void device::on_stop(i2c::direction dir, size_t data_length)
     // reset I2C restart counter
     stage_ = 0;
 }
+
+} // namespace i2c::hid

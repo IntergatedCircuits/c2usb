@@ -1,5 +1,5 @@
 #include "usb/df/config.hpp"
-#include "leds_saving_keyboard.hpp"
+#include "high_resolution_mouse.hpp"
 #include "simple_keyboard.hpp"
 #include "test_framework.hpp"
 #include "usb/df/class/cdc.hpp"
@@ -26,6 +26,9 @@ constexpr auto bulk_ep(uint8_t addr, uint16_t mps = 64)
 {
     return usb::standard::descriptor::endpoint::bulk(usb::endpoint::address(addr), mps);
 }
+
+void leds_callback([[maybe_unused]] keyboard_leds_data leds) {}
+void resolution_multiplier_callback([[maybe_unused]] uint8_t vmul, [[maybe_unused]] uint8_t hmul) {}
 } // namespace
 
 SUITE(config_)
@@ -65,8 +68,8 @@ SUITE(config_)
     {
         static constexpr auto speed = usb::speed::FULL;
         static cdc::acm::function serial{};
-        static leds_saving_keyboard kb_handle{::hid::page::keyboard_keypad::KEYBOARD_CAPS_LOCK,
-                                              ::hid::page::leds::CAPS_LOCK};
+        static simple_keyboard<leds_callback> kb_handle{};
+        static high_resolution_mouse<resolution_multiplier_callback> mouse_handle{};
         static usb::df::hid::function hid_kb{kb_handle, usb::hid::boot_protocol_mode::KEYBOARD};
         static microsoft::xfunction xpad_kb{kb_handle};
 

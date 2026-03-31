@@ -22,6 +22,27 @@ cd c2usb-workspace
 west update && west patch
 ```
 
+Building an example project is similarly done by the corresponding west command:
+
+```shell
+cd c2usb/zephyr/examples
+west build -b nrf52840dk/nrf52840 -d usb-keyboard/build usb-keyboard
+```
+
+Once you have built the application, run the following command to flash it:
+
+```shell
+west flash -d usb-keyboard/build
+```
+
+Use `west vscode` to generate vscode C/C++ indexer configuration.
+`--build` and `--debug` additional arguments create build tasks and debug launch configurations,
+from a successful build:
+
+```shell
+west vscode -d usb-keyboard/build --build "usb-keyboard" --debug "usb-keyboard"
+```
+
 ### usb-keyboard
 
 A straightforward USB HID keyboard to illustrate a minimal project integration.

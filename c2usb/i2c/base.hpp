@@ -1,15 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __I2C_BASE_HPP_
-#define __I2C_BASE_HPP_
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 
 #include "c2usb.hpp"
 
@@ -51,6 +41,5 @@ class address
     static constexpr uint16_t MODE_MASK = 0x7c00;
     const uint16_t _code;
 };
-} // namespace i2c
 
-#endif // __I2C_BASE_HPP_
+} // namespace i2c

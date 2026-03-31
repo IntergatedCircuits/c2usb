@@ -1,26 +1,15 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#include <hid/report_protocol.hpp>
-#include <magic_enum.hpp>
-
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/class/hid.hpp"
 #include "usb/df/message.hpp"
 #include "usb/standard/descriptors.hpp"
+#include <magic_enum.hpp>
 
 using namespace ::hid;
 using namespace usb;
 
 namespace usb::df::hid
 {
-void app_base_function::start(const config::interface& iface, ::hid::protocol prot)
+void app_base_function::start(const config::interface& iface, ::hid::boot::mode prot)
 {
     disable(iface);
 
@@ -29,47 +18,24 @@ void app_base_function::start(const config::interface& iface, ::hid::protocol pr
     assert(ep_in_handle().valid());
 
     // start application
-    [[maybe_unused]] bool success = app_.setup(this, prot);
-    assert(success); // support for not success case requires a lot more complicated design
+    transport::start(app_, session_, {this, channel::USB, prot});
 }
 
 void app_base_function::disable([[maybe_unused]] const config::interface& iface)
 {
-    if (app_.teardown(this))
-    {
-        close_eps(ephs_);
-    }
-
-    get_report_ = {};
+    transport::stop(app_, session_);
+    close_eps(ephs_);
 }
 
-usb::result app_base_function::send_report(const std::span<const uint8_t>& data, report::type type)
+c2usb::result app_base_function::send_report([[maybe_unused]] ::hid::session& sess,
+                                             const std::span<const uint8_t>& data)
 {
-    if ((get_report_.type() == type) and
-        ((get_report_.id() == 0) or (get_report_.id() == data.front())))
-    {
-        auto msg = pending_message();
-        if (msg)
-        {
-            msg->send_data(data);
-        }
-
-        get_report_ = {};
-        return result::ok;
-    }
-    else if (type == report::type::INPUT)
-    {
-        return send_ep(ep_in_handle(), data);
-    }
-    else
-    {
-        // feature reports can only be sent if a GET_REPORT command is pending
-        // output reports cannot be sent
-        return result::invalid_argument;
-    }
+    return send_ep(ep_in_handle(), data);
 }
 
-usb::result app_base_function::receive_report(const std::span<uint8_t>& data, report::type type)
+c2usb::result app_base_function::receive_report([[maybe_unused]] ::hid::session& sess,
+                                                const std::span<uint8_t>& data,
+                                                ::hid::report::type type)
 {
     if ((type == report::type::OUTPUT) and ep_out_handle().valid())
     {
@@ -88,12 +54,18 @@ void app_base_function::ep_callback(const transfer& t)
 {
     if (t.endpoint() == ep_in_handle())
     {
-        return app_.in_report_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()));
+        if (session_)
+        {
+            session_->report_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()));
+        }
     }
-    if (t.endpoint() == ep_out_handle())
+    else if (t.endpoint() == ep_out_handle())
     {
-        return app_.set_report(report::type::OUTPUT,
-                               std::span<const uint8_t>(t.data(), t.size() * t.success()));
+        if (session_)
+        {
+            session_->set_report(report::type::OUTPUT,
+                                 std::span<const uint8_t>(t.data(), t.size() * t.success()));
+        }
     }
 }
 
@@ -144,8 +116,9 @@ void function::control_setup_request(message& msg, const config::interface& ifac
 {
     using namespace standard::interface;
     using namespace hid::control;
+    static constexpr uint8_t idle_rate_ms_multiplier = 4;
 
-    if (!app_.has_transport(this) and (msg.request() != SET_PROTOCOL) and
+    if ((session_ == nullptr) and (msg.request() != SET_PROTOCOL) and
         (msg.request() != GET_PROTOCOL))
     {
         /* All tested hosts send at least one of these requests at the beginning:
@@ -154,7 +127,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
          * - SET_PROTOCOL
          * So start the application on the first of these (instead of
          * at the function start, which doesn't tolerate longer lasting application init). */
-        app_base_function::start(iface, ::hid::protocol::REPORT);
+        app_base_function::start(iface, ::hid::boot::mode::NONE);
     }
 
     auto value_lb = msg.request().wValue.low_byte();
@@ -164,68 +137,65 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         return get_descriptor(msg);
 
     case GET_REPORT:
-    {
-        auto rs = report::selector(msg.request().wValue);
-        if ((rs.type() != report::type::FEATURE) and (rs.type() != report::type::INPUT))
+        if (auto sel = report::selector(msg.request().wValue);
+            magic_enum::enum_contains<report::type>(sel.type()))
         {
-            return msg.reject();
+            if (auto data = session_->get_report(
+                    sel, std::span<uint8_t>(msg.buffer().begin(), msg.buffer().max_size()));
+                !data.empty())
+            {
+                return msg.send_data(data);
+            }
         }
-        get_report_ = rs;
-        app_.get_report(get_report_,
-                        std::span<uint8_t>(msg.buffer().begin(), msg.buffer().max_size()));
-        return; // setting the message will be done inside the application call
-    }
+        return msg.reject();
 
     case SET_REPORT:
-    {
-        auto type = static_cast<report::type>(msg.request().wValue.high_byte());
-        if ((type != report::type::FEATURE) and (type != report::type::OUTPUT))
+        if (auto type = static_cast<report::type>(msg.request().wValue.high_byte());
+            (type == report::type::FEATURE) or (type == report::type::OUTPUT))
         {
-            return msg.reject();
-        }
-        auto& buffer = rx_buffers_[type];
-        // prefer the application provided buffer
-        if (buffer.size() >= msg.request().wLength)
-        {
-            return msg.receive_data(buffer);
-        }
+            auto& buffer = rx_buffers_[type];
+            // prefer the application provided buffer
+            if (buffer.size() >= msg.request().wLength)
+            {
+                return msg.receive_data(buffer);
+            }
 #if 0
-        // fall back to generic control buffer
-        else if (msg.buffer().max_size() >= msg.request().wLength)
-        {
-            return msg.receive_to_buffer();
-        }
+            // fall back to generic control buffer
+            else if (msg.buffer().max_size() >= msg.request().wLength)
+            {
+                return msg.receive_to_buffer();
+            }
 #endif
-        else
-        {
-            return msg.reject();
         }
-    }
+        return msg.reject();
 
     case GET_PROTOCOL:
-        return msg.send_value(app_.has_transport(this) ? app_.get_protocol() : protocol::REPORT);
+        return msg.send_value((session_ != nullptr) ? session_->protocol() : protocol::REPORT);
 
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
     case SET_PROTOCOL:
-    {
-        auto prot = static_cast<protocol>(value_lb);
-        if (not magic_enum::enum_contains<protocol>(value_lb) or
-            ((protocol_ == boot_protocol_mode::NONE) and (prot == protocol::BOOT)))
+        if (auto prot = static_cast<protocol>(value_lb);
+            magic_enum::enum_contains(prot) and
+            ((protocol_mode() != boot_protocol_mode::NONE) or (prot == protocol::REPORT)))
         {
-            return msg.reject();
+            auto boot_prot =
+                (prot == ::hid::protocol::BOOT) ? protocol_mode() : ::hid::boot::mode::NONE;
+            if ((session_ == nullptr) or (session_->boot_protocol() != boot_prot))
+            {
+                app_base_function::start(iface, boot_prot);
+            }
+            return msg.confirm();
         }
-        if (!app_.has_transport(this) or (app_.get_protocol() != prot))
-        {
-            app_base_function::start(iface, prot);
-        }
-        return msg.confirm();
-    }
+        return msg.reject();
+#endif
 
     case GET_IDLE:
-        return msg.send_value(static_cast<uint8_t>(app_.get_idle(value_lb) / 4));
+        return msg.send_value(
+            static_cast<uint8_t>(session_->get_idle(value_lb, idle_rate_ms_multiplier)));
 
     case SET_IDLE:
-        return msg.set_reply(app_.set_idle(msg.request().wValue.high_byte() * 4, // conversion to ms
-                                           value_lb));
+        return msg.set_reply(session_->set_idle(value_lb, msg.request().wValue.high_byte(),
+                                                idle_rate_ms_multiplier));
 
     default:
         return msg.reject();
@@ -243,7 +213,7 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     {
         auto type = static_cast<report::type>(msg.request().wValue.high_byte());
         rx_buffers_[type] = {};
-        app_.set_report(type, msg.data().to_span());
+        session_->set_report(type, msg.data().to_span());
         break;
     }
     default:

@@ -1,0 +1,2 @@
+rsource "hid/Kconfig"
+rsource "i2c/Kconfig"

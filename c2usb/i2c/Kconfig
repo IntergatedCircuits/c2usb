@@ -1,0 +1,13 @@
+menuconfig C2USB_I2C_HID
+	bool "c2usb HID over I2C"
+    select C2USB
+
+if C2USB_I2C_HID
+
+    config C2USB_I2C_HID_FULL_COMMAND_SUPPORT
+        bool "c2usb HID over I2C full command support"
+        default n
+        help
+          This option enables I2C HID commands that aren't used in practice (SET_IDLE, SET_PROTOCOL).
+
+endif

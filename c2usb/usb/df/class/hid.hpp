@@ -1,17 +1,7 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_CLASS_HID_HPP_
-#define __USB_DF_CLASS_HID_HPP_
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 
-#include "hid/application.hpp"
+#include "hid/transport.hpp"
 #include "usb/class/hid.hpp"
 #include "usb/df/function.hpp"
 
@@ -31,18 +21,18 @@ class app_base_function : public df::named_function, public ::hid::transport
     constexpr const ::hid::application& app() const { return app_; }
 
   protected:
-    void start(const config::interface& iface, ::hid::protocol prot);
+    void start(const config::interface& iface, ::hid::boot::mode prot);
     void disable(const config::interface& iface) override;
 
-    result send_report(const std::span<const uint8_t>& data, ::hid::report::type type) override;
-    result receive_report(const std::span<uint8_t>& data, ::hid::report::type type) override;
-    ::hid::transport::type transport_type() const override { return ::hid::transport::type::USB; }
+    c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
+    c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
+                                 ::hid::report::type type = ::hid::report::type::OUTPUT) override;
 
     void ep_callback(const transfer& t) override;
 
     ::hid::application& app_;
-    ::hid::reports_receiver rx_buffers_{};
-    ::hid::report::selector get_report_{};
+    ::hid::session* session_{};
+    reports_receiver rx_buffers_{};
     std::array<ep_handle, 2> ephs_{};
     ep_handle& ep_in_handle() { return ephs_[0]; }
     ep_handle& ep_out_handle() { return ephs_[1]; }
@@ -52,12 +42,29 @@ class app_base_function : public df::named_function, public ::hid::transport
 class function : public app_base_function
 {
   public:
-    constexpr function(::hid::application& app, boot_protocol_mode mode = boot_protocol_mode::NONE)
-        : app_base_function(app), protocol_(mode)
+    constexpr function(::hid::application& app
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+                       ,
+                       boot_protocol_mode mode = boot_protocol_mode::NONE
+#endif
+                       )
+        : app_base_function(app)
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+          ,
+          protocol_mode_(mode)
+#endif
     {}
-    constexpr function(::hid::application& app, const char_t* name,
-                       boot_protocol_mode mode = boot_protocol_mode::NONE)
-        : app_base_function(app, name), protocol_(mode)
+    constexpr function(::hid::application& app, const char_t* name
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+                       ,
+                       boot_protocol_mode mode = boot_protocol_mode::NONE
+#endif
+                       )
+        : app_base_function(app, name)
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+          ,
+          protocol_mode_(mode)
+#endif
     {}
 
   protected:
@@ -70,8 +77,12 @@ class function : public app_base_function
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
 
-    boot_protocol_mode protocol_mode() const { return protocol_; }
-    const boot_protocol_mode protocol_;
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+    boot_protocol_mode protocol_mode() const { return protocol_mode_; }
+    const boot_protocol_mode protocol_mode_;
+#else
+    boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
+#endif
 };
 
 inline df::config::elements<2> config(function& fn, const df::config::endpoint& in_ep)
@@ -109,5 +120,3 @@ inline df::config::elements<3> config(function& fn, usb::speed speed, endpoint::
 }
 
 } // namespace usb::df::hid
-
-#endif // __USB_DF_CLASS_HID_HPP_

@@ -26,8 +26,8 @@ namespace usb::zephyr
 class udc_mac : public df::mac
 {
   public:
-    udc_mac(const ::device* dev);
-    udc_mac(const ::device* dev, usb::power::state power_state);
+    udc_mac(const ::device* dev, size_t ctrl_ep_buf_size);
+    udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state);
     ~udc_mac() override;
 
     /// @brief Queues a task to be executed in the USB thread context.
@@ -44,12 +44,11 @@ class udc_mac : public df::mac
     usb::df::ep_flags stall_flags_{};
     usb::df::ep_flags busy_flags_{};
     std::span<::net_buf*> ep_bufs_{};
+    ::net_buf* ctrl_buf_{};
 
     static int event_callback(const ::udc_event& event);
     void set_driver_ctx();
-    bool ctrl_buf_valid(::net_buf* buf);
     void ctrl_stall(::net_buf* buf, int err = 0);
-    ::net_buf* ctrl_buffer_allocate(::net_buf* buf);
     bool set_attached(bool attached) override;
     void allocate_endpoints(usb::df::config::view config) override;
     usb::df::ep_handle ep_address_to_handle(endpoint::address addr) const override;

@@ -37,7 +37,7 @@ CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
 include(../cmake/get_cpm.cmake)
 if(ZEPHYR_HID_RP_MODULE_DIR OR MCUX_HID_RP_MODULE_DIR)
 else()
-    CPMAddPackage("gh:IntergatedCircuits/hid-rp#84b98bd8e0dbfe237c316a62331bc35e6188bd1b")
+    CPMAddPackage("gh:IntergatedCircuits/hid-rp#be90bc4cee05b2a329c0024157b7668e31eb00d4")
 endif()
 
 if(ZEPHYR_ETL_MODULE_DIR OR MCUX_ETL_MODULE_DIR)

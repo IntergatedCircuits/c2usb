@@ -43,7 +43,7 @@ constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID, CONFIG_DEM
 
 auto& mac()
 {
-    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0))};
+    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 400};
     return mac;
 }
 
@@ -90,7 +90,8 @@ int main(void)
         static const auto base_config = usb::df::config::make_config(
             config_header, usb::df::hid::config(usb_kb, speed, usb::endpoint::address(0x81), 1
 #if 0
-            , usb::endpoint::address(0x01), 10
+                                                ,
+                                                usb::endpoint::address(0x01), 10
 #endif
                                                 ));
         device().set_config(base_config);

@@ -87,16 +87,19 @@ static int udc_mac_preinit()
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
-udc_mac::udc_mac(const ::device* dev)
-    : mac(can_detect_vbus(udc_caps(dev)) ? power::state::L3_OFF : power::state::L2_SUSPEND),
-      dev_(dev)
-{
-    set_driver_ctx();
-}
+udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
+    : udc_mac(dev, ctrl_ep_buf_size,
+              can_detect_vbus(udc_caps(dev)) ? power::state::L3_OFF : power::state::L2_SUSPEND)
+{}
 
-udc_mac::udc_mac(const ::device* dev, usb::power::state power_state)
+udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state)
     : mac(power_state), dev_(dev)
 {
+    // permanently allocate a buffer for control IN endpoint
+    ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(), ctrl_ep_buf_size);
+    assert(ctrl_buf_ != nullptr);
+    set_control_buffer(std::span<uint8_t>(ctrl_buf_->data, ctrl_buf_->size));
+
     set_driver_ctx();
 }
 
@@ -119,6 +122,7 @@ void udc_mac::set_driver_ctx()
 
 udc_mac::~udc_mac()
 {
+    net_buf_unref(ctrl_buf_);
     if constexpr (udc_init_has_ctx)
     {
         return;
@@ -263,45 +267,6 @@ void udc_mac::ctrl_stall(net_buf* buf, int err)
     }
 }
 
-net_buf* udc_mac::ctrl_buffer_allocate(net_buf* buf)
-{
-    // reserve all space for ctrl data
-    // as it's used to construct descriptors even if the host request truncates it
-    auto data_info = *udc_get_buf_info(buf);
-    auto* status = net_buf_frag_del(nullptr, buf);
-
-    // magic number, tune it with below code fragment
-    static const size_t max_alloc_size = CONFIG_C2USB_UDC_MAC_BUF_POOL_RESERVE;
-    static_assert(CONFIG_UDC_BUF_POOL_SIZE > (64 + CONFIG_C2USB_UDC_MAC_BUF_POOL_RESERVE));
-    buf = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
-                           max_alloc_size - ep_bufs_.size_bytes());
-#if 0
-    static auto alloc_size_tuned = max_alloc_size;
-    while (buf == nullptr)
-    {
-        alloc_size_tuned -= sizeof(std::intptr_t);
-        assert(alloc_size_tuned > ep_bufs_.size_bytes());
-        buf = udc_ep_buf_alloc(dev_, endpoint::address::control_in(),
-                alloc_size_tuned - ep_bufs_.size_bytes());
-    }
-    LOG_ERR("ctrl_buf alloc size %u", alloc_size_tuned);
-#endif
-    if (buf != nullptr)
-    {
-        // restore the content into the new buf
-        *udc_get_buf_info(buf) = data_info;
-        if (status != nullptr)
-        {
-            net_buf_frag_add(buf, status);
-        }
-    }
-    else if (status != nullptr)
-    {
-        net_buf_unref(status);
-    }
-    return buf;
-}
-
 net_buf* udc_mac::move_data_out(net_buf* buf, usb::df::transfer t)
 {
     while (buf)
@@ -325,25 +290,6 @@ net_buf* udc_mac::move_data_out(net_buf* buf, usb::df::transfer t)
     return buf;
 }
 
-bool udc_mac::ctrl_buf_valid(net_buf* buf)
-{
-    if (buf == nullptr)
-    {
-        return false;
-    }
-    auto& info = *udc_get_buf_info(buf);
-
-    if (request().wLength)
-    {
-        return info.data;
-    }
-    if (request().direction() == usb::direction::OUT)
-    {
-        return info.status;
-    }
-    return false;
-}
-
 void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
 {
     endpoint::address addr{info.ep};
@@ -355,6 +301,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         // the UDC driver might send a new setup packet without having
         // processed or cleaned up the last pending response
         // so we try to do that here instead
+        // when there's no effect, "ep 0x80 is not halted|disabled" will be logged
         udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
 
         assert((info.ep == USB_CONTROL_EP_OUT) and (buf->len == sizeof(request())));
@@ -369,27 +316,35 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         LOG_INF("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
                 (uint16_t)request().wValue, (uint16_t)request().wLength);
 #endif
-
         // pop the buf chain for the next stage(s), freeing the setup buf
         buf = net_buf_frag_del(nullptr, buf);
-        if (!ctrl_buf_valid(buf))
-        {
-            LOG_ERR("ctrl_buf incomplete, stall");
-            return ctrl_stall(buf, info.err);
-        }
-        if (request().direction() == direction::IN)
-        {
-            // reserve all space for ctrl data
-            buf = ctrl_buffer_allocate(buf);
-            if (buf == nullptr)
-            {
-                LOG_ERR("ctrl_buf alloc fail, stall");
-                return ctrl_stall(buf);
-            }
-        }
 
-        // set up the buf as ctrl data target
-        set_control_buffer(std::span<uint8_t>(buf->data, buf->size));
+        if (request().direction() == usb::direction::IN)
+        {
+            // descriptors are fully assembled in control_buffer even if the host only requests
+            // the "header", so instead of the UDC allocated buf, use the ctrl_buf_'s buffer
+            if (buf)
+            {
+                net_buf_unref(buf);
+            }
+
+            buf = udc_ep_buf_alloc(dev_, endpoint::address::control_in(), 0);
+            if (!buf)
+            {
+                LOG_ERR("Control EP data cannot be allocated, stalling EP");
+                return ctrl_stall(buf, -ENOMEM);
+            }
+            buf->flags |= NET_BUF_EXTERNAL_DATA;
+            auto& new_info = *udc_get_buf_info(buf);
+            new_info.data = true;
+        }
+        else if (buf == nullptr)
+        {
+            // control OUT transfers are received in advance,
+            // cannot provide new buffer afterwards
+            LOG_ERR("Control OUT data couldn't be allocated, stalling EP");
+            return ctrl_stall(buf, -ENOMEM);
+        }
 
         // step 1. setup stage
         auto transfer = control_ep_setup();
@@ -413,6 +368,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             else // direction::IN
             {
                 buf->data = transfer.data();
+                buf->__buf = buf->data;
                 buf->len = transfer.size();
                 if (control_in_zlp(transfer))
                 {
@@ -452,7 +408,8 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
     else
     {
         net_buf_unref(buf);
-        LOG_WRN("CTRL EP %x error:%d", info.ep, info.err);
+        LOG_WRN("CTRL EP %x (stage %d) error: %d", info.ep,
+                info.setup * 0 + info.data * 1 + info.status * 2, info.err);
     }
 }
 
@@ -558,8 +515,15 @@ void udc_mac::process_ep_event(net_buf* buf)
 void udc_mac::allocate_endpoints(config::view config)
 {
     // first clean up the previous allocation
-    for (auto* buf : ep_bufs_)
+    for (auto it = ep_bufs_.rbegin(); it != ep_bufs_.rend(); ++it)
     {
+        auto* buf = *it;
+        if (buf == ep_bufs_.front())
+        {
+            // restore allocated pointer so it can be freed
+            buf->flags &= ~NET_BUF_EXTERNAL_DATA;
+            buf->__buf = reinterpret_cast<uint8_t*>(ep_bufs_.data());
+        }
         [[maybe_unused]] auto ret = udc_ep_buf_free(dev_, buf);
         assert(ret == 0);
     }
@@ -582,6 +546,7 @@ void udc_mac::allocate_endpoints(config::view config)
     {
         auto* buf = udc_ep_buf_alloc(dev_, ep.address(), alloc_size);
         assert(buf != nullptr);
+        buf->flags |= NET_BUF_EXTERNAL_DATA;
 
         if (alloc_size != 0)
         {
@@ -664,6 +629,7 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
     }
 
     buf->data = t.data();
+    buf->__buf = buf->data;
     buf->size = t.size();
     buf->len = dir == direction::OUT ? 0 : t.size();
     auto ret = udc_ep_enqueue(dev_, buf);

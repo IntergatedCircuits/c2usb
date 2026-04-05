@@ -16,7 +16,7 @@ manifest:
       path: modules/lib/zephyrrtos-mcpp
 
     - name: hid-rp
-      revision: 84b98bd8e0dbfe237c316a62331bc35e6188bd1b
+      revision: be90bc4cee05b2a329c0024157b7668e31eb00d4
       import:
         path-prefix: modules/lib
 

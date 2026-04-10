@@ -420,18 +420,11 @@ std::span<const uint8_t>& service::get_pending_notify(const gatt::attribute* att
             this_->app_.in_report_sent(buf);
         },
         attr, active_conn_.load());
-    switch (ret)
+    if (ret != 0)
     {
-    case 0:
-        return result::OK;
-    case -ENOENT:
-    case -EINVAL:
-        return result::INVALID;
-    case -ENOMEM:
-        return result::NO_MEMORY;
-    default:
-        return result::NO_CONNECTION;
+        pending_notify = {};
     }
+    return result(ret);
 }
 
 ::hid::result service::receive_report(const std::span<uint8_t>& data, ::hid::report::type type)

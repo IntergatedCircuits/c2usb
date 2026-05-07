@@ -16,30 +16,6 @@ using namespace magic_enum::bitwise_operators;
 
 namespace usb::df
 {
-void device::open()
-{
-    mac_.start();
-}
-
-void device::close()
-{
-    set_config({});
-    mac_.stop();
-}
-
-bool device::is_open() const
-{
-    return mac_.active();
-}
-
-void device::delegate_power_event(event ev)
-{
-    if (power_event_delegate_)
-    {
-        power_event_delegate_(*this, ev);
-    }
-}
-
 const config::power* device::power_config() const
 {
     return configured() ? &mac_.active_config().info() : nullptr;
@@ -220,11 +196,6 @@ void device::get_configuration(message& msg)
         assert(false);
     }
     return msg.send_value(0);
-}
-
-void device::get_status(message& msg)
-{
-    return msg.send_value(mac_.std_status());
 }
 
 void device::set_feature(message& msg, bool active)
@@ -510,18 +481,6 @@ void device::get_descriptor_dual_speed(message& msg)
     default:
         return device::get_descriptor(msg);
     }
-}
-
-template <>
-void device::get_descriptor_by_speed_support<false>(message& msg)
-{
-    return device::get_descriptor(msg);
-}
-
-template <>
-void device::get_descriptor_by_speed_support<true>(message& msg)
-{
-    return get_descriptor_dual_speed(msg);
 }
 
 } // namespace usb::df

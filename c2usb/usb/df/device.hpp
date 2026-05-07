@@ -115,16 +115,31 @@ class device : public polymorphic
     constexpr version usb_spec_version() { return version("2.0.1"); }
     usb::speeds speeds() const { return speeds_; }
 
-    void open();
-    void close();
-    bool is_open() const;
+    void open() { mac_.start(); }
+
+    void close()
+    {
+        set_config({});
+        mac_.stop();
+    }
+    bool is_open() const { return mac_.active(); }
 
   protected:
     virtual void get_descriptor(message& msg);
     void get_descriptor_dual_speed(message& msg);
 
     template <bool DUAL_SPEED>
-    void get_descriptor_by_speed_support(message& msg);
+    void get_descriptor_by_speed_support(message& msg)
+    {
+        if constexpr (DUAL_SPEED)
+        {
+            return get_descriptor_dual_speed(msg);
+        }
+        else
+        {
+            return device::get_descriptor(msg);
+        }
+    }
 
     device(usb::df::mac& mac, const product_info& prodinfo, usb::speeds speeds,
            uint8_t max_configs_count, extension& ext)
@@ -161,13 +176,19 @@ class device : public polymorphic
     void set_config(config::view config, event ev = event::CONFIGURATION_CHANGE);
     void set_configuration(message& msg);
     void get_configuration(message& msg);
-    void get_status(message& msg);
+    void get_status(message& msg) { return msg.send_value(mac_.std_status()); }
     void set_feature(message& msg, bool active);
 
     void device_setup_request(message& msg);
     void endpoint_setup_request(message& msg);
 
-    void delegate_power_event(event ev);
+    void delegate_power_event(event ev)
+    {
+        if (power_event_delegate_)
+        {
+            power_event_delegate_(*this, ev);
+        }
+    }
 
     friend class mac;
 

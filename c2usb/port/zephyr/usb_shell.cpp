@@ -45,9 +45,9 @@ void usb_shell::change_active(bool active)
     }
     else
     {
+        ::k_sem_take(&c2usb_shell_handle()->ctx->lock_sem, K_FOREVER);
         tx_buffer_.reset();
         rx_buffer_.reset();
-        ::k_sem_take(&c2usb_shell_handle()->ctx->lock_sem, K_FOREVER);
         ::shell_stop(c2usb_shell_handle());
         ::k_sem_give(&c2usb_shell_handle()->ctx->lock_sem);
     }
@@ -67,7 +67,11 @@ void usb_shell::reset_line()
 }
 
 usb_shell::usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer)
-    : function(), tx_buffer_{tx_buffer}, rx_buffer_{rx_buffer}
+    : function(sizeof(CONFIG_SHELL_C2USB_FUNCTION_NAME) > sizeof("")
+                   ? CONFIG_SHELL_C2USB_FUNCTION_NAME
+                   : nullptr),
+      tx_buffer_{tx_buffer},
+      rx_buffer_{rx_buffer}
 {
     assert(c2usb_shell_transport.ctx == nullptr);
     c2usb_shell_transport.ctx = this;
@@ -166,8 +170,13 @@ int usb_shell::shell_tp_write(const ::shell_transport* transport, const void* da
     assert(length);
     *cnt = length;
 
-    if (auto to_consume = this_->tx_buffer_.write(static_cast<const uint8_t*>(data), cnt);
-        to_consume)
+    if (not this_->get_line_config().data_terminal_ready())
+    {
+        // drop data while the pipe is not ready
+        this_->tx_done_handler();
+    }
+    else if (auto to_consume = this_->tx_buffer_.write(static_cast<const uint8_t*>(data), cnt);
+             to_consume)
     {
         [[maybe_unused]] auto result = this_->send_data(to_consume.value());
         assert(result != usb::result::device_or_resource_busy);

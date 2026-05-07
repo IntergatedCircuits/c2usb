@@ -13,6 +13,12 @@ config SHELL_PROMPT_C2USB
 	  Displayed prompt name for c2usb backend. If prompt is set, the shell will
 	  send two newlines during initialization.
 
+config SHELL_C2USB_FUNCTION_NAME
+	string "Shell USB CDC function name"
+	default ""
+	help
+	  Name of the USB CDC function to use for the shell.
+
 config SHELL_BACKEND_C2USB_TX_BUFFER_SIZE
 	int "c2usb shell TX double buffer overall size"
 	range 128 256

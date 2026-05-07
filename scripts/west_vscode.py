@@ -120,7 +120,6 @@ class WestVsCode(WestCommand):
             west_cmd = read_build_info(root_build_dir, ['west', 'command'])
             if not west_cmd:
                 log.die(f"Could not read west command from build_info.yml in {root_build_dir}.")
-            west_cmd_args = west_cmd.split()[1:]
 
             tasks_json_path = vscode_dotdir / 'tasks.json'
             if not tasks_json_path.exists():
@@ -146,9 +145,8 @@ class WestVsCode(WestCommand):
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
-                "type": "process",
-                "command": "west",
-                "args": west_cmd_args,
+                "type": "shell",
+                "command": west_cmd,
                 "problemMatcher": [
                     "$gcc"
                 ]

@@ -45,10 +45,14 @@ class udc_mac : public df::mac
     usb::df::ep_flags busy_flags_{};
     std::span<::net_buf*> ep_bufs_{};
     ::net_buf* ctrl_buf_{};
+    ::net_buf* setup_buf_{};
+    ::net_buf* status_buf_{};
 
     static int event_callback(const ::udc_event& event);
     void set_driver_ctx();
-    void ctrl_stall(::net_buf* buf, int err = 0);
+    void ctrl_setup();
+    void ctrl_status(usb::direction dir);
+    void ctrl_stall(::net_buf* buf = nullptr, int err = 0);
     bool set_attached(bool attached) override;
     void allocate_endpoints(usb::df::config::view config) override;
     usb::df::ep_handle ep_address_to_handle(endpoint::address addr) const override;
@@ -63,6 +67,7 @@ class udc_mac : public df::mac
 
     static ::net_buf* move_data_out(::net_buf* buf, usb::df::transfer t);
     void process_ctrl_ep_event(::net_buf* buf, const ::udc_buf_info& info);
+    void process_ctrl_ep(::net_buf* buf, const ::udc_buf_info& info);
 
     static usb::result post_event(const ::udc_event& event);
     int process_event(const ::udc_event& event);

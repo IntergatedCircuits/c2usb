@@ -7,7 +7,7 @@ manifest:
     - name: nrf
       repo-path: sdk-nrf
       remote: nrfconnect
-      revision: v3.2.3
+      revision: v3.3.0
       clone-depth: 1
       import:
         # By using name-allowlist we can clone only the modules that are

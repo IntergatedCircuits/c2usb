@@ -131,6 +131,11 @@ class mac : public polymorphic
                ((t.size() % control_ep_max_packet_size(speed())) == 0);
     }
 
+    auto control_buffer()
+    {
+        return std::span<uint8_t>(ctrl_msg_.buffer().begin(), ctrl_msg_.buffer().end());
+    }
+
     constexpr mac(power::state power_state = power::state::L3_OFF)
         : power_state_(power_state)
     {}

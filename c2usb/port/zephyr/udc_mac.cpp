@@ -48,6 +48,7 @@ static constexpr ::udc_event_type UDC_MAC_TASK = (udc_event_type)-1;
 UDC_CAPS_FLAG(addr_before_status)
 UDC_CAPS_FLAG(can_detect_vbus)
 UDC_CAPS_FLAG(rwup)
+UDC_CAPS_FLAG(out_ack)
 
 namespace usb::zephyr
 {
@@ -74,6 +75,16 @@ udc_mac* get_event_ctx(T* dev)
     return nullptr;
 }
 
+// https://github.com/zephyrproject-rtos/zephyr/pull/103493
+template <typename T>
+concept udc_data_has_setup_valid = requires(T t) { t.setup_valid; };
+constexpr bool udc_managed_ctrl = !udc_data_has_setup_valid<::udc_data>;
+extern "C"
+{
+    int udc_purge_queues(const ::device* dev) __attribute__((weak));
+    bool udc_ep_queue_is_empty(const ::device* dev, const uint8_t ep) __attribute__((weak));
+}
+
 static int udc_mac_preinit()
 {
     static K_THREAD_STACK_DEFINE(stack, CONFIG_C2USB_UDC_MAC_THREAD_STACK_SIZE);
@@ -87,6 +98,24 @@ static int udc_mac_preinit()
 
 SYS_INIT(udc_mac_preinit, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
 
+static void set_ctrl_stage(::net_buf* buf, control::stage stage)
+{
+    auto& info = *udc_get_buf_info(buf);
+    info.setup = (stage == control::stage::SETUP);
+    info.data = (stage == control::stage::DATA);
+    info.status = (stage == control::stage::STATUS);
+}
+
+static int udc_buf_enqueue(const ::device* dev, ::net_buf* buf)
+{
+    auto ret = udc_ep_enqueue(dev, buf);
+    if (ret != 0)
+    {
+        LOG_ERR("Failed to enqueue ep 0x%02x: %d", udc_get_buf_info(buf)->ep, ret);
+    }
+    return ret;
+}
+
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
     : udc_mac(dev, ctrl_ep_buf_size,
               can_detect_vbus(udc_caps(dev)) ? power::state::L3_OFF : power::state::L2_SUSPEND)
@@ -95,9 +124,30 @@ udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state)
     : mac(power_state), dev_(dev)
 {
+    if constexpr (not udc_managed_ctrl)
+    {
+        size_t ctrl_ep_min_rx = control_ep_max_packet_size(speed::HIGH);
+
+        setup_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_out(), ctrl_ep_min_rx);
+        assert(setup_buf_ != nullptr);
+        set_ctrl_stage(setup_buf_, control::stage::SETUP);
+
+        status_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_out(), ctrl_ep_min_rx);
+        assert(status_buf_ != nullptr);
+        set_ctrl_stage(status_buf_, control::stage::STATUS);
+
+        // TODO: size this according to worst case endpoint usage
+        constexpr size_t buf_pool_reserve = 15 * 2 * sizeof(void*);
+        ctrl_ep_buf_size =
+            CONFIG_UDC_BUF_POOL_SIZE - setup_buf_->size - status_buf_->size - buf_pool_reserve;
+    }
     // permanently allocate a buffer for control IN endpoint
     ctrl_buf_ = udc_ep_buf_alloc(dev_, endpoint::address::control_in(), ctrl_ep_buf_size);
     assert(ctrl_buf_ != nullptr);
+    if constexpr (not udc_managed_ctrl)
+    {
+        set_ctrl_stage(ctrl_buf_, control::stage::DATA);
+    }
     set_control_buffer(std::span<uint8_t>(ctrl_buf_->data, ctrl_buf_->size));
 
     set_driver_ctx();
@@ -122,7 +172,16 @@ void udc_mac::set_driver_ctx()
 
 udc_mac::~udc_mac()
 {
-    net_buf_unref(ctrl_buf_);
+    if constexpr (not udc_managed_ctrl)
+    {
+        setup_buf_->ref = 1;
+        status_buf_->ref = 1;
+        udc_ep_buf_free(dev_, setup_buf_);
+        udc_ep_buf_free(dev_, status_buf_);
+    }
+    ctrl_buf_->ref = 1;
+    ctrl_buf_->__buf = control_buffer().data();
+    udc_ep_buf_free(dev_, ctrl_buf_);
     if constexpr (udc_init_has_ctx)
     {
         return;
@@ -194,14 +253,24 @@ static int udc_mac_event_dispatch(const ::device*, const udc_event* event)
 
 void udc_mac::init(const usb::speeds& speeds)
 {
+    assert(control_ep_max_packet_size(speeds.max) <= ctrl_buf_->size);
     [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, udc_mac_event_dispatch, this);
-    assert(ret == 0);
+    assert(ret == 0 and "Failed to initialize UDC");
 }
 
 void udc_mac::deinit()
 {
     [[maybe_unused]] auto ret = udc_shutdown(dev_);
-    assert(ret == 0);
+    assert(ret == 0 and "Failed to shutdown UDC");
+
+    if constexpr (not udc_managed_ctrl)
+    {
+        ctrl_buf_->ref = 2;
+        setup_buf_->ref = 2;
+        status_buf_->ref = 2;
+        ret = udc_purge_queues(dev_);
+        assert(ret == 0 and "Failed to purge endpoint queues");
+    }
 }
 
 bool udc_mac::set_attached(bool attached)
@@ -216,13 +285,28 @@ bool udc_mac::set_attached(bool attached)
     }
     if (attached)
     {
-        [[maybe_unused]] auto ret = udc_enable(dev_);
-        assert(ret == 0);
+        if constexpr (not udc_managed_ctrl)
+        {
+            bool start_setup = udc_ep_queue_is_empty(dev_, USB_CONTROL_EP_OUT);
+
+            [[maybe_unused]] auto ret = udc_enable(dev_);
+            assert(ret == 0 and "Failed to enable UDC");
+
+            if (start_setup)
+            {
+                ctrl_setup();
+            }
+        }
+        else
+        {
+            [[maybe_unused]] auto ret = udc_enable(dev_);
+            assert(ret == 0 and "Failed to enable UDC");
+        }
     }
     else
     {
         [[maybe_unused]] auto ret = udc_disable(dev_);
-        assert(ret == 0);
+        assert(ret == 0 and "Failed to disable UDC");
     }
     return udc_is_enabled(dev_);
 }
@@ -261,9 +345,17 @@ void udc_mac::ctrl_stall(net_buf* buf, int err)
         addr = endpoint::address::control_out();
     }
     [[maybe_unused]] auto ret = ep_set_stall(addr);
-    if (buf)
+
+    if constexpr (udc_managed_ctrl)
     {
-        net_buf_unref(buf);
+        if (buf)
+        {
+            net_buf_unref(buf);
+        }
+    }
+    else
+    {
+        ctrl_setup();
     }
 }
 
@@ -390,7 +482,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             }
         }
 
-        udc_ep_enqueue(dev_, buf);
+        udc_buf_enqueue(dev_, buf);
     }
     else if (info.status and !info.err)
     {
@@ -454,8 +546,11 @@ int udc_mac::process_event(const udc_event& event)
             assert(ret == 0);
             // control endpoints are opened in udc_init
 
-            // clear leftover pending ctrl data
-            ret = udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
+            if constexpr (udc_managed_ctrl)
+            {
+                // clear leftover pending ctrl data
+                ret = udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
+            }
         }
         break;
     case UDC_EVT_SUSPEND:
@@ -481,13 +576,152 @@ int udc_mac::process_event(const udc_event& event)
     return 0;
 }
 
+void udc_mac::ctrl_setup()
+{
+    net_buf_reset(setup_buf_);
+    udc_buf_enqueue(dev_, setup_buf_);
+}
+
+void udc_mac::ctrl_status(usb::direction dir)
+{
+    auto& info = *udc_get_buf_info(status_buf_);
+    info.ep = endpoint::address::control(dir);
+    net_buf_reset(status_buf_); // TODO: is this necessary?
+
+    if (dir == direction::OUT and out_ack(udc_caps(dev_))) [[unlikely]]
+    {
+        // auto acknowledge status OUT
+    }
+    else if (udc_buf_enqueue(dev_, status_buf_) != 0)
+    {
+        return ctrl_stall();
+    }
+    ctrl_setup();
+}
+
+void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
+{
+    direction dir = endpoint::address(info.ep).direction();
+
+    if (info.err)
+    {
+        LOG_WRN("CTRL EP %x (stage %d) error: %d", info.ep,
+                info.setup * 0 + info.data * 1 + info.status * 2, info.err);
+
+        if (info.setup or (info.data and (dir == direction::OUT)))
+        {
+            ctrl_setup();
+        }
+        return;
+    }
+
+    if (info.setup)
+    {
+        assert((info.ep == USB_CONTROL_EP_OUT) and (buf->len == sizeof(request())));
+
+        // new setup packet resets the stall status
+        stall_flags_.clear(endpoint::address::control_out());
+        stall_flags_.clear(endpoint::address::control_in());
+
+        std::memcpy(&request(), buf->data, sizeof(request()));
+#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
+        // logged when DBG level is selected, but without the extra details of LOG_DBG()
+        LOG_INF("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
+                (uint16_t)request().wValue, (uint16_t)request().wLength);
+#endif
+
+        auto transfer = control_ep_setup();
+        if (transfer.stalled())
+        {
+            return ctrl_stall();
+        }
+
+        // initiate DATA stage
+        if (transfer.size() > 0)
+        {
+            auto& data_info = *udc_get_buf_info(ctrl_buf_);
+            ctrl_buf_->data = transfer.data();
+            ctrl_buf_->__buf = ctrl_buf_->data;
+
+            if (request().direction() == direction::OUT)
+            {
+                ctrl_buf_->size = ROUND_UP(transfer.size(), control_ep_max_packet_size(speed()));
+                ctrl_buf_->len = 0;
+                data_info.ep = endpoint::address::control_out();
+                data_info.zlp = false;
+
+                udc_buf_enqueue(dev_, ctrl_buf_);
+            }
+            else // direction::IN
+            {
+                ctrl_buf_->size = transfer.size();
+                ctrl_buf_->len = transfer.size();
+                data_info.ep = endpoint::address::control_in();
+                data_info.zlp = control_in_zlp(transfer);
+
+                udc_buf_enqueue(dev_, ctrl_buf_) == 0
+                    ? ctrl_status(direction::OUT) // status OUT must be provided early
+                    : ctrl_stall();
+            }
+        }
+        else // no DATA -> initiate STATUS IN stage
+        {
+            // setting the address early
+            if (addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
+                [[unlikely]]
+            {
+                [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
+                assert(ret == 0 and "Failed to set address");
+            }
+
+            ctrl_status(direction::IN);
+        }
+    }
+    else if (info.data)
+    {
+        bool ok = control_ep_data(dir, {buf->data, buf->len});
+
+        if (request().direction() == direction::OUT)
+        {
+            return ok ? ctrl_status(direction::IN) // initiate STATUS IN stage / stall
+                      : ctrl_stall();
+        }
+        else
+        {
+            // status OUT was provided early
+            assert(ok and "DATA IN stage rejected");
+        }
+    }
+    else if (info.status)
+    {
+        // timely address setting
+        if (not addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
+            [[unlikely]]
+        {
+            [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
+            assert(ret == 0 and "Failed to set address");
+        }
+    }
+    else
+    {
+        assert(false and "Invalid control buf received");
+    }
+}
+
 void udc_mac::process_ep_event(net_buf* buf)
 {
     auto& info = *udc_get_buf_info(buf);
     endpoint::address addr{info.ep};
     if (addr.number() == 0)
     {
-        process_ctrl_ep_event(buf, info);
+        if constexpr (udc_managed_ctrl)
+        {
+            process_ctrl_ep_event(buf, info);
+        }
+        else
+        {
+            process_ctrl_ep(buf, info);
+        }
     }
     else
     {

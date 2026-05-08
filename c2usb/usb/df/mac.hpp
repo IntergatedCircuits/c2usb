@@ -47,7 +47,7 @@ class mac : public polymorphic
         ctrl_msg_.buffer_.assign(buffer.data(), buffer.size());
     }
 
-    uint16_t control_ep_max_packet_size(usb::speed speed) const
+    virtual uint16_t control_ep_max_packet_size(usb::speed speed) const
     {
         return endpoint::packet_size_limit(endpoint::type::CONTROL, speed);
     }

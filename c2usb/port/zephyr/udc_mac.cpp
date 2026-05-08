@@ -30,10 +30,10 @@ LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
 static constexpr ::udc_event_type UDC_MAC_TASK = (udc_event_type)-1;
 
 // keeping compatibility with multiple Zephyr versions
-#define UDC_CAPS_FLAG(name)                                                                        \
+#define UDC_CAPS_FLAG(tret, name, defvalue)                                                        \
     template <typename T>                                                                          \
     concept Concept_##name = requires(T t) {                                                       \
-        { t.name } -> std::convertible_to<bool>;                                                   \
+        { t.name } -> std::convertible_to<tret>;                                                   \
     };                                                                                             \
     template <Concept_##name T>                                                                    \
     constexpr auto name(const T& obj)                                                              \
@@ -43,12 +43,13 @@ static constexpr ::udc_event_type UDC_MAC_TASK = (udc_event_type)-1;
     template <typename T>                                                                          \
     constexpr auto name(const T&)                                                                  \
     {                                                                                              \
-        return false;                                                                              \
+        return defvalue;                                                                           \
     }
-UDC_CAPS_FLAG(addr_before_status)
-UDC_CAPS_FLAG(can_detect_vbus)
-UDC_CAPS_FLAG(rwup)
-UDC_CAPS_FLAG(out_ack)
+UDC_CAPS_FLAG(bool, addr_before_status, false)
+UDC_CAPS_FLAG(bool, can_detect_vbus, false)
+UDC_CAPS_FLAG(bool, rwup, false)
+UDC_CAPS_FLAG(bool, out_ack, false)
+UDC_CAPS_FLAG(int, mps0, 3)
 
 namespace usb::zephyr
 {
@@ -334,6 +335,17 @@ usb::speed udc_mac::speed() const
         // TODO
     default:
         return usb::speed::NONE;
+    }
+}
+
+uint16_t udc_mac::control_ep_max_packet_size(usb::speed speed) const
+{
+    switch (speed)
+    {
+    case usb::speed::FULL:
+        return 8 << mps0(udc_caps(dev_));
+    default:
+        return mac::control_ep_max_packet_size(speed);
     }
 }
 

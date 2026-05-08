@@ -48,11 +48,13 @@ C2USB_STATIC_CONSTEXPR inline uint16_t packet_size_limit(type t, speed s)
         return 0;
     }
     C2USB_STATIC_CONSTEXPR static const uint16_t sizes[4][3] = {
+        // clang-format off
         // LS    FS    HS
-        {8, 64, 64},     // CONTROL
-        {0, 1023, 1024}, // ISOCHRONOUS
-        {0, 64, 512},    // BULK
-        {8, 64, 1024}    // INTERRUPT
+        {  8,    64,   64 }, // CONTROL
+        {  0,  1023, 1024 }, // ISOCHRONOUS
+        {  0,    64,  512 }, // BULK
+        {  8,    64, 1024 }  // INTERRUPT
+        // clang-format on
     };
     return sizes[static_cast<uint8_t>(t)]
                 [static_cast<uint8_t>(s) - static_cast<uint8_t>(speed::LOW)];

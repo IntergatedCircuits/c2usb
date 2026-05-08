@@ -64,6 +64,7 @@ class udc_mac : public df::mac
     void deinit() override;
     usb::result signal_remote_wakeup() override;
     usb::speed speed() const override;
+    uint16_t control_ep_max_packet_size(usb::speed speed) const override;
 
     static ::net_buf* move_data_out(::net_buf* buf, usb::df::transfer t);
     void process_ctrl_ep_event(::net_buf* buf, const ::udc_buf_info& info);

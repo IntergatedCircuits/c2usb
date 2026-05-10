@@ -20,4 +20,5 @@ manifest:
           - mcuxsdk-tool-data
           - mcux-soc-svd
           - mcux-devices-kinetis
+          # TODO: allow more device lines
           - usb

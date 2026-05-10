@@ -1,33 +1,25 @@
-# Configurable Composite USB device library
+# Configurable Composite (c2) USB device library
 
-This is the 2nd generation of my composite USB device library,
-which is the most flexible and configurable open-source USB device stack so far.
+This is a 2nd generation USB device library,
+designed with an emphasis of maximum flexibility for configurability and composability.
 The device framework is designed to scale well to designs of any complexity,
 and to make the high level functionality as portable as possible.
 
-The core of the flexibility and portability is the manual high-level definition
-of each USB configuration, which consists of:
-1. Power configuration
-2. List of USB functions with their assigned endpoints
-
-This manual definition allows for a device framework with multiple number of configurations
-for each bus speed (and even alternative configurations for MS Windows OS),
-that can be easily modified at runtime as well.
-
-This codebase is written in C++20, as it allows better abstractions, encapsulation,
-type safety, etc as C. Implementing the same logic in C would have required
-a considerable amount of preprocessor macros,
-which would have made the library much harder to use correctly.
-Thanks to C++, there is also no need for a configuration header full of preprocessor defines.
-Note that the codebase has no dynamic memory allocations nor any other expensive C++
-standard library dependency. Its optimized build produces a code size on par with
-C libraries of similar functionality.
+The use of the C++(20) language is integral to the project's design.
+That doesn't mean dynamic allocation or use of exceptions, but instead
+accurate abstractions, encapsulation, type safety, polymorphism.
 
 ## Features
 
-* USB 2.0(.1) specification compliant stack
+* USB 2.0(.1) specification compliant full and high-speed stack
 * self-describing objects -> no manual implementation of any USB descriptors
 * efficient RAM usage
+
+### Platforms
+
+The library integrates as a **west module** into the following platforms:
+* NXP MCUXpresso (see [mcux](mcux) directory)
+* Zephyr RTOS (see [zephyr](zephyr) directory)
 
 ### Device classes
 
@@ -47,12 +39,6 @@ The additional transport layers supported are:
 The Abstract Control Model of Communications Device Class is fully implemented.
 Notably the notification endpoint can be marked as unused, skipping any hardware resource allocation,
 but keeping compatibility with all hosts.
-
-### Platforms
-
-* NXP MCUs supported via `mcux_mac` (see [c2usb/port/nxp](c2usb/port/nxp))
-* Zephyr RTOS supported via `udc_mac` (see [c2usb/port/zephyr](c2usb/port/zephyr))
-* support the project to see more!
 
 ### Vendor extensions
 

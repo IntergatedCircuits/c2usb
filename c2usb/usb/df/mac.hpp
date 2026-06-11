@@ -9,6 +9,8 @@
 namespace usb::df
 {
 class device;
+class transfer;
+
 /// @brief  The mac class serves as the USB device's Media Access Controller,
 ///         allowing access to bus resources.
 class mac : public polymorphic
@@ -49,16 +51,8 @@ class mac : public polymorphic
     {
         return {};
     }
-    virtual result ep_send([[maybe_unused]] ep_handle eph,
-                           [[maybe_unused]] const std::span<const uint8_t>& data)
-    {
-        return result::not_supported;
-    }
-    virtual result ep_receive([[maybe_unused]] ep_handle eph,
-                              [[maybe_unused]] const std::span<uint8_t>& data)
-    {
-        return result::not_supported;
-    }
+    virtual result ep_send([[maybe_unused]] const transfer& xfer) = 0;
+    virtual result ep_receive([[maybe_unused]] const transfer& xfer) = 0;
     virtual result ep_cancel([[maybe_unused]] ep_handle eph) { return result::not_supported; }
     virtual result ep_close([[maybe_unused]] ep_handle& eph) { return result::not_supported; }
 

@@ -80,8 +80,8 @@ class mcux_mac : public df::address_handle_mac
     usb::speed speed() const override;
 
     usb::df::ep_handle ep_open(const usb::df::config::endpoint& ep) override;
-    usb::result ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data) override;
-    usb::result ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data) override;
+    usb::result ep_send(const usb::df::transfer& xfer) override;
+    usb::result ep_receive(const usb::df::transfer& xfer) override;
     usb::result ep_close(usb::df::ep_handle& eph) override;
     usb::result ep_cancel(usb::df::ep_handle eph) override;
 

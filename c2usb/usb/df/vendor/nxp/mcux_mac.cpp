@@ -218,9 +218,9 @@ usb::df::ep_handle mcux_mac::ep_open(const config::endpoint& ep)
         ep_init(ep.address(), ep.type(), ep.max_packet_size(), ep.interval()) ? ep.address() : 0);
 }
 
-usb::result mcux_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& data)
+usb::result mcux_mac::ep_send(const transfer& xfer)
 {
-    auto addr = ep_handle_to_address(eph);
+    auto addr = ep_handle_to_address(xfer.endpoint());
     if (power_state() != power::state::L0_ON)
     {
         return result::network_down;
@@ -229,18 +229,17 @@ usb::result mcux_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& dat
     {
         return usb::result::device_or_resource_busy;
     }
-    return to_result(
-        driver_.deviceSend(handle(), addr, const_cast<uint8_t*>(data.data()), data.size()));
+    return to_result(driver_.deviceSend(handle(), addr, xfer.data(), xfer.size()));
 }
 
-usb::result mcux_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
+usb::result mcux_mac::ep_receive(const transfer& xfer)
 {
-    auto addr = ep_handle_to_address(eph);
+    auto addr = ep_handle_to_address(xfer.endpoint());
     if (busy_flags_.test_and_set(addr))
     {
         return usb::result::device_or_resource_busy;
     }
-    return to_result(driver_.deviceRecv(handle(), addr, data.data(), data.size()));
+    return to_result(driver_.deviceRecv(handle(), addr, xfer.data(), xfer.size()));
 }
 
 usb::result mcux_mac::ep_cancel(ep_handle eph)

@@ -860,19 +860,13 @@ usb::df::ep_handle udc_mac::ep_open(const usb::df::config::endpoint& ep)
     return eph;
 }
 
-usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb::direction dir)
+usb::result udc_mac::ep_transfer(const transfer& xfer, usb::direction dir)
 {
-    auto* buf = ep_handle_to_buf(eph);
+    auto* buf = ep_handle_to_buf(xfer.endpoint());
     auto& info = *udc_get_buf_info(buf);
     assert((buf != nullptr) and (info.owner != nullptr));
     auto addr = endpoint::address(info.ep);
-#if 0 // using private API
-    auto* cfg = udc_get_ep_cfg(dev_, addr);
-    if (!k_fifo_is_empty(cfg->fifo))
-    {
-        return result::device_or_resource_busy;
-    }
-#endif
+
     if ((dir == direction::IN) and (power_state() != power::state::L0_ON))
     {
         return result::network_down;
@@ -882,10 +876,10 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
         return result::device_or_resource_busy;
     }
 
-    buf->data = t.data();
+    buf->data = xfer.data();
     buf->__buf = buf->data;
-    buf->size = t.size();
-    buf->len = dir == direction::OUT ? 0 : t.size();
+    buf->size = xfer.size();
+    buf->len = dir == direction::OUT ? 0 : xfer.size();
     auto ret = udc_ep_enqueue(dev_, buf);
     if (ret != 0)
     {
@@ -894,14 +888,14 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
     return usb::result(ret);
 }
 
-usb::result udc_mac::ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data)
+usb::result udc_mac::ep_send(const usb::df::transfer& xfer)
 {
-    return ep_transfer(eph, data, direction::IN);
+    return ep_transfer(xfer, direction::IN);
 }
 
-usb::result udc_mac::ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data)
+usb::result udc_mac::ep_receive(const usb::df::transfer& xfer)
 {
-    return ep_transfer(eph, data, direction::OUT);
+    return ep_transfer(xfer, direction::OUT);
 }
 
 usb::result udc_mac::ep_close(usb::df::ep_handle& eph)
@@ -911,18 +905,13 @@ usb::result udc_mac::ep_close(usb::df::ep_handle& eph)
     assert(info.owner != nullptr);
     info.owner = nullptr;
     auto ret = udc_ep_disable(dev_, addr);
-    if (ret != 0)
-    {
-        return usb::result(ret);
-    }
     eph = {};
-    ret = udc_ep_dequeue(dev_, addr);
-    if (ret != 0)
+    if (ret == 0)
     {
-        return usb::result(ret);
+        ret = udc_ep_dequeue(dev_, addr);
     }
     k_yield();
-    return usb::result::ok;
+    return usb::result(ret);
 }
 
 usb::result udc_mac::ep_cancel(usb::df::ep_handle eph)

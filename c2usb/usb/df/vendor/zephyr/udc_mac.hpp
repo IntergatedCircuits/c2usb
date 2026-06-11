@@ -76,11 +76,11 @@ class udc_mac : public df::mac
 
     usb::result ep_set_stall(endpoint::address addr);
     usb::result ep_clear_stall(endpoint::address addr);
-    usb::result ep_transfer(usb::df::ep_handle eph, const usb::df::transfer& t, usb::direction dir);
+    usb::result ep_transfer(const usb::df::transfer& xfer, usb::direction dir);
 
     usb::df::ep_handle ep_open(const usb::df::config::endpoint& ep) override;
-    usb::result ep_send(usb::df::ep_handle eph, const std::span<const uint8_t>& data) override;
-    usb::result ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>& data) override;
+    usb::result ep_send(const usb::df::transfer& xfer) override;
+    usb::result ep_receive(const usb::df::transfer& xfer) override;
     usb::result ep_close(usb::df::ep_handle& eph) override;
     usb::result ep_cancel(usb::df::ep_handle eph) override;
     bool ep_is_stalled(usb::df::ep_handle eph) const override;

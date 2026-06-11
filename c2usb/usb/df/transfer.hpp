@@ -40,6 +40,9 @@ class transfer
                        ep_handle eph = {})
         : data_(const_cast<uint8_t*>(data)), size_(size), result_(result), eph_(eph)
     {}
+    constexpr transfer(ep_handle eph, const uint8_t* data, size_type size)
+        : data_(const_cast<uint8_t*>(data)), size_(size), eph_(eph)
+    {}
     constexpr transfer(const uint8_t* data, size_type size, bool success, ep_handle eph = {})
         : data_(const_cast<uint8_t*>(data)),
           size_(size),

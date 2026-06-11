@@ -157,7 +157,8 @@ usb::result function::send_ep(ep_handle eph, const std::span<const uint8_t>& dat
 {
     if ((mac_ != nullptr) and eph.valid())
     {
-        return mac_->ep_send(eph, data);
+        transfer xfer{eph, data.data(), uint16_t(data.size())};
+        return mac_->ep_send(xfer);
     }
     return usb::result::connection_reset;
 }
@@ -166,7 +167,8 @@ usb::result function::receive_ep(ep_handle eph, const std::span<uint8_t>& data)
 {
     if ((mac_ != nullptr) and eph.valid())
     {
-        return mac_->ep_receive(eph, data);
+        transfer xfer{eph, data.data(), uint16_t(data.size())};
+        return mac_->ep_receive(xfer);
     }
     return usb::result::connection_reset;
 }

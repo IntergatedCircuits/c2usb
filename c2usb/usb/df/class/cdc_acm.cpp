@@ -22,12 +22,10 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
         auto* acm_descs = buffer.allocate<acm_desc_set>();
 
         acm_descs->call_mgmt.bDataInterface = if_index + 1;
-
-        capabilities caps{};
-        caps.line_control = true;
-        caps.network_connection = not iface.endpoints()[0].unused();
+        acm_descs->acm.bmCapabilities.line_control = true;
+        acm_descs->acm.bmCapabilities.network_connection = not iface.endpoints()[0].unused();
         // TODO: add logic for the rest of the capabilities
-        acm_descs->acm.bmCapabilities = caps;
+        // acm_descs->acm.bmCapabilities.send_break = false;
 
         iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
         assert((iface_desc->bNumEndpoints == 1) and
@@ -63,14 +61,13 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         return msg.send(line_coding());
 
     case SET_CONTROL_LINE_STATE:
-    {
         if (line_config_.bControlLineState != msg.request().wValue.low_byte())
         {
             line_config_.bControlLineState = msg.request().wValue.low_byte();
             set_line(line_config_, line_event::STATE_CHANGE);
         }
         return msg.confirm();
-    }
+
     case SEND_BREAK:
         // if 0xFFFF, then break is held until 0x0000 is received
         // uint16_t break_ms = msg.request().wValue;
@@ -109,8 +106,6 @@ void function::enable(const config::interface& iface, [[maybe_unused]] uint8_t a
     else
     {
         open_data_eps(iface);
-        in_ep_mps_ = iface.endpoints()[0].wMaxPacketSize;
-        tx_len_ = 0;
     }
 }
 
@@ -133,7 +128,7 @@ void function::ep_callback(const transfer& t)
     if (t.endpoint() == ep_in_handle())
     {
         return data_sent(std::span<const uint8_t>(t.data(), t.transferred_size()),
-                         t.needs_zlp(in_ep_mps_));
+                         t.needs_zlp(in_ep_mps()));
     }
     // notification sent
 }

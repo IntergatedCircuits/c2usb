@@ -45,6 +45,12 @@ The Abstract Control Model of Communications Device Class is fully implemented.
 Notably the notification endpoint can be marked as unused, skipping any hardware resource allocation,
 but keeping compatibility with all hosts.
 
+#### 🌐 CDC-NCM - Networking over USB
+
+The Network Control Model of Communications Device Class is the latest
+of a range of networking over USB protocols, achieving the highest throughput of all.
+It is widely supported on all major OSes, although Windows 10 support requires using it with Microsoft OS descriptors.
+
 #### 🔄 DFU - Firmware Update trigger
 
 The runtime mode of Device Firmware Upgrade protocol is a simple, standardized way

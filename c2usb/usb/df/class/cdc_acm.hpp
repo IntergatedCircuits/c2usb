@@ -54,7 +54,6 @@ class function : public cdc::function
     }
     using cdc::function::receive_data;
     virtual void data_received([[maybe_unused]] const std::span<uint8_t>& rx) {}
-    [[nodiscard]] auto in_ep_mps() const { return in_ep_mps_; }
 
   private:
     using capabilities = usb::cdc::descriptor::abstract_control_management::capabilities;
@@ -77,8 +76,6 @@ class function : public cdc::function
     }
 
     C2USB_USB_TRANSFER_ALIGN(line_config, line_config_) {};
-    uint16_t in_ep_mps_{};
-    uint16_t tx_len_{};
 };
 
 } // namespace usb::df::cdc::acm

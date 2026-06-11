@@ -81,6 +81,7 @@ class function : public df::named_function
     {
         assert(!iface.primary());
         assert(iface.endpoints().size() == 2);
+        in_ep_mps_ = iface.endpoints()[0].wMaxPacketSize;
         open_eps(iface.endpoints(), data_ephs_);
     }
 
@@ -116,7 +117,18 @@ class function : public df::named_function
         }
     }
 
+    [[nodiscard]] auto in_ep_mps() const { return in_ep_mps_; }
+    result send_trailing_zlp_if_needed(const transfer& tf)
+    {
+        if (not tf.empty() and ((tf.size() % in_ep_mps_) == 0))
+        {
+            return send_data({});
+        }
+        return std::errc::message_size;
+    }
+
   private:
+    uint16_t in_ep_mps_{};
     std::array<ep_handle, 2> data_ephs_{};
     ep_handle notify_eph_;
 };

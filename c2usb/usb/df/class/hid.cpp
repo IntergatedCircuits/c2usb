@@ -50,21 +50,21 @@ c2usb::result app_base_function::receive_report([[maybe_unused]] ::hid::session&
     }
 }
 
-void app_base_function::ep_callback(const transfer& t)
+void app_base_function::ep_callback(const transfer& xfer)
 {
-    if (t.endpoint() == ep_in_handle())
+    if (xfer.endpoint() == ep_in_handle())
     {
         if (session_ != nullptr)
         {
-            session_->report_sent(std::span<const uint8_t>(t.data(), t.transferred_size()));
+            session_->report_sent(std::span<const uint8_t>(xfer.data(), xfer.transferred_size()));
         }
     }
-    else if (t.endpoint() == ep_out_handle())
+    else if (xfer.endpoint() == ep_out_handle())
     {
         if (session_ != nullptr)
         {
             session_->set_report(report::type::OUTPUT,
-                                 std::span<const uint8_t>(t.data(), t.transferred_size()));
+                                 std::span<const uint8_t>(xfer.data(), xfer.transferred_size()));
         }
     }
 }

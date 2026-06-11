@@ -29,7 +29,7 @@ class app_base_function : public df::named_function, public ::hid::transport
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
                                  ::hid::report::type type = ::hid::report::type::OUTPUT) override;
 
-    void ep_callback(const transfer& t) override;
+    void ep_callback(const transfer& xfer) override;
 
     ep_handle& ep_in_handle() { return ephs_[0]; }
     ep_handle& ep_out_handle() { return ephs_[1]; }
@@ -132,8 +132,11 @@ class function : public app_base_function
     const boot_protocol_mode protocol_mode_;
     const usb::hid::country_code country_code_;
 #else
-   [[nodiscard]] boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
-   [[nodiscard]] usb::hid::country_code country_code() const { return usb::hid::country_code::NOT_SUPPORTED; }
+    [[nodiscard]] boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
+    [[nodiscard]] usb::hid::country_code country_code() const
+    {
+        return usb::hid::country_code::NOT_SUPPORTED;
+    }
 #endif
 };
 

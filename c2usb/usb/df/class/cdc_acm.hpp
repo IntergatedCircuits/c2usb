@@ -65,7 +65,7 @@ class function : public cdc::function
     void control_data_complete(message& msg, const config::interface& iface) override;
     void enable(const config::interface& iface, uint8_t alt_sel) override;
     void disable(const config::interface& iface) override;
-    void ep_callback(const transfer& t) override;
+    void ep_callback(const transfer& xfer) override;
 
     [[nodiscard]] auto& line_coding() const
     {

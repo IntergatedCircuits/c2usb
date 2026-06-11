@@ -41,7 +41,7 @@ class function : public polymorphic
 
     [[nodiscard]] virtual std::string_view ms_compatible_id() const { return {}; }
 
-    virtual void ep_callback([[maybe_unused]] const transfer& t) {}
+    virtual void ep_callback([[maybe_unused]] const transfer& xfer) {}
     virtual void sof_callback([[maybe_unused]] const config::interface& iface) {}
 
     /// @brief  Get the MS OS 2.0 subset descriptor for this function.

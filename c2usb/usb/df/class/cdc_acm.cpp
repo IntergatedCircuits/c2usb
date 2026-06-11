@@ -124,16 +124,16 @@ void function::disable(const config::interface& iface)
     cdc::function::disable(iface);
 }
 
-void function::ep_callback(const transfer& t)
+void function::ep_callback(const transfer& xfer)
 {
-    if (t.endpoint() == ep_out_handle())
+    if (xfer.endpoint() == ep_out_handle())
     {
-        return data_received(std::span<uint8_t>(t.data(), t.transferred_size()));
+        return data_received(std::span<uint8_t>(xfer.data(), xfer.transferred_size()));
     }
-    if (t.endpoint() == ep_in_handle())
+    if (xfer.endpoint() == ep_in_handle())
     {
-        return data_sent(std::span<const uint8_t>(t.data(), t.transferred_size()),
-                         t.needs_zlp(in_ep_mps_));
+        return data_sent(std::span<const uint8_t>(xfer.data(), xfer.transferred_size()),
+                         xfer.needs_zlp(in_ep_mps()));
     }
     // notification sent
 }

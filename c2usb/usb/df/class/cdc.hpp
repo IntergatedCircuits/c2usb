@@ -71,9 +71,9 @@ class function : public df::named_function
     void open_notify_ep(const config::interface& iface)
     {
         assert(iface.primary());
-        if (iface.endpoints().size() > 0)
+        if (const auto& ep = iface.endpoints()[0]; ep.valid())
         {
-            notify_eph_ = open_ep(iface.endpoints()[0]);
+            notify_eph_ = open_ep(ep);
         }
     }
 

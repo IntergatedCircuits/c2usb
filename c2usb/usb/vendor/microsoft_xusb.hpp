@@ -31,7 +31,7 @@ inline namespace xusb22
     "GamepadStickUsage"=dword:31303532
 */
 
-constexpr const char* COMPATIBLE_ID = "XUSB20";
+constexpr std::string_view COMPATIBLE_ID{"XUSB20"};
 
 constexpr uint8_t CLASS_CODE = 0xFF;
 constexpr uint8_t SUBCLASS_CODE = 0x5D;

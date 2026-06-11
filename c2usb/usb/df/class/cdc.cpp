@@ -39,7 +39,7 @@ function::get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df
     };
     auto* descs = buffer.allocate<desc_set>(cinfo, if_index);
 
-    descs->if_assoc.iFunction = descs->iface.iInterface = to_istring(0);
+    descs->if_assoc.iFunction = descs->iface.iInterface = name_istring();
 
     return &descs->iface;
 }

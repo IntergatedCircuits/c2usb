@@ -49,7 +49,7 @@ class function : public polymorphic
     void init(const config::interface& iface, mac* m);
     void deinit(const config::interface& iface);
 
-    virtual const char* ms_compatible_id() const { return nullptr; }
+    virtual std::string_view ms_compatible_id() const { return {}; }
 
     virtual void transfer_complete([[maybe_unused]] ep_handle eph,
                                    [[maybe_unused]] const transfer& t)
@@ -93,7 +93,10 @@ class function : public polymorphic
 
     virtual void send_string(uint8_t rel_index, string_message& smsg);
 
-    virtual uint8_t get_alt_setting([[maybe_unused]] const config::interface& iface) { return 0; }
+    virtual uint8_t get_alt_setting([[maybe_unused]] const config::interface& iface) const
+    {
+        return 0;
+    }
 
     virtual void enable([[maybe_unused]] const config::interface& iface,
                         [[maybe_unused]] uint8_t alt_sel)
@@ -137,6 +140,8 @@ class named_function : public function
     {}
 
     void send_string(uint8_t rel_index, string_message& smsg) override;
+
+    istring name_istring() const { return (name_ != nullptr) ? to_istring(0) : 0; }
 
   private:
     const char_t* const name_{};

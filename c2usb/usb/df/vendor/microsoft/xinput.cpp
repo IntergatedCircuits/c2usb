@@ -29,7 +29,7 @@ void xfunction::describe_config(const config::interface& iface, uint8_t if_index
     iface_desc->bInterfaceClass = xusb::CLASS_CODE;
     iface_desc->bInterfaceSubClass = xusb::SUBCLASS_CODE;
     iface_desc->bInterfaceProtocol = xusb::PROTOCOL_CODE;
-    iface_desc->iInterface = to_istring(0);
+    iface_desc->iInterface = name_istring();
     iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
     assert((iface_desc->bNumEndpoints == 2) and
            (iface.endpoints()[0].address().direction() == direction::IN) and

@@ -17,8 +17,8 @@ void descriptors::get_msos2_function_subset(const config::interface& iface, uint
                                             df::buffer& buffer)
 {
     // the only interesting thing is the compatible ID
-    auto* compat_id = iface.function().ms_compatible_id();
-    if (compat_id == nullptr)
+    auto compat_id = iface.function().ms_compatible_id();
+    if (compat_id.empty())
     {
         return;
     }
@@ -26,8 +26,7 @@ void descriptors::get_msos2_function_subset(const config::interface& iface, uint
     func_header->bFirstInterface = iface_index;
 
     auto* comp_id_desc = buffer.allocate<usb::microsoft::compatible_id>();
-    std::string_view(compat_id).copy(comp_id_desc->CompatibleID,
-                                     sizeof(comp_id_desc->CompatibleID));
+    compat_id.copy(comp_id_desc->CompatibleID, sizeof(comp_id_desc->CompatibleID));
 
     // When finished with the contents, save the total size of the subset
     func_header->wSubsetLength =

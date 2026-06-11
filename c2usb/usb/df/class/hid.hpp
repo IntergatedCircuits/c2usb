@@ -70,6 +70,7 @@ class function : public app_base_function
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
 
+    boot_protocol_mode protocol_mode() const { return protocol_; }
     const boot_protocol_mode protocol_;
 };
 

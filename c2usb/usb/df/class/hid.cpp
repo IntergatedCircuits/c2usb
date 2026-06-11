@@ -113,9 +113,9 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
 
     iface_desc->bInterfaceNumber = if_index;
     iface_desc->bInterfaceClass = CLASS_CODE;
-    iface_desc->bInterfaceSubClass = protocol_ != boot_protocol_mode::NONE;
-    iface_desc->bInterfaceProtocol = static_cast<uint8_t>(protocol_);
-    iface_desc->iInterface = to_istring(0);
+    iface_desc->bInterfaceSubClass = protocol_mode() != boot_protocol_mode::NONE;
+    iface_desc->bInterfaceProtocol = static_cast<uint8_t>(protocol_mode());
+    iface_desc->iInterface = name_istring();
     iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
     assert((iface.endpoints()[0].address().direction() == direction::IN) and
            ((1 == iface_desc->bNumEndpoints) or

@@ -22,6 +22,6 @@ manifest:
 
     - name: etl
       url: https://github.com/ETLCPP/etl
-      revision: 20.46.2
+      revision: 20.48.0
       clone-depth: 1
       path: modules/lib/etl

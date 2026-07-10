@@ -13,7 +13,7 @@ accurate abstractions, encapsulation, type safety, polymorphism.
 
 * USB 2.0(.1) specification compliant full and high-speed stack
 * self-describing objects -> no manual implementation of any USB descriptors
-* efficient RAM usage
+* easily swappable device configurations
 
 ### Platforms
 
@@ -23,18 +23,19 @@ The library integrates as a **west module** into the following platforms:
 
 ### Device classes
 
-#### HID - Human Interface Device Class
+#### ⌨️ HID - Human Interface Device Class
 
 HID specification version 1.11 is fully supported, with extensive report descriptor tooling
 via [hid-rp][hid-rp] library.
+
 HID has outgrown itself from a pure USB class to a transport-independent protocol,
 and so this library also provides alternative transports for HID applications,
 which interact with the same high-level application API.
 The additional transport layers supported are:
-* BLE (HID over GATT Protocol)
+* BLE (HID over GATT Protocol) - Zephyr backend
 * I2C
 
-#### CDC-ACM - Serial Port
+#### 🔌 CDC-ACM - Serial Port
 
 The Abstract Control Model of Communications Device Class is fully implemented.
 Notably the notification endpoint can be marked as unused, skipping any hardware resource allocation,
@@ -42,7 +43,7 @@ but keeping compatibility with all hosts.
 
 ### Vendor extensions
 
-#### Microsoft OS descriptors
+#### 🪟 Microsoft OS descriptors and alternate enumeration
 
 Microsoft OS descriptors version 2.0 is supported.
 The main motivation to support this functionality is because
@@ -54,7 +55,11 @@ or no driver at all.
 The only possible solution to deal with these is using [Windows Compatible IDs][WCID].
 This is stored in the USB device's descriptors, and tells Windows which driver to load for the given USB function.
 
-#### Microsoft XBOX-360 controller interface
+An even more advanced option is the possibility to define alternate configuration for Windows specifically.
+When Windows enumerates the device, it detects this feature, and sets the device in alternate enumeration mode, allowing the device to define completely different configuration as for all other hosts.
+This allows working around Windows compatibility issues without affecting compliant hosts.
+
+#### 🎮 Microsoft XBOX-360 controller interface
 
 Microsoft XBOX-360 gamepad controller interface is implemented to leverage XInput driver on Windows
 for gamepad applications without any user step. Combining this with Microsoft OS descriptors

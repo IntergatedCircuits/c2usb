@@ -172,7 +172,6 @@ void function::close_ep(ep_handle& eph)
     {
         mac_->ep_close(eph);
     }
-    eph = {};
 }
 
 usb::result function::send_ep(ep_handle eph, const std::span<const uint8_t>& data)
@@ -204,6 +203,18 @@ usb::result function::stall_ep(ep_handle eph, bool stall)
     if ((mac_ != nullptr) and eph.valid())
     {
         return mac_->ep_change_stall(eph, stall);
+    }
+    else
+    {
+        return usb::result::connection_reset;
+    }
+}
+
+usb::result function::cancel_ep(ep_handle eph)
+{
+    if ((mac_ != nullptr) and eph.valid())
+    {
+        return mac_->ep_cancel(eph);
     }
     else
     {

@@ -51,9 +51,7 @@ class function : public polymorphic
 
     virtual std::string_view ms_compatible_id() const { return {}; }
 
-    virtual void transfer_complete([[maybe_unused]] ep_handle eph,
-                                   [[maybe_unused]] const transfer& t)
-    {}
+    virtual void ep_callback([[maybe_unused]] const transfer& t) {}
 
   protected:
     ep_handle open_ep(const config::endpoint& ep);
@@ -80,6 +78,7 @@ class function : public polymorphic
     result send_ep(ep_handle eph, const std::span<const uint8_t>& data);
     result receive_ep(ep_handle eph, const std::span<uint8_t>& data);
     result stall_ep(ep_handle eph, bool stall);
+    result cancel_ep(ep_handle eph);
 
     message* pending_message();
 

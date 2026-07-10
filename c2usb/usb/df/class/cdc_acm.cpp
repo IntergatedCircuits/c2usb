@@ -130,36 +130,16 @@ void function::disable(const config::interface& iface)
     cdc::function::disable(iface);
 }
 
-void function::transfer_complete(ep_handle eph, const transfer& t)
+void function::ep_callback(const transfer& t)
 {
-    if (eph == ep_out_handle())
+    if (t.endpoint() == ep_out_handle())
     {
-        return data_received(t);
+        return data_received(std::span<uint8_t>(t.data(), t.size() * t.success()));
     }
-    if (eph == ep_in_handle())
+    if (t.endpoint() == ep_in_handle())
     {
-#if 0
-        auto len = t.size();
-        if (len == 0)
-        {
-            if (tx_len_ > 0)
-            {
-                // if ZLP is finished, substitute original length
-                len = tx_len_;
-                tx_len_ = 0;
-            }
-        }
-        else if ((len % in_ep_mps_) == 0)
-        {
-            // if length mod MPS == 0, split the transfer by sending ZLP
-            tx_len_ = len;
-            send_ep(eph, {});
-            return;
-        }
-        return data_sent({const_cast<const uint8_t*>(t.data()), len});
-#endif
         bool needs_zlp = t.size() and (t.size() % in_ep_mps_) == 0;
-        return data_sent(t, needs_zlp);
+        return data_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()), needs_zlp);
     }
     // notification sent
 }

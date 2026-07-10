@@ -739,22 +739,19 @@ void udc_mac::process_ep_event(net_buf* buf)
     {
         busy_flags_.clear(addr);
 
-        if (info.err == 0)
-        {
-            for (uint8_t i = 0; i < ep_bufs_.size(); ++i)
-            {
-                if (ep_bufs_[i] == buf)
-                {
-                    return ep_transfer_complete(addr, create_ep_handle(i + 1),
-                                                transfer(buf->data, buf->len));
-                }
-            }
-            assert(ep_bufs_.size() == 0); // a net_buf was issued out of c2usb scope
-        }
-        else
+        if (info.err != 0)
         {
             LOG_ERR("EP %x error:%d", info.ep, info.err);
         }
+        for (uint8_t i = 0; i < ep_bufs_.size(); ++i)
+        {
+            if (ep_bufs_[i] == buf)
+            {
+                return ep_transfer_complete(
+                    addr, transfer(buf->data, buf->len, info.err == 0, create_ep_handle(i + 1)));
+            }
+        }
+        assert(ep_bufs_.size() == 0); // a net_buf was issued out of c2usb scope
     }
 }
 
@@ -896,7 +893,7 @@ usb::result udc_mac::ep_receive(usb::df::ep_handle eph, const std::span<uint8_t>
     return ep_transfer(eph, data, direction::OUT);
 }
 
-usb::result udc_mac::ep_close(usb::df::ep_handle eph)
+usb::result udc_mac::ep_close(usb::df::ep_handle& eph)
 {
     auto& info = *udc_get_buf_info(ep_handle_to_buf(eph));
     auto addr = endpoint::address(info.ep);
@@ -907,13 +904,14 @@ usb::result udc_mac::ep_close(usb::df::ep_handle eph)
     {
         return usb::result(ret);
     }
+    eph = {};
     ret = udc_ep_dequeue(dev_, addr);
     if (ret != 0)
     {
         return usb::result(ret);
     }
     k_yield();
-    return usb::result::OK;
+    return usb::result::ok;
 }
 
 usb::result udc_mac::ep_cancel(usb::df::ep_handle eph)

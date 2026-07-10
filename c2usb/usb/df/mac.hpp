@@ -71,7 +71,8 @@ class mac : public polymorphic
     {
         return result::not_supported;
     }
-    virtual result ep_close([[maybe_unused]] ep_handle eph) { return result::not_supported; }
+    virtual result ep_cancel([[maybe_unused]] ep_handle eph) { return result::not_supported; }
+    virtual result ep_close([[maybe_unused]] ep_handle& eph) { return result::not_supported; }
 
     virtual bool ep_is_stalled([[maybe_unused]] ep_handle eph) const { return false; }
     virtual result ep_change_stall([[maybe_unused]] ep_handle eph, [[maybe_unused]] bool stall)
@@ -113,7 +114,7 @@ class mac : public polymorphic
     auto control_stage() const { return ctrl_msg_.stage(); }
     transfer control_ep_setup();
     bool control_ep_data(direction ep_dir, const transfer& t);
-    void ep_transfer_complete(endpoint::address addr, ep_handle eph, const transfer& t);
+    void ep_transfer_complete(endpoint::address addr, const transfer& t);
     virtual void init([[maybe_unused]] const usb::speeds& speeds) {}
     virtual void deinit() {}
     virtual bool set_attached(bool attached) { return attached; }

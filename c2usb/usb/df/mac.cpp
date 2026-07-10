@@ -128,10 +128,10 @@ bool mac::control_ep_data(direction ep_dir, const transfer& t)
     return true;
 }
 
-void mac::ep_transfer_complete(endpoint::address addr, ep_handle eph, const transfer& t)
+void mac::ep_transfer_complete(endpoint::address addr, const transfer& t)
 {
     assert(configured());
-    ep_address_to_config(addr).interface().function().transfer_complete(eph, t);
+    ep_address_to_config(addr).interface().function().ep_callback(t);
 }
 
 const config::endpoint& mac::ep_address_to_config(endpoint::address addr) const

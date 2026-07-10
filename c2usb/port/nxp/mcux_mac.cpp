@@ -101,6 +101,29 @@ static IRQn_Type usb_irqn(int index)
 extern "C" usb_status_t _USB_DeviceNotificationTrigger(void* handle, void* msg);
 #endif
 
+static constexpr c2usb::result to_result(usb_status_t status)
+{
+    switch (status)
+    {
+    case kStatus_USB_Success:
+        return c2usb::result::ok;
+    case kStatus_USB_Error:
+        return std::errc::io_error;
+    case kStatus_USB_Busy:
+        return std::errc::device_or_resource_busy;
+    case kStatus_USB_InvalidHandle:
+        return std::errc::no_such_device;
+    case kStatus_USB_ControllerNotFound:
+        return std::errc::no_such_device_or_address;
+    case kStatus_USB_InvalidParameter:
+        return std::errc::invalid_argument;
+    case kStatus_USB_InvalidRequest:
+        return std::errc::operation_not_supported;
+    default:
+        return std::errc::function_not_supported;
+    }
+}
+
 void mcux_mac::init(const speeds& speeds)
 {
 #if CONFIG_C2USB_MCUX_USB_COEXISTENCE
@@ -123,32 +146,29 @@ void mcux_mac::deinit()
 
 bool mcux_mac::set_attached(bool attached)
 {
-    driver_.device_control(handle(), attached ? kUSB_DeviceControlRun : kUSB_DeviceControlStop);
+    [[maybe_unused]] auto status =
+        driver_.device_control(handle(), attached ? kUSB_DeviceControlRun : kUSB_DeviceControlStop);
+    assert(status == kStatus_USB_Success);
     return attached;
 }
 
 usb::result mcux_mac::signal_remote_wakeup()
 {
-    auto status = driver_.device_control(handle(), kUSB_DeviceControlResume);
-    switch (status)
-    {
-    case kStatus_USB_Success:
-        return usb::result::ok;
-    default:
-        return usb::result::io_error;
-    }
+    return to_result(driver_.device_control(handle(), kUSB_DeviceControlResume));
 }
 
 void mcux_mac::set_address_early()
 {
-    driver_.device_control(handle(), kUSB_DeviceControlPreSetDeviceAddress,
-                           &request().wValue.low_byte());
+    [[maybe_unused]] auto status = driver_.device_control(
+        handle(), kUSB_DeviceControlPreSetDeviceAddress, &request().wValue.low_byte());
+    assert(status == kStatus_USB_Success);
 }
 
 void mcux_mac::set_address_timely()
 {
-    driver_.device_control(handle(), kUSB_DeviceControlSetDeviceAddress,
-                           &request().wValue.low_byte());
+    [[maybe_unused]] auto status = driver_.device_control(
+        handle(), kUSB_DeviceControlSetDeviceAddress, &request().wValue.low_byte());
+    assert(status == kStatus_USB_Success);
 }
 
 usb::speed mcux_mac::speed() const
@@ -178,7 +198,9 @@ void mcux_mac::control_ep_open()
 void mcux_mac::control_ep_stall()
 {
     auto addr = endpoint::address::control_out();
-    driver_.device_control(handle(), kUSB_DeviceControlEndpointStall, &addr);
+    [[maybe_unused]] auto status =
+        driver_.device_control(handle(), kUSB_DeviceControlEndpointStall, &addr);
+    assert(status == kStatus_USB_Success);
 }
 
 bool mcux_mac::ep_init(usb::endpoint::address addr, usb::endpoint::type type, uint16_t mps,
@@ -211,9 +233,8 @@ usb::result mcux_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& dat
     {
         return usb::result::device_or_resource_busy;
     }
-    auto status =
-        driver_.deviceSend(handle(), addr, const_cast<uint8_t*>(data.data()), data.size());
-    return (status == kStatus_USB_Success) ? usb::result::ok : usb::result::not_connected;
+    return to_result(
+        driver_.deviceSend(handle(), addr, const_cast<uint8_t*>(data.data()), data.size()));
 }
 
 usb::result mcux_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
@@ -223,24 +244,23 @@ usb::result mcux_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
     {
         return usb::result::device_or_resource_busy;
     }
-    auto status = driver_.deviceRecv(handle(), addr, data.data(), data.size());
-    return (status == kStatus_USB_Success) ? usb::result::ok : usb::result::not_connected;
+    return to_result(driver_.deviceRecv(handle(), addr, data.data(), data.size()));
 }
 
 usb::result mcux_mac::ep_cancel(ep_handle eph)
 {
     auto addr = ep_handle_to_address(eph);
-    auto status = driver_.deviceCancel(handle(), addr);
-    busy_flags_.clear(addr);
-    return (status == kStatus_USB_Success) ? usb::result::ok : usb::result::not_connected;
+    return to_result(driver_.deviceCancel(handle(), addr));
 }
 
-usb::result mcux_mac::ep_close(ep_handle eph)
+usb::result mcux_mac::ep_close(ep_handle& eph)
 {
     auto addr = ep_handle_to_address(eph);
-    auto status = driver_.device_control(handle(), kUSB_DeviceControlEndpointDeinit, &addr);
-    busy_flags_.clear(addr);
-    return (status == kStatus_USB_Success) ? usb::result::ok : usb::result::not_connected;
+    eph = {};
+    auto result =
+        to_result(driver_.device_control(handle(), kUSB_DeviceControlEndpointDeinit, &addr));
+    // busy flag is cleared in cancel callback
+    return result;
 }
 
 bool mcux_mac::ep_is_stalled(ep_handle eph) const
@@ -268,10 +288,6 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
     if (not addr.valid())
     {
         // wrong mapping
-    }
-    else if (message.length == UINT32_MAX)
-    {
-        // callback due to ep_cancel()
     }
     else if (addr.number() == 0)
     {
@@ -328,11 +344,13 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
                    (t.size() == 0)); // work around bug in NXP code
         }
     }
-    else
+    else // other endpoints
     {
         busy_flags_.clear(addr);
-        ep_transfer_complete(addr, create_ep_handle(addr),
-                             transfer(message.buffer, message.length));
+
+        bool success = (message.length != USB_CANCELLED_TRANSFER_LENGTH);
+        ep_transfer_complete(addr, transfer(message.buffer, message.length * success, success,
+                                            ep_address_to_handle(addr)));
     }
 }
 

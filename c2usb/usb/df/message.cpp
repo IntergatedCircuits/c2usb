@@ -47,7 +47,9 @@ void string_message::set_reply(const transfer& t)
 
 void string_message::reject()
 {
-    set_reply(transfer::stall());
+    assert(pending_);
+    pending_ = false;
+    data_ = transfer::stall();
 }
 
 void string_message::send_buffer()
@@ -102,7 +104,14 @@ void message::confirm()
 
 void message::set_reply(bool accept)
 {
-    string_message::set_reply(accept ? transfer() : transfer::stall());
+    if (accept)
+    {
+        confirm();
+    }
+    else
+    {
+        reject();
+    }
 }
 
 void message::send_data(const std::span<const uint8_t>& data)

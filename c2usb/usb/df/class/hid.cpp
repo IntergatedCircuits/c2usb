@@ -84,15 +84,16 @@ usb::result app_base_function::receive_report(const std::span<uint8_t>& data, re
     }
 }
 
-void app_base_function::transfer_complete(ep_handle eph, const transfer& t)
+void app_base_function::ep_callback(const transfer& t)
 {
-    if (eph == ep_in_handle())
+    if (t.endpoint() == ep_in_handle())
     {
-        app_.in_report_sent(t);
+        return app_.in_report_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()));
     }
-    else
+    if (t.endpoint() == ep_out_handle())
     {
-        app_.set_report(report::type::OUTPUT, t);
+        return app_.set_report(report::type::OUTPUT,
+                               std::span<const uint8_t>(t.data(), t.size() * t.success()));
     }
 }
 
@@ -242,7 +243,7 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     {
         auto type = static_cast<report::type>(msg.request().wValue.high_byte());
         rx_buffers_[type] = {};
-        app_.set_report(type, msg.data());
+        app_.set_report(type, msg.data().to_span());
         break;
     }
     default:

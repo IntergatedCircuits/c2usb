@@ -34,6 +34,8 @@ class mcux_mac : public df::address_handle_mac
 
     void handle_irq();
 
+    int controller_id() const { return index_; }
+
 #if C2USB_HAS_NXP_KHCI
     static mcux_mac khci(const std::span<uint8_t>& control_buffer);
 #endif // C2USB_HAS_NXP_KHCI

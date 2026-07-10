@@ -1,0 +1,6 @@
+west-commands:
+  - file: scripts/west_mcux.py
+    commands:
+      - name: mcux
+        class: WestMcux
+        help: Generate MCUXpresso SDK configuration files for projects

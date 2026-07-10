@@ -1,12 +1,12 @@
 {
-    "version": "25.12",
+    "version": "26.06",
     "toolchainPath": "$env{ARM_GCC_DIR}",
     "linkedProjects": [],
     "trustZoneType": "none",
     "multicoreType": "none",
     "projectType": "sdk-v2-repository",
     "sdk": {
-        "version": "25.12.0",
+        "version": "26.06.00",
         "path": "${workspaceFolder}/../../../..",
         "boardId": "frdmk22f",
         "deviceId": "MK22FN512xxx12",

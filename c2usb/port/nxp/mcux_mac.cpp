@@ -92,7 +92,12 @@ mcux_mac mcux_mac::lpcip3511(const std::span<uint8_t>& control_buffer, usb::spee
 
 static IRQn_Type usb_irqn(int index)
 {
-    static constexpr IRQn_Type usb_irqs[] = USB_IRQS;
+    static constexpr IRQn_Type usb_irqs[] =
+#ifdef USBHS_IRQS
+        USBHS_IRQS;
+#else
+        USB_IRQS;
+#endif
     return usb_irqs[index & 1];
 }
 

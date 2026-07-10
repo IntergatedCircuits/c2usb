@@ -1,0 +1,26 @@
+From 4fd6d29ec47a7b65a389883c984c3ba48b8d6d8c Mon Sep 17 00:00:00 2001
+From: Benedek Kupper <kupper.benedek@gmail.com>
+Date: Fri, 10 Jul 2026 22:11:38 +0200
+Subject: [PATCH] ignore vscode project files
+
+---
+ .gitignore | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index 316f2a12c5..9777f0b32d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -19,4 +19,7 @@ aac.adts.h
+ !*/*/wireless_examples/linker/*
+ !*/*/wireless_examples/linker/*/*
+ !*/*/wireless_examples/linker/*/*/*
+-build/
+\ No newline at end of file
++build/
++.vscode/
++mcux_include.json
++CMakePresets.json
+-- 
+2.43.0
+

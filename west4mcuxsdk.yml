@@ -3,3 +3,4 @@ manifest:
     import:
       - west.yml
       - mcux/import_mcuxsdk.yml
+    west-commands: scripts/mcux-west-commands.yml

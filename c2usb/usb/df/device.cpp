@@ -11,6 +11,8 @@
 #include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
 #include "usb/standard/descriptors.hpp"
+// UHK patch: anomaly diagnostics, see usb/df/mac_diag.hpp.
+#include "usb/df/mac_diag.hpp"
 
 using namespace magic_enum::bitwise_operators;
 
@@ -174,6 +176,7 @@ void device::set_configuration(message& msg)
         }
     }
 
+    diag::bus(config_index ? diag::bus_event::SET_CONFIG : diag::bus_event::DECONFIG);
     set_config(config);
 
     return msg.confirm();

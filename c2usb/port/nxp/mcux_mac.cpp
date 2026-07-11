@@ -18,6 +18,9 @@
 #include <usb_device_lpcip3511.h>
 #endif
 
+// UHK patch: anomaly diagnostics, see usb/df/mac_diag.hpp.
+#include "usb/df/mac_diag.hpp"
+
 namespace usb::df::nxp
 {
 struct controller_interface : public ::_usb_device_controller_interface_struct
@@ -128,6 +131,8 @@ void mcux_mac::init(const speeds& speeds)
     [[maybe_unused]] auto status = driver_.deviceInit(index_, this, &handle_);
     assert(status == kStatus_USB_Success);
 
+    diag::set_mac(this);
+
     EnableIRQ(usb_irqn(index_));
 }
 
@@ -193,6 +198,7 @@ void mcux_mac::control_ep_open()
 
 void mcux_mac::control_ep_stall()
 {
+    diag::record(diag::CTRL_STALL, 0, 0);
     auto addr = endpoint::address::control_out();
     [[maybe_unused]] auto status =
         driver_.device_control(handle(), kUSB_DeviceControlEndpointStall, &addr);
@@ -223,14 +229,21 @@ usb::result mcux_mac::ep_send(ep_handle eph, const std::span<const uint8_t>& dat
     auto addr = ep_handle_to_address(eph);
     if (power_state() != power::state::L0_ON)
     {
+        diag::record(diag::EP_NO_POWER, addr, (int)power_state());
         return result::network_down;
     }
     if (busy_flags_.test_and_set(addr))
     {
+        diag::record(diag::EP_BUSY, addr, 0);
         return usb::result::device_or_resource_busy;
     }
-    return to_result(
-        driver_.deviceSend(handle(), addr, const_cast<uint8_t*>(data.data()), data.size()));
+    auto status =
+        driver_.deviceSend(handle(), addr, const_cast<uint8_t*>(data.data()), data.size());
+    if (status != kStatus_USB_Success)
+    {
+        diag::record(diag::ENQUEUE_FAIL, addr, status);
+    }
+    return to_result(status);
 }
 
 usb::result mcux_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
@@ -238,9 +251,15 @@ usb::result mcux_mac::ep_receive(ep_handle eph, const std::span<uint8_t>& data)
     auto addr = ep_handle_to_address(eph);
     if (busy_flags_.test_and_set(addr))
     {
+        diag::record(diag::EP_BUSY, addr, 0);
         return usb::result::device_or_resource_busy;
     }
-    return to_result(driver_.deviceRecv(handle(), addr, data.data(), data.size()));
+    auto status = driver_.deviceRecv(handle(), addr, data.data(), data.size());
+    if (status != kStatus_USB_Success)
+    {
+        diag::record(diag::ENQUEUE_FAIL, addr, status);
+    }
+    return to_result(status);
 }
 
 usb::result mcux_mac::ep_cancel(ep_handle eph)
@@ -345,6 +364,17 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
         busy_flags_.clear(addr);
 
         bool success = (message.length != USB_CANCELLED_TRANSFER_LENGTH);
+        if (success)
+        {
+            diag::success(addr);
+        }
+        else
+        {
+            // cancelled transfer: a report that was handed to the controller
+            // never reached the host (dropped)
+            diag::record(diag::EP_ERROR, message.code, 0);
+            c2usb_log("HID report dropped: EP %02x transfer cancelled\n", message.code);
+        }
         ep_transfer_complete(addr, transfer(message.buffer, message.length * success, success,
                                             ep_address_to_handle(addr)));
     }
@@ -362,28 +392,35 @@ void mcux_mac::process_notification(const _usb_device_callback_message_struct& m
     switch (message.code)
     {
     case kUSB_DeviceNotifyBusReset:
+        diag::bus(diag::bus_event::RESET);
         driver_.device_control(handle(), kUSB_DeviceControlSetDefaultStatus);
         bus_reset();
         control_ep_open();
         break;
     case kUSB_DeviceNotifySuspend:
+        diag::bus(diag::bus_event::SUSPEND);
         set_power_state(power::state::L2_SUSPEND);
         break;
     case kUSB_DeviceNotifyResume:
+        diag::bus(diag::bus_event::RESUME);
         set_power_state(power::state::L0_ON);
         break;
     case kUSB_DeviceNotifyLPMSleep:
+        diag::bus(diag::bus_event::SLEEP);
         set_power_state(power::state::L1_SLEEP);
         break;
 
     case kUSB_DeviceNotifyDetach:
+        diag::bus(diag::bus_event::VBUS_OFF);
         set_power_state(power::state::L3_OFF);
         break;
     case kUSB_DeviceNotifyAttach:
+        diag::bus(diag::bus_event::VBUS_ON);
         set_power_state(power::state::L2_SUSPEND);
         break;
         // case kUSB_DeviceNotifyDcdDetectFinished:
     case kUSB_DeviceNotifyError:
+        diag::bus(diag::bus_event::ERROR);
         break;
     default:
         process_ep_notification(message);

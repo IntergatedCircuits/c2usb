@@ -11,12 +11,26 @@
 #include "port/zephyr/udc_mac.hpp"
 #include <atomic>
 #include "compatibility_helper.hpp"
+#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/message_queue.hpp>
 extern "C"
 {
 #include <zephyr/drivers/usb/udc.h>
 }
+
+// UHK patch: anomaly diagnostics, see usb/df/mac_diag.hpp.
+#include "usb/df/mac_diag.hpp"
+
+extern "C" uint32_t c2usb_diag_time_ms(void)
+{
+    return k_uptime_get_32();
+}
+
+namespace
+{
+uint32_t diag_msgq_min_free = UINT32_MAX;
+} // namespace
 
 #if defined(CONFIG_DEBUG) == defined(NDEBUG)
 // for assert() to be active in debug configuration only, this is necessary
@@ -113,6 +127,7 @@ static int udc_buf_enqueue(const ::device* dev, ::net_buf* buf)
     if (ret != 0)
     {
         LOG_ERR("Failed to enqueue ep 0x%02x: %d", udc_get_buf_info(buf)->ep, ret);
+        diag::record(diag::ENQUEUE_FAIL, udc_get_buf_info(buf)->ep, ret);
     }
     return ret;
 }
@@ -151,6 +166,7 @@ udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state
     }
     set_control_buffer(std::span<uint8_t>(ctrl_buf_->data, ctrl_buf_->size));
 
+    diag::set_mac(this);
     set_driver_ctx();
 }
 
@@ -230,8 +246,13 @@ static int udc_mac_event_dispatch(const ::device*, const udc_event* event)
     last_full = !message_queue().try_post(*event);
     if (last_full)
     {
+        diag::record(diag::EVENT_DROPPED, 0, event->type);
         __ASSERT_PRINT("udc_mac_msgq full\n");
         __ASSERT_POST_ACTION();
+    }
+    if (auto free_space = message_queue().free_space(); free_space < diag_msgq_min_free)
+    {
+        diag_msgq_min_free = free_space;
     }
 #if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
     static auto min_free_msgq_space = message_queue().free_space();
@@ -351,6 +372,7 @@ uint16_t udc_mac::control_ep_max_packet_size(usb::speed speed) const
 
 void udc_mac::ctrl_stall(net_buf* buf, int err)
 {
+    diag::record(diag::CTRL_STALL, 0, err);
     auto addr = endpoint::address::control_in();
     if ((request().direction() == usb::direction::OUT) and request().wLength and (err == -ENOMEM))
     {
@@ -514,6 +536,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         net_buf_unref(buf);
         LOG_WRN("CTRL EP %x (stage %d) error: %d", info.ep,
                 info.setup * 0 + info.data * 1 + info.status * 2, info.err);
+        diag::record(diag::CTRL_ERROR, info.ep, info.err);
     }
 }
 
@@ -541,6 +564,29 @@ int udc_mac::event_callback(const udc_event& event)
 
 int udc_mac::process_event(const udc_event& event)
 {
+    switch (event.type)
+    {
+    case UDC_EVT_RESET:
+        diag::bus(diag::bus_event::RESET);
+        break;
+    case UDC_EVT_SUSPEND:
+        diag::bus(diag::bus_event::SUSPEND);
+        break;
+    case UDC_EVT_RESUME:
+        diag::bus(diag::bus_event::RESUME);
+        break;
+    case UDC_EVT_VBUS_READY:
+        diag::bus(diag::bus_event::VBUS_ON);
+        break;
+    case UDC_EVT_VBUS_REMOVED:
+        diag::bus(diag::bus_event::VBUS_OFF);
+        break;
+    case UDC_EVT_ERROR:
+        diag::bus(diag::bus_event::ERROR);
+        break;
+    default:
+        break;
+    }
     if ((power_state() == power::state::L3_OFF) and (event.type != UDC_EVT_VBUS_READY)) [[unlikely]]
     {
         // flush late events after Vbus removal
@@ -619,6 +665,7 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
     {
         LOG_WRN("CTRL EP %x (stage %d) error: %d", info.ep,
                 info.setup * 0 + info.data * 1 + info.status * 2, info.err);
+        diag::record(diag::CTRL_ERROR, info.ep, info.err);
 
         if (info.setup or (info.data and (dir == direction::OUT)))
         {
@@ -742,6 +789,12 @@ void udc_mac::process_ep_event(net_buf* buf)
         if (info.err != 0)
         {
             LOG_ERR("EP %x error:%d", info.ep, info.err);
+            diag::record(diag::EP_ERROR, info.ep, info.err);
+            c2usb_log("HID report dropped: EP %02x transfer error %d\n", info.ep, info.err);
+        }
+        else
+        {
+            diag::success(info.ep);
         }
         for (uint8_t i = 0; i < ep_bufs_.size(); ++i)
         {
@@ -864,10 +917,12 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
 #endif
     if ((dir == direction::IN) and (power_state() != power::state::L0_ON))
     {
+        diag::record(diag::EP_NO_POWER, addr, (int)power_state());
         return result::network_down;
     }
     if (busy_flags_.test_and_set(addr))
     {
+        diag::record(diag::EP_BUSY, addr, 0);
         return result::device_or_resource_busy;
     }
 
@@ -878,6 +933,7 @@ usb::result udc_mac::ep_transfer(usb::df::ep_handle eph, const transfer& t, usb:
     auto ret = udc_ep_enqueue(dev_, buf);
     if (ret != 0)
     {
+        diag::record(diag::ENQUEUE_FAIL, addr, ret);
         busy_flags_.clear(addr);
     }
     return usb::result(ret);
@@ -963,6 +1019,12 @@ usb::result udc_mac::ep_change_stall(usb::df::ep_handle eph, bool stall)
     {
         return ep_clear_stall(addr);
     }
+}
+
+extern "C" void c2usb_diag_dump_port(void)
+{
+    c2usb_log("  evt queue free=%u min=%u\n", (unsigned)message_queue().free_space(),
+              (unsigned)diag_msgq_min_free);
 }
 
 } // namespace usb::zephyr

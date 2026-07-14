@@ -159,9 +159,12 @@ usb::result mcux_mac::signal_remote_wakeup()
 
 void mcux_mac::set_address_early()
 {
-    [[maybe_unused]] auto status = driver_.device_control(
-        handle(), kUSB_DeviceControlPreSetDeviceAddress, &request().wValue.low_byte());
-    assert(status == kStatus_USB_Success);
+    // Not all controllers can latch the address before the status stage: KHCI
+    // has no kUSB_DeviceControlPreSetDeviceAddress case and returns an error.
+    // That's harmless - such controllers get the address in set_address_timely()
+    // instead - so this must not assert.
+    (void)driver_.device_control(handle(), kUSB_DeviceControlPreSetDeviceAddress,
+                                &request().wValue.low_byte());
 }
 
 void mcux_mac::set_address_timely()

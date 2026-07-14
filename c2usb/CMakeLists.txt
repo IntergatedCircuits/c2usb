@@ -42,7 +42,7 @@ endif()
 
 if(ZEPHYR_ETL_MODULE_DIR OR MCUX_ETL_MODULE_DIR)
 else()
-    CPMAddPackage("gh:ETLCPP/etl#20.46.2")
+    CPMAddPackage("gh:ETLCPP/etl#20.48.1")
 endif()
 
 target_link_libraries(c2usb

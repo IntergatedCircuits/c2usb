@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2025
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "port/nxp/mcux_mac.hpp"
 #include "usb/standard/requests.hpp"
 #include <usb_device.h>
@@ -166,7 +157,7 @@ void mcux_mac::set_address_early()
 {
     [[maybe_unused]] auto status = driver_.device_control(
         handle(), kUSB_DeviceControlPreSetDeviceAddress, &request().wValue.low_byte());
-    assert(status == kStatus_USB_Success);
+    // status may be error if the device doesn't support early address setting
 }
 
 void mcux_mac::set_address_timely()

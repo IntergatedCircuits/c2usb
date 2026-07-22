@@ -69,6 +69,7 @@ target_sources(c2usb
         usb/df/device.cpp
         usb/df/function.cpp
         usb/df/mac.cpp
+        usb/df/mac_diag.cpp
         usb/df/message.cpp
         usb/standard/descriptors.cpp
 )

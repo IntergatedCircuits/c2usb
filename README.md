@@ -36,7 +36,7 @@ HID has outgrown itself from a pure USB class to a transport-independent protoco
 and so this library also provides alternative transports for HID applications,
 which interact with the same high-level application API.
 The additional transport layers supported are:
-* BLE (HID over GATT Protocol) - Zephyr backend
+* BLE (HID over GATT Protocol, including SCI support) - Zephyr backend
 * I2C
 
 #### 🔌 CDC-ACM - Serial Port

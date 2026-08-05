@@ -11,12 +11,17 @@ source "subsys/logging/Kconfig.template.log_config"
 config C2USB_HOGP_POWER_EVENT
     bool "Enable HOGP control point power event callback"
 
-config C2USB_HOGP_BT_DISCONN_CB
-    bool "HOGP registers its own Bluetooth disconnection callback through BT_CONN_CB_DEFINE"
-    default y
-    help
-      If enabled, HOGP registers its own Bluetooth disconnection callback through BT_CONN_CB_DEFINE.
-      If disabled, the application must register its own Bluetooth disconnection callback and call
-      bluetooth::hid_over_gatt::service::disconnect_callback() from it.
+config C2USB_HOGP_SCI
+    bool "Enable HID Shorter Connection Intervals (SCI) support"
+    depends on BT_SHORTER_CONNECTION_INTERVALS
+
+if C2USB_HOGP_SCI
+
+config C2USB_HOGP_MAX_CONN_INTERVAL_GROUPS
+    int "Maximum number of connection interval groups"
+    default 4
+    range 0 41
+
+endif # C2USB_HOGP_SCI
 
 endif # C2USB_HOGP

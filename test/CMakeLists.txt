@@ -7,6 +7,7 @@ target_sources(${PROJECT_NAME}-test
         main.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/raw_to_hex_string.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/reference_array_view.test.cpp
+        ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/bluetooth/hid_over_gatt_sci.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/usb/df/config.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/usb/version.test.cpp
 )

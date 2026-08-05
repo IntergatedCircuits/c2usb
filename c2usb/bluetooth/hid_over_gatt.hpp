@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
 #include "bluetooth/gatt.hpp"
+#include "bluetooth/hid_over_gatt_sci.hpp"
 #include "hid/transport.hpp"
 #include "usb/base.hpp"
 #include "usb/class/hid.hpp"
@@ -10,16 +11,19 @@
 
 namespace bluetooth::hid_over_gatt
 {
-/// @brief  HID over GATT feature flags.
+
+/// @brief  HID over GATT feature flags
 enum class flags : uint8_t
 {
-    NONE = 0,
-    REMOTE_WAKE = 1, // whether HID Device is capable of sending a wake-signal to a HID Host
-    NORMALLY_CONNECTABLE =
-        2, // whether HID Device will be advertising when bonded but not connected
-};
+    // clang-format off
+    NONE                         = 0,
+    REMOTE_WAKE                  = 1, // whether HID Device is capable of sending a wake-signal to a HID Host
+    NORMALLY_CONNECTABLE         = 2, // whether HID Device will be advertising when bonded but not connected
+    SCI_SUPPORTED                = 4, // whether HID Device supports the HID SCI feature
+    SCI_LOW_POWER_MODE_SUPPORTED = 8, // whether HID Device supports the low power mode
+}; // clang-format on
 
-/// @brief  HID over GATT general descriptor.
+/// @brief  HID over GATT information payload
 struct info
 {
     usb::version bcdHID{usb::hid::SPEC_VERSION};
@@ -31,15 +35,17 @@ struct info
     {}
 };
 
+/// @brief  HID over GATT session parameters also include the Bluetooth connection object
+struct session_params : public ::hid::session::params
+{
+    ::bt_conn* conn{};
+};
+
+/// @brief  Events delivered through the Control Point characteristic
 enum class event : uint8_t
 {
     SUSPEND = 0,
     EXIT_SUSPEND = 1,
-};
-
-struct session_params : public ::hid::session::params
-{
-    ::bt_conn* conn{};
 };
 
 /// @brief  This class implements the HID over GATT protocol service.
@@ -67,8 +73,8 @@ class service : public hid::transport
     };
 
   private:
-    template <typename T, void (service::*FUNC)(T)>
-    static void for_each(T data)
+    template <typename T, void (service::*FUNC)(T*)>
+    static void for_each(T* data)
     {
         bt_gatt_foreach_attr_type(
             std::numeric_limits<uint16_t>::min(), std::numeric_limits<uint16_t>::max(),
@@ -77,10 +83,10 @@ class service : public hid::transport
             [](const ::bt_gatt_attr* attr, uint16_t, void* user_data)
             {
                 auto* self = static_cast<service*>(attr->user_data);
-                (self->*FUNC)(static_cast<T>(user_data));
+                (self->*FUNC)(const_cast<T*>(static_cast<std::remove_const_t<T>*>(user_data)));
                 return (uint8_t)BT_GATT_ITER_CONTINUE;
             },
-            static_cast<void*>(data));
+            static_cast<void*>(const_cast<std::remove_const_t<T>*>(data)));
     }
 
     gatt::permissions access() const { return access_; }
@@ -170,6 +176,20 @@ class service : public hid::transport
                                     properties::READ | properties::NOTIFY};
         return info;
     }
+    static const gatt::char_decl& sci_information_info()
+    {
+        using namespace bluetooth::gatt;
+        static const char_decl info{uuid16<BT_UUID_HIDS_SCI_INFO_VAL>(), properties::READ};
+        return info;
+    }
+    static const gatt::char_decl& sci_mode_info()
+    {
+        using namespace bluetooth::gatt;
+        using namespace magic_enum::bitwise_operators;
+        static const char_decl info{uuid16<BT_UUID_HIDS_SCI_MODE_VAL>(),
+                                    properties::READ | properties::NOTIFY};
+        return info;
+    }
 
     std::span<const gatt::attribute> attributes() const
     {
@@ -190,6 +210,11 @@ class service : public hid::transport
     static ssize_t control_point_request(::bt_conn* conn, const ::bt_gatt_attr* attr,
                                          void const* buf, uint16_t len, uint16_t offset,
                                          uint8_t flags);
+
+    static ssize_t get_sci_information(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
+                                       uint16_t len, uint16_t offset);
+    static ssize_t get_sci_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
+                                uint16_t len, uint16_t offset);
 
     static ssize_t get_report(::bt_conn* conn, const gatt::attribute* attr, uint8_t* buf,
                               uint16_t len, uint16_t offset);
@@ -261,6 +286,10 @@ class service : public hid::transport
         ::bt_conn* conn{};
         hid::session* session{};
         hid::transport::reports_receiver rx_buffers_{};
+#if CONFIG_C2USB_HOGP_SCI
+        sci_mode pending_sci_mode_{};
+        sci_mode active_sci_mode_{};
+#endif
     };
     conn_session& make_session(::bt_conn* conn, hid::protocol prot);
     void disconnected(::bt_conn* conn);
@@ -283,6 +312,19 @@ class service : public hid::transport
 #else
     auto boot_mode() const { return hid::boot::mode::NONE; }
 #endif
+#if CONFIG_C2USB_HOGP_SCI
+    gatt::ccc_store sci_mode_ccc_{};
+    std::span<const sci_mode_params> sci_mode_params_;
+    static inline sci_attributes<CONFIG_C2USB_HOGP_MAX_CONN_INTERVAL_GROUPS> sci_attributes_{};
+
+    bool set_sci_mode(::bt_conn* conn, sci_mode mode);
+    struct connection_rate_params
+    {
+        ::bt_conn* conn{};
+        const bt_conn_le_conn_rate_changed* params{};
+    };
+    void connection_rate_changed(const connection_rate_params* params);
+#endif
 
   protected:
     std::span<gatt::attribute>
@@ -296,7 +338,7 @@ class service : public hid::transport
         auto attr_tail =
             gatt::attribute::builder(attrs.data())
                 .primary_service(uuid16<BT_UUID_HIDS_VAL>())
-#if 1
+#if 1 // use the generic implementation
                 .characteristic(
                     report_map_info(), read_access(),
                     &gatt::attribute::read_range<hid::report_protocol::descriptor_view_type>,
@@ -307,7 +349,16 @@ class service : public hid::transport
 #endif
                 .characteristic(hid_info(), read_access(), desc)
                 .characteristic(control_point_info(), write_access(), nullptr,
-                                &service::control_point_request, this);
+                                &service::control_point_request, this)
+
+#if CONFIG_C2USB_HOGP_SCI
+                .characteristic(sci_information_info(), read_access(),
+                                &service::get_sci_information, nullptr, this)
+                .characteristic(sci_mode_info(), read_access(), &service::get_sci_mode, nullptr,
+                                this)
+                .ccc_descriptor(sci_mode_ccc_, access())
+#endif
+            ;
 
         assert(attr_tail.data() == (attrs.data() + base_attribute_count()));
 
@@ -377,13 +428,20 @@ class service : public hid::transport
 
     constexpr service(hid::application& app, security level,
                       const std::span<gatt::attribute>& attrs,
-                      auto boot_mode = hid::boot::mode::NONE)
+#if CONFIG_C2USB_HOGP_SCI
+                      const std::span<const sci_mode_params> sci_modes,
+#endif
+                      [[maybe_unused]] auto boot_mode = hid::boot::mode::NONE)
         : app_(app),
           gatt_service_(attrs),
           access_(gatt::readwriteable_at(level))
 #if CONFIG_C2USB_HID_BOOT_PROTOCOL
           ,
           boot_mode_(boot_mode)
+#endif
+#if CONFIG_C2USB_HOGP_SCI
+          ,
+          sci_mode_params_(sci_modes)
 #endif
     {}
 
@@ -393,7 +451,13 @@ class service : public hid::transport
                + 2 // report map
                + 2 // HID info
                + 2 // control point
-            ;
+               +
+               IS_ENABLED(CONFIG_C2USB_HOGP_SCI) * (2 * 2 + 1); // SCI information and mode with CCC
+        ;
+    }
+    const gatt::attribute* sci_mode_attr() const
+    {
+        return attributes().data() + base_attribute_count() - 3;
     }
     static constexpr size_t boot_attribute_count(hid::report::type type)
     {
@@ -459,24 +523,28 @@ class service : public hid::transport
                                      [](const conn_session& s) { return s.session != nullptr; });
     }
 
+#if CONFIG_C2USB_HOGP_SCI
+    static void connect_callback(bt_conn* conn, uint8_t err);
+    static void connection_rate_callback(::bt_conn* conn, uint8_t status,
+                                         const ::bt_conn_le_conn_rate_changed* params);
+#endif
     static void disconnect_callback(::bt_conn* conn, uint8_t reason);
 };
 
 /// @brief  This class creates the HID over GATT service with the necessary storage.
-/// @tparam REPORT_DESCRIPTOR the HID report descriptor as a byte array
-///@tparam  BOOT the boot protocol mode to support (if any)
-template <auto REPORT_DESCRIPTOR
+/// @tparam REPORT_DESCRIPTOR: the HID report descriptor as a byte array
+/// @tparam BOOT: the boot protocol mode(s) to support (if any)
 #if CONFIG_C2USB_HID_BOOT_PROTOCOL
-          ,
-          auto BOOT = hid::boot::mode::NONE
+template <auto REPORT_DESCRIPTOR, auto BOOT = hid::boot::mode::NONE>
+#else
+template <auto REPORT_DESCRIPTOR>
 #endif
-          >
 class service_instance : public service
 {
     static inline constexpr ::hid::report_protocol_properties REPORT_PROPS{
-        ::hid::rdf::ce_descriptor_view{REPORT_DESCRIPTOR}};
+        hid::rdf::ce_descriptor_view{REPORT_DESCRIPTOR}};
     static inline constexpr auto REPORT_TABLE =
-        ::hid::make_report_properties_table<REPORT_DESCRIPTOR>();
+        hid::make_report_properties_table<REPORT_DESCRIPTOR>();
 
 #ifndef CONFIG_C2USB_HID_BOOT_PROTOCOL
     static constexpr auto BOOT = hid::boot::mode::NONE;
@@ -485,6 +553,7 @@ class service_instance : public service
     std::array<ccc_data, ccc_count(REPORT_PROPS, BOOT)> ccc_stores_;
 
   public:
+#ifndef CONFIG_C2USB_HOGP_SCI
     constexpr service_instance(hid::application& app, security level,
                                flags f = (flags)((uint8_t)flags::REMOTE_WAKE |
                                                  (uint8_t)flags::NORMALLY_CONNECTABLE),
@@ -493,6 +562,29 @@ class service_instance : public service
     {
         fill_attributes(REPORT_TABLE, attributes_, ccc_stores_, hid_over_gatt::info(f, country));
     }
+#else
+    constexpr service_instance(
+        hid::application& app, security level,
+        flags f = (flags)((uint8_t)flags::REMOTE_WAKE | (uint8_t)flags::NORMALLY_CONNECTABLE),
+        const std::span<const sci_mode_params>& sci_modes = sci_mode_params::recommended_set())
+        : service(app, level, attributes_, sci_modes, BOOT)
+    {
+        // low power sci mode is optional
+        if (auto it = std::ranges::find_if(sci_modes, [](const sci_mode_params& p)
+                                           { return p.mode == sci_mode::LOW_POWER; });
+            it != sci_modes.end())
+        {
+            f = (flags)((uint8_t)f | (uint8_t)flags::SCI_SUPPORTED |
+                        (uint8_t)flags::SCI_LOW_POWER_MODE_SUPPORTED);
+        }
+        else
+        {
+            f = (flags)(((uint8_t)f | (uint8_t)flags::SCI_SUPPORTED) &
+                        ~(uint8_t)flags::SCI_LOW_POWER_MODE_SUPPORTED);
+        }
+        fill_attributes(REPORT_TABLE, attributes_, ccc_stores_, f);
+    }
+#endif
 
     constexpr std::span<const gatt::attribute> attributes() const { return {attributes_}; }
 

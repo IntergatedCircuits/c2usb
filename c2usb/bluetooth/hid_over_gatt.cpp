@@ -4,6 +4,10 @@
 #include <hid/app/keyboard.hpp>
 #include <hid/app/mouse.hpp>
 #include <zephyr/logging/log.h>
+#if CONFIG_C2USB_HOGP_SCI
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/hci_types.h>
+#endif
 
 LOG_MODULE_REGISTER(hogp, CONFIG_C2USB_HOGP_LOG_LEVEL);
 
@@ -79,7 +83,7 @@ ssize_t service::control_point_request(::bt_conn* conn, const ::bt_gatt_attr* at
     {
         return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
     }
-    if (len > sizeof(uint8_t))
+    if (len != sizeof(uint8_t))
     {
         return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
     }
@@ -97,6 +101,16 @@ ssize_t service::control_point_request(::bt_conn* conn, const ::bt_gatt_attr* at
         }
 #endif
         return len;
+#if defined(CONFIG_C2USB_HOGP_SCI)
+    case uint8_t(sci_mode::DEFAULT):
+    case uint8_t(sci_mode::FAST):
+    case uint8_t(sci_mode::FULL_RANGE):
+    case uint8_t(sci_mode::LOW_POWER):
+        return static_cast<service*>(attr->user_data)
+                       ->set_sci_mode(conn, static_cast<sci_mode>(cmd))
+                   ? len
+                   : BT_GATT_ERR(BT_ATT_ERR_NOT_SUPPORTED);
+#endif
     default:
         return BT_GATT_ERR(BT_ATT_ERR_NOT_SUPPORTED);
     }
@@ -397,6 +411,154 @@ ssize_t service::ccc_cfg_write(::bt_conn* conn, const gatt::attribute* attr, gat
     return (session.protocol() == prot) ? sizeof(flags) : BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
 }
 
+#if CONFIG_C2USB_HOGP_SCI
+ssize_t service::get_sci_information(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
+                                     uint16_t len, uint16_t offset)
+{
+    if (sci_attributes_.min_supported_conn_interval == 0)
+    {
+        return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+    }
+    return bt_gatt_attr_read(conn, attr, buf, len, offset,
+                             c2usb::std_layout_cast<const uint8_t*>(&sci_attributes_),
+                             offsetof(decltype(sci_attributes_), groups) +
+                                 sci_attributes_.num_groups * sizeof(sci_attributes_.groups[0]));
+}
+
+ssize_t service::get_sci_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf, uint16_t len,
+                              uint16_t offset)
+{
+    auto* self = static_cast<service*>(attr->user_data);
+    auto it = std::ranges::find_if(self->sessions_, [&](const auto& s) { return s.conn == conn; });
+    if (it == self->sessions_.end())
+    {
+        uint8_t mode = uint8_t(sci_mode::NONE);
+        return bt_gatt_attr_read(conn, attr, buf, len, offset, &mode, sizeof(mode));
+    }
+    return bt_gatt_attr_read(conn, attr, buf, len, offset,
+                             c2usb::std_layout_cast<const uint8_t*>(&it->active_sci_mode_),
+                             sizeof(it->active_sci_mode_));
+}
+
+bool service::set_sci_mode(::bt_conn* conn, sci_mode mode)
+{
+    if (sci_attributes_.min_supported_conn_interval == 0)
+    {
+        return false;
+    }
+    auto it = std::ranges::find_if(sessions_, [&](const auto& s) { return s.conn == conn; });
+    if (it == sessions_.end())
+    {
+        // no session yet, use a slot for this connection, without a session
+        auto it = std::ranges::find_if(sessions_, [&](const auto& s) { return s.conn == nullptr; });
+        assert((it != sessions_.end()) and "no free conn_session slots");
+        it->conn = conn;
+    }
+
+    auto params = std::find_if(sci_mode_params_.begin(), sci_mode_params_.end(),
+                               [mode](const auto& p) { return p.mode == mode; });
+    if (params == sci_mode_params_.end())
+    {
+        assert((mode == sci_mode::LOW_POWER) and "Missing mandatory SCI mode parameters");
+        return false;
+    }
+
+    auto& sci_params = *params;
+    if (auto ret = bt_conn_le_conn_rate_request(conn, &sci_params); ret != 0)
+    {
+        LOG_ERR("Failed to request connection rate change: %d", ret);
+        return false;
+    }
+
+    it->pending_sci_mode_ = mode;
+    return true;
+}
+
+void service::connect_callback(bt_conn* conn, uint8_t err)
+{
+    if (sci_attributes_.min_supported_conn_interval == 0)
+    {
+        // first time initialization, fetch and store the SCI information for all subsequent use
+        const size_t offset =
+            offsetof(::bt_hci_op_le_read_min_supported_conn_interval, min_supported_conn_interval);
+        struct net_buf* rsp;
+        if (auto ret =
+                bt_hci_cmd_send_sync(BT_HCI_OP_LE_READ_MIN_SUPPORTED_CONN_INTERVAL, nullptr, &rsp);
+            (ret != 0) or (rsp->len < offset + sizeof(sci_attributes<0>)))
+        {
+            LOG_ERR("Failed to read min supported connection interval: %d", ret);
+            return;
+        }
+
+        size_t size = std::min<size_t>(sizeof(sci_attributes_), rsp->len - offset);
+        std::copy_n(rsp->data + offset, size,
+                    c2usb::std_layout_cast<uint8_t*>(&sci_attributes_.min_supported_conn_interval));
+
+        size -= offsetof(decltype(sci_attributes_), groups);
+        if (sci_attributes_.num_groups > sci_attributes_.groups.size())
+        {
+            LOG_WRN("Supported connection interval groups exceeds storage: %d (max %d)",
+                    sci_attributes_.num_groups, sci_attributes_.groups.size());
+            sci_attributes_.num_groups = sci_attributes_.groups.size();
+        }
+
+        net_buf_unref(rsp);
+    }
+}
+
+void service::connection_rate_callback(::bt_conn* conn, uint8_t status,
+                                       const ::bt_conn_le_conn_rate_changed* params)
+{
+    if (status != BT_HCI_ERR_SUCCESS)
+    {
+        return;
+    }
+    auto change_params = connection_rate_params{conn, params};
+    for_each<const connection_rate_params, &service::connection_rate_changed>(&change_params);
+}
+
+void service::connection_rate_changed(const connection_rate_params* p)
+{
+    auto it = std::ranges::find_if(sessions_, [&](const auto& s) { return s.conn == p->conn; });
+    if (it == sessions_.end())
+    {
+        return;
+    }
+    auto new_mode = it->pending_sci_mode_;
+    it->pending_sci_mode_ = sci_mode::NONE;
+    if (new_mode != sci_mode::NONE)
+    {
+        auto mode_params = std::find_if(sci_mode_params_.begin(), sci_mode_params_.end(),
+                                        [new_mode](const auto& p) { return p.mode == new_mode; });
+        if ((mode_params == sci_mode_params_.end()) or !mode_params->match(*p->params))
+        {
+            LOG_WRN("Connection %p rate change does not match requested SCI mode %u", p->conn,
+                    uint8_t(new_mode));
+            new_mode = sci_mode::NONE;
+        }
+    }
+    if (new_mode == sci_mode::NONE)
+    {
+        // no pending SCI mode change request, find a matching mode
+        auto matching_params =
+            std::find_if(sci_mode_params_.begin(), sci_mode_params_.end(),
+                         [in = p->params](const auto& p) { return p.match(*in); });
+        new_mode =
+            (matching_params != sci_mode_params_.end()) ? matching_params->mode : sci_mode::NONE;
+    }
+
+    if (new_mode != it->active_sci_mode_)
+    {
+        it->active_sci_mode_ = new_mode;
+        LOG_INF("Connection %p SCI mode changed to %u", p->conn, uint8_t(new_mode));
+        sci_mode_attr()->notify(
+            std::span<const uint8_t>(c2usb::std_layout_cast<const uint8_t*>(&new_mode),
+                                     sizeof(new_mode)),
+            p->conn);
+    }
+}
+#endif
+
 void service::disconnected(::bt_conn* conn)
 {
     auto it = std::ranges::find_if(sessions_, [&](const auto& s) { return s.conn == conn; });
@@ -409,13 +571,17 @@ void service::disconnected(::bt_conn* conn)
 
 void service::disconnect_callback(::bt_conn* conn, uint8_t reason)
 {
-    for_each<::bt_conn*, &service::disconnected>(conn);
+    for_each<::bt_conn, &service::disconnected>(conn);
 }
 
 } // namespace bluetooth::hid_over_gatt
 
-#if CONFIG_C2USB_HOGP_BT_DISCONN_CB
 BT_CONN_CB_DEFINE(hid_over_gatt_conn_callbacks) = {
-    .disconnected = &bluetooth::hid_over_gatt::service::disconnect_callback,
-};
+#if CONFIG_C2USB_HOGP_SCI
+    .connected = &bluetooth::hid_over_gatt::service::connect_callback,
 #endif
+    .disconnected = &bluetooth::hid_over_gatt::service::disconnect_callback,
+#if CONFIG_C2USB_HOGP_SCI
+    .conn_rate_changed = &bluetooth::hid_over_gatt::service::connection_rate_callback,
+#endif
+};

@@ -1,20 +1,9 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_VENDOR_MICROSOFT_XUSB_HPP_
-#define __USB_VENDOR_MICROSOFT_XUSB_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/control.hpp"
 #include "usb/standard/descriptors.hpp"
 
-namespace usb::microsoft::xusb
+namespace usb::microsoft::xusb // NOLINT(modernize-concat-nested-namespaces)
 {
 // notice the difference in the amount of documentation?
 // that's because this protocol isn't published, it's reverse-engineered...
@@ -41,8 +30,8 @@ struct control_in
 {
     struct joystick
     {
-        le_int16_t X{};
-        le_int16_t Y{};
+        le_int16_t X;
+        le_int16_t Y;
     };
 
     const uint8_t report_id{0};
@@ -51,40 +40,40 @@ struct control_in
     {
         struct
         {
-            uint16_t UP : 1;
-            uint16_t DOWN : 1;
-            uint16_t LEFT : 1;
-            uint16_t RIGHT : 1;
-            uint16_t START : 1;
-            uint16_t BACK : 1;
-            uint16_t LS : 1;
-            uint16_t RS : 1;
-            uint16_t LB : 1;
-            uint16_t RB : 1;
-            uint16_t HOME : 1;
+            uint16_t UP : 1 {};
+            uint16_t DOWN : 1 {};
+            uint16_t LEFT : 1 {};
+            uint16_t RIGHT : 1 {};
+            uint16_t START : 1 {};
+            uint16_t BACK : 1 {};
+            uint16_t LS : 1 {};
+            uint16_t RS : 1 {};
+            uint16_t LB : 1 {};
+            uint16_t RB : 1 {};
+            uint16_t HOME : 1 {};
             uint16_t : 1;
-            uint16_t A : 1;
-            uint16_t B : 1;
-            uint16_t X : 1;
-            uint16_t Y : 1;
+            uint16_t A : 1 {};
+            uint16_t B : 1 {};
+            uint16_t X : 1 {};
+            uint16_t Y : 1 {};
         };
-        le_uint16_t buttons{};
+        le_uint16_t buttons;
     };
     uint8_t left_trigger{};
     uint8_t right_trigger{};
     joystick left;
     joystick right;
-    uint8_t reserved[6]{};
+    reserved_t<6> reserved;
 };
 
 struct rumble_out
 {
     const uint8_t report_id{0};
     const uint8_t report_size{sizeof(rumble_out)};
-    uint8_t reserved1[1]{};
+    reserved_t<1> reserved1;
     uint8_t left_rumble{};
     uint8_t right_rumble{};
-    uint8_t reserved2[3]{};
+    reserved_t<3> reserved2;
 };
 
 // https://www.partsnotincluded.com/xbox-360-controller-led-animations-info/
@@ -120,14 +109,14 @@ struct descriptor : public usb::descriptor<descriptor>
 {
     constexpr static auto TYPE_CODE = 0x21;
 
-    uint8_t bProtocolId[3]{0x00, 0x01, 0x01};
+    std::array<uint8_t, 3> bProtocolId{0x00, 0x01, 0x01};
     uint8_t bProductType{0x25};
     endpoint::address bInEpAddress;
     uint8_t bInReportSize{MAX_INPUT_REPORT_SIZE};
-    uint8_t bMagicNumbers_p2[5]{0x00, 0x00, 0x00, 0x00, 0x13};
+    std::array<uint8_t, 5> bMagicNumbers_p2{0x00, 0x00, 0x00, 0x00, 0x13};
     endpoint::address bOutEpAddress;
     uint8_t bOutReportSize{MAX_OUTPUT_REPORT_SIZE};
-    uint8_t MagicNumbers_p3[2]{0x00, 0x00};
+    std::array<uint8_t, 2> MagicNumbers_p3{0x00, 0x00};
 
     constexpr descriptor(endpoint::address in, endpoint::address out)
         : bInEpAddress(in), bOutEpAddress(out)
@@ -136,4 +125,3 @@ struct descriptor : public usb::descriptor<descriptor>
 } // namespace xusb22
 } // namespace usb::microsoft::xusb
 
-#endif // __USB_VENDOR_MICROSOFT_XUSB_HPP_

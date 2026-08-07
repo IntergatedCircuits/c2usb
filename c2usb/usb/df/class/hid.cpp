@@ -18,7 +18,8 @@ void app_base_function::start(const config::interface& iface, ::hid::boot::mode 
     assert(ep_in_handle().valid());
 
     // start application
-    transport::start(app_, session_, {this, channel::USB, prot});
+    transport::start(app_, session_,
+                     {.transport = this, .channel = channel::USB, .boot_protocol = prot});
 }
 
 void app_base_function::disable([[maybe_unused]] const config::interface& iface)
@@ -42,7 +43,6 @@ c2usb::result app_base_function::receive_report([[maybe_unused]] ::hid::session&
         // if has out ep, try to start receiving
         return receive_ep(ep_out_handle(), data);
     }
-    else
     {
         // otherwise save the buffer for control transfer
         rx_buffers_[type] = data;
@@ -54,17 +54,17 @@ void app_base_function::ep_callback(const transfer& t)
 {
     if (t.endpoint() == ep_in_handle())
     {
-        if (session_)
+        if (session_ != nullptr)
         {
-            session_->report_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()));
+            session_->report_sent(std::span<const uint8_t>(t.data(), t.transferred_size()));
         }
     }
     else if (t.endpoint() == ep_out_handle())
     {
-        if (session_)
+        if (session_ != nullptr)
         {
             session_->set_report(report::type::OUTPUT,
-                                 std::span<const uint8_t>(t.data(), t.size() * t.success()));
+                                 std::span<const uint8_t>(t.data(), t.transferred_size()));
         }
     }
 }
@@ -73,7 +73,7 @@ void function::get_hid_descriptor(df::buffer& buffer)
 {
     auto* hid_desc = buffer.allocate<hid::descriptor::hid<1>>();
 
-    auto* report_subdesc = &hid_desc->ClassDescriptors[0];
+    auto* report_subdesc = hid_desc->ClassDescriptors.data();
     report_subdesc->bDescriptorType = hid::descriptor::type::REPORT;
     report_subdesc->wItemLength = app_.report_info().descriptor.size();
 }
@@ -86,7 +86,7 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
 
     iface_desc->bInterfaceNumber = if_index;
     iface_desc->bInterfaceClass = CLASS_CODE;
-    iface_desc->bInterfaceSubClass = protocol_mode() != boot_protocol_mode::NONE;
+    iface_desc->bInterfaceSubClass = uint8_t(protocol_mode() != boot_protocol_mode::NONE);
     iface_desc->bInterfaceProtocol = static_cast<uint8_t>(protocol_mode());
     iface_desc->iInterface = name_istring();
     iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
@@ -172,36 +172,44 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         return msg.reject();
 
     case GET_PROTOCOL:
-        return msg.send_value((session_ != nullptr) ? session_->protocol() : protocol::REPORT);
+        return msg.send_value(
+            protocol((session_ != nullptr) ? session_->protocol() : protocol::REPORT));
 
-#if CONFIG_C2USB_HID_BOOT_PROTOCOL
     case SET_PROTOCOL:
-        if (auto prot = static_cast<protocol>(value_lb);
-            magic_enum::enum_contains(prot) and
-            ((protocol_mode() != boot_protocol_mode::NONE) or (prot == protocol::REPORT)))
-        {
-            auto boot_prot =
-                (prot == ::hid::protocol::BOOT) ? protocol_mode() : ::hid::boot::mode::NONE;
-            if ((session_ == nullptr) or (session_->boot_protocol() != boot_prot))
-            {
-                app_base_function::start(iface, boot_prot);
-            }
-            return msg.confirm();
-        }
-        return msg.reject();
-#endif
+        return set_protocol(msg, iface);
 
     case GET_IDLE:
-        return msg.send_value(
+        assert(session_ != nullptr);
+        return msg.send_value( // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
             static_cast<uint8_t>(session_->get_idle(value_lb, idle_rate_ms_multiplier)));
 
     case SET_IDLE:
+        assert(session_ != nullptr); // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
         return msg.set_reply(session_->set_idle(value_lb, msg.request().wValue.high_byte(),
                                                 idle_rate_ms_multiplier));
 
     default:
         return msg.reject();
     }
+}
+
+void function::set_protocol(message& msg, const config::interface& iface)
+{
+#if CONFIG_C2USB_HID_BOOT_PROTOCOL
+    auto prot = static_cast<protocol>(msg.request().wValue.low_byte());
+    if (magic_enum::enum_contains(prot) and
+        ((protocol_mode() != boot_protocol_mode::NONE) or (prot == protocol::REPORT)))
+    {
+        auto boot_prot =
+            (prot == ::hid::protocol::BOOT) ? protocol_mode() : ::hid::boot::mode::NONE;
+        if ((session_ == nullptr) or (session_->boot_protocol() != boot_prot))
+        {
+            app_base_function::start(iface, boot_prot);
+        }
+        return msg.confirm();
+    }
+#endif
+    return msg.reject();
 }
 
 void function::control_data_complete(message& msg, [[maybe_unused]] const config::interface& iface)

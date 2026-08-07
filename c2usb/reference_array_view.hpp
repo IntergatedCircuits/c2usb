@@ -1,17 +1,7 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __REFERENCE_ARRAY_VIEW_HPP_
-#define __REFERENCE_ARRAY_VIEW_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <ostream>
 #include <type_traits>
@@ -22,13 +12,12 @@ template <typename T>
 struct array_to_ref_decay
 {
   private:
-    typedef typename std::remove_reference<T>::type U;
+    using U = typename std::remove_reference_t<T>;
 
   public:
-    typedef typename std::conditional<
-        std::is_array<U>::value,
-        typename std::add_lvalue_reference<typename std::remove_extent<U>::type>::type, T>::type
-        type;
+    using type = typename std::conditional_t<
+        std::is_array_v<U>, typename std::add_lvalue_reference_t<typename std::remove_extent_t<U>>,
+        T>;
 };
 template <class T>
 using array_to_ref_decay_t = typename array_to_ref_decay<T>::type;
@@ -39,9 +28,10 @@ using array_to_ref_decay_t = typename array_to_ref_decay<T>::type;
 /// @param  args: parameter pack of references to store
 /// @return std::array of pointers, terminated by nullptr
 template <typename T, typename... Args>
-constexpr inline auto make_reference_array(Args&&... args)
+constexpr auto make_reference_array(Args&&... args)
 {
-    return std::array<T*, sizeof...(args) + 1>{(&array_to_ref_decay_t<Args>(args))..., nullptr};
+    return std::array<T*, sizeof...(args) + 1>{
+        (&array_to_ref_decay_t<Args>(std::forward<Args>(args)))..., nullptr};
 }
 
 class reference_array_view_base
@@ -52,7 +42,7 @@ class reference_array_view_base
         static const std::nullptr_t ptr{};
         return &ptr;
     }
-    constexpr reference_array_view_base() {}
+    constexpr reference_array_view_base() = default;
 };
 
 /// @brief Creates an iterable view of a nullptr terminated array.
@@ -77,7 +67,7 @@ class reference_array_view : public reference_array_view_base
         {}
         constexpr iterator& operator++()
         {
-            ptr_++;
+            ptr_++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             return *this;
         }
         constexpr iterator operator++(int)
@@ -88,11 +78,14 @@ class reference_array_view : public reference_array_view_base
         }
         constexpr TView operator*() const { return (*ptr_ != nullptr) ? TView(*ptr_) : TView{}; }
         constexpr auto operator->() { return &(const TView&)(*ptr_); }
-        constexpr bool operator==(std::nullptr_t const*) const { return (*ptr_ == nullptr); }
+        constexpr bool operator==([[maybe_unused]] std::nullptr_t const* rhs) const
+        {
+            return (*ptr_ == nullptr);
+        }
 
         friend std::ostream& operator<<(std::ostream& os, const iterator& it)
         {
-            os << std::hex << reinterpret_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
+            os << std::hex << std::bit_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
             return os;
         }
 
@@ -112,21 +105,23 @@ class reference_array_view : public reference_array_view_base
     constexpr reference_array_view()
         : data_((decltype(data_))(nullptr_ptr()))
     {}
-    constexpr iterator begin() const { return data_; }
-    constexpr auto end() const { return nullptr_ptr(); }
-    constexpr std::size_t size() const
+    [[nodiscard]] constexpr iterator begin() const { return data_; }
+    [[nodiscard]] constexpr auto end() const { return nullptr_ptr(); }
+    [[nodiscard]] constexpr std::size_t size() const
     {
-        pointer const* ptr;
-        for (ptr = data_; *ptr != nullptr; ++ptr)
-            ;
+        pointer const* ptr = data_;
+        for (; *ptr != nullptr; ++ptr) // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        {
+        }
         return static_cast<std::size_t>(std::distance(data_, ptr));
     }
-    constexpr bool empty() const { return *data_ == nullptr; }
+    [[nodiscard]] constexpr bool empty() const { return *data_ == nullptr; }
     constexpr TView operator[](std::size_t n) const
     {
         auto it = begin();
         for (; (it != end()) and (n > 0); ++it, --n)
-            ;
+        {
+        }
         return *it;
     }
 
@@ -134,5 +129,3 @@ class reference_array_view : public reference_array_view_base
     pointer const* data_;
 };
 } // namespace c2usb
-
-#endif // __REFERENCE_ARRAY_VIEW_HPP_

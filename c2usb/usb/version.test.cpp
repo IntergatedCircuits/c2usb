@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/version.hpp"
 #include "test_framework.hpp"
 

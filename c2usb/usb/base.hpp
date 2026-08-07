@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_BASE_HPP_
-#define __USB_BASE_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "c2usb.hpp"
 
 namespace usb
@@ -26,7 +15,7 @@ enum class direction : uint8_t
     IN = 1,  /// Device to host
 };
 
-constexpr inline direction opposite_direction(direction dir)
+constexpr direction opposite_direction(direction dir)
 {
     return static_cast<direction>(1 - static_cast<uint8_t>(dir));
 }
@@ -62,6 +51,7 @@ struct descriptor : public descriptor_header
 {
     constexpr static uint8_t size() { return sizeof(T); }
     constexpr static uint8_t type() { return static_cast<uint8_t>(T::TYPE_CODE); }
+
     constexpr descriptor()
         : descriptor_header(size(), type())
     {}
@@ -93,5 +83,3 @@ enum class state : uint8_t
 };
 } // namespace power
 } // namespace usb
-
-#endif // __USB_BASE_HPP_

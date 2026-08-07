@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "raw_to_hex_string.hpp"
 #include "test_framework.hpp"
 

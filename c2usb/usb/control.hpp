@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_CONTROL_HPP_
-#define __USB_CONTROL_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/base.hpp"
 
 namespace usb::control
@@ -51,7 +40,7 @@ struct request_id : public request_base
     uint8_t bmRequestType{};
     uint8_t bRequest{};
 
-    constexpr request_id() {}
+    constexpr request_id() = default;
     template <typename T>
     constexpr request_id(usb::direction dir, request_base::type t, request_base::recipient rec,
                          T code)
@@ -60,16 +49,19 @@ struct request_id : public request_base
           bRequest(static_cast<uint8_t>(code))
     {}
 
-    constexpr auto direction() const { return static_cast<usb::direction>(bmRequestType >> 7); }
-    constexpr auto type() const
+    [[nodiscard]] constexpr auto direction() const
+    {
+        return static_cast<usb::direction>(bmRequestType >> 7);
+    }
+    [[nodiscard]] constexpr auto type() const
     {
         return static_cast<request_base::type>((bmRequestType >> 5) & 3);
     }
-    constexpr auto recipient() const
+    [[nodiscard]] constexpr auto recipient() const
     {
         return static_cast<request_base::recipient>(bmRequestType & 0x1F);
     }
-    constexpr auto code() const { return bRequest; }
+    [[nodiscard]] constexpr auto code() const { return bRequest; }
 
     constexpr bool operator==(const request_id&) const = default;
 
@@ -82,8 +74,8 @@ struct request_id : public request_base
 #endif
     }
 
-    uint8_t* data() { return &bmRequestType; }
-    const uint8_t* data() const { return &bmRequestType; }
+    [[nodiscard]] uint8_t* data() { return &bmRequestType; }
+    [[nodiscard]] const uint8_t* data() const { return &bmRequestType; }
 };
 
 /// @brief  The request class stores the USB device request contents
@@ -100,15 +92,20 @@ struct request : public request_id
 
     struct splittable_uint16_t : public le_uint16_t
     {
-        constexpr uint8_t high_byte() const { return this->storage[1]; }
-        constexpr uint8_t& high_byte() { return this->storage[1]; }
-        constexpr uint8_t low_byte() const { return this->storage[0]; }
-        constexpr uint8_t& low_byte() { return this->storage[0]; }
+        [[nodiscard]] constexpr uint8_t high_byte() const { return this->storage[1]; }
+        [[nodiscard]] constexpr uint8_t& high_byte() { return this->storage[1]; }
+        [[nodiscard]] constexpr uint8_t low_byte() const { return this->storage[0]; }
+        [[nodiscard]] constexpr uint8_t& low_byte() { return this->storage[0]; }
 
         template <typename T>
         constexpr bool operator==(const T& rhs) const
         {
             return static_cast<uint16_t>(*this) == static_cast<uint16_t>(rhs);
+        }
+        constexpr splittable_uint16_t& operator=(uint16_t value)
+        {
+            static_cast<le_uint16_t&>(*this) = value;
+            return *this;
         }
     };
 
@@ -116,10 +113,10 @@ struct request : public request_id
     splittable_uint16_t wIndex;
     splittable_uint16_t wLength;
 
-    constexpr auto id() const { return static_cast<request_id>(*this); }
-    constexpr static size_t size() { return sizeof(request); }
+    // NOLINTNEXTLINE(cppcoreguidelines-slicing)
+    [[nodiscard]] constexpr auto id() const { return static_cast<request_id>(*this); }
+    [[nodiscard]] constexpr static size_t size() { return sizeof(request); }
 };
 static_assert(sizeof(request) == 8);
-} // namespace usb::control
 
-#endif // __USB_CONTROL_HPP_
+} // namespace usb::control

@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_VERSION_HPP_
-#define __USB_VERSION_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/base.hpp"
 
 namespace usb
@@ -19,9 +8,7 @@ namespace usb
 class version : public le_uint16_t
 {
   public:
-    constexpr version()
-        : le_uint16_t()
-    {}
+    constexpr version() = default;
     constexpr version(uint8_t majo, uint8_t mino)
     {
         major() = majo;
@@ -32,24 +19,25 @@ class version : public le_uint16_t
         major() = majo;
         minor() = (mino << 4) | (subminor & 0xF);
     }
-    constexpr uint8_t major() const { return storage[1]; }
-    constexpr uint8_t minor() const { return storage[0]; }
-    constexpr uint8_t& major() { return storage[1]; }
-    constexpr uint8_t& minor() { return storage[0]; }
+    [[nodiscard]] constexpr uint8_t major() const { return storage[1]; }
+    [[nodiscard]] constexpr uint8_t minor() const { return storage[0]; }
+    [[nodiscard]] constexpr uint8_t& major() { return storage[1]; }
+    [[nodiscard]] constexpr uint8_t& minor() { return storage[0]; }
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     /// @brief Constructs the version from an inline string, which can contain [0;2] '.' characters.
     /// @param vstr: the version string to convert
     consteval version(const char* vstr)
         : version()
     {
-        auto* dpoint = decpoint(vstr);
+        const auto* dpoint = decpoint(vstr);
         major() = str2bcd(vstr, dpoint);
         if (*dpoint == '\0')
         {
             return;
         }
         dpoint++;
-        auto* dpoint2 = decpoint(dpoint);
+        const auto* dpoint2 = decpoint(dpoint);
         minor() = str2bcd(dpoint, dpoint2);
         if (*dpoint2 == '\0')
         {
@@ -62,9 +50,10 @@ class version : public le_uint16_t
   private:
     constexpr static const char* decpoint(const char* str)
     {
-        auto* dpoint = str;
+        const auto* dpoint = str;
         for (; (*dpoint != '.') and (*dpoint != '\0'); ++dpoint)
-            ;
+        {
+        }
         return dpoint;
     }
     constexpr static uint8_t str2bcd(const char* begin, const char* end)
@@ -81,7 +70,6 @@ class version : public le_uint16_t
         }
         return result;
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 } // namespace usb
-
-#endif // __USB_VERSION_HPP_

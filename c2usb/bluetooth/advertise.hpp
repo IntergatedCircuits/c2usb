@@ -33,7 +33,7 @@ struct ad_struct : public ::bt_data
     {
         this->type = TYPE;
         this->data_len = sizeof(T);
-        this->data = reinterpret_cast<const uint8_t*>(&arg);
+        this->data = c2usb::std_layout_cast<const uint8_t*>(&arg);
     }
 
     explicit ad_struct(std::initializer_list<T> args)
@@ -42,14 +42,14 @@ struct ad_struct : public ::bt_data
     {
         this->type = TYPE;
         this->data_len = sizeof(T) * args.size();
-        this->data = reinterpret_cast<const uint8_t*>(args.begin());
+        this->data = c2usb::std_layout_cast<const uint8_t*>(args.begin());
     }
 
     explicit ad_struct(std::string_view str)
     {
         this->type = TYPE;
         this->data_len = str.size();
-        this->data = reinterpret_cast<const uint8_t*>(str.data());
+        this->data = c2usb::std_layout_cast<const uint8_t*>(str.data());
     }
 
     explicit ad_struct(const uuid& arg)
@@ -62,7 +62,7 @@ struct ad_struct : public ::bt_data
         {
             if (arg.type == BT_UUID_TYPE_16)
             {
-                this->data = reinterpret_cast<const uint8_t*>(&BT_UUID_16(&arg)->val);
+                this->data = c2usb::std_layout_cast<const uint8_t*>(&BT_UUID_16(&arg)->val);
                 this->data_len = sizeof(BT_UUID_16(&arg)->val);
             }
         }
@@ -70,7 +70,7 @@ struct ad_struct : public ::bt_data
         {
             if (arg.type == BT_UUID_TYPE_32)
             {
-                this->data = reinterpret_cast<const uint8_t*>(&BT_UUID_32(&arg)->val);
+                this->data = c2usb::std_layout_cast<const uint8_t*>(&BT_UUID_32(&arg)->val);
                 this->data_len = sizeof(BT_UUID_32(&arg)->val);
             }
         }

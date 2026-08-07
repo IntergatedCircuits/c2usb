@@ -4,19 +4,20 @@
 #include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
-#include "single_elem_queue.hpp"
 #include <etl/delegate.h>
 
 inline namespace utilities
 {
 template <typename T>
-constexpr T pack_str(const char* str)
+consteval T pack_str(const char* str)
 {
     T val = 0;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for (unsigned i = 0; (i < sizeof(T)) and (str[i] != '\0'); i++)
     {
         val = (val) | static_cast<T>(str[i]) << (i * 8);
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return val;
 }
 } // namespace utilities
@@ -42,6 +43,11 @@ class device : public i2c::slave::module, public ::hid::transport
            i2c::address address, uint16_t hid_descriptor_reg_address);
     ~device() override;
 
+    device(const device&) = delete;
+    device& operator=(const device&) = delete;
+    device(device&&) = delete;
+    device& operator=(device&&) = delete;
+
     enum class event : uint8_t
     {
         POWER_STATE_CHANGE = 0,
@@ -52,12 +58,12 @@ class device : public i2c::slave::module, public ::hid::transport
         power_event_delegate_ = delegate;
     }
 
-    bool get_power_state() const { return powered_; }
+    [[nodiscard]] bool get_power_state() const { return powered_; }
 
   private:
     void link_reset();
 
-    uint16_t hid_descriptor_reg_address() const { return hid_descriptor_reg_; }
+    [[nodiscard]] uint16_t hid_descriptor_reg_address() const { return hid_descriptor_reg_; }
     void get_hid_descriptor(descriptor& desc) const;
     c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
@@ -69,8 +75,9 @@ class device : public i2c::slave::module, public ::hid::transport
     void on_stop(i2c::direction dir, size_t data_length) override;
 
     template <typename T>
-    T* get_buffer()
+    [[nodiscard]] T* get_buffer()
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return reinterpret_cast<T*>(buffer_.data());
     }
 
@@ -93,19 +100,16 @@ class device : public i2c::slave::module, public ::hid::transport
 
     i2c::slave& slave() { return slave_; }
 
-    device(const device&) = delete;
-    device& operator=(const device&) = delete;
-
     ::hid::application& app_;
     ::hid::session* session_{};
     const hid::product_info& pinfo_;
-    power_event_delegate power_event_delegate_{};
-    reports_receiver rx_buffers_{};
+    power_event_delegate power_event_delegate_;
+    reports_receiver rx_buffers_;
     i2c::slave& slave_;
     uint16_t hid_descriptor_reg_;
     uint8_t stage_{};
     bool powered_{};
-    single_elem_queue<std::span<const uint8_t>> in_queue_{};
+    std::optional<std::span<const uint8_t>> in_queue_;
     std::array<uint8_t, sizeof(descriptor)> buffer_{};
 };
 

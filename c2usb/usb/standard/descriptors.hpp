@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_STANDARD_DESCRIPTORS_HPP_
-#define __USB_STANDARD_DESCRIPTORS_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/control.hpp"
 #include "usb/endpoint.hpp"
 #include "usb/version.hpp"
@@ -32,7 +21,7 @@ struct class_info
     uint8_t subclass_code{};
     uint8_t protocol_code{};
 
-    constexpr class_info() {}
+    constexpr class_info() = default;
     template <typename TSC, typename TP>
     constexpr class_info(uint8_t class_c, TSC subclass_c, TP protocol_c)
         : class_code(class_c),
@@ -77,7 +66,7 @@ struct device : public usb::descriptor<device>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::DEVICE;
 
-    version bcdUSB{};          /// USB Specification Number which device complies to
+    version bcdUSB;            /// USB Specification Number which device complies to
     uint8_t bDeviceClass{};    /// Class Code (Assigned by USB Org)
                                /// If equal to Zero, each interface specifies its own class code
                                /// If equal to 0xFF, the class code is vendor specified.
@@ -85,10 +74,10 @@ struct device : public usb::descriptor<device>
     uint8_t bDeviceSubClass{}; /// Subclass Code (Assigned by USB Org)
     uint8_t bDeviceProtocol{}; /// Protocol Code (Assigned by USB Org)
     uint8_t
-        bMaxPacketSize{};   /// Maximum Packet Size for Zero Endpoint. Valid Sizes are 8, 16, 32, 64
-    le_uint16_t idVendor{}; /// Vendor ID (Assigned by USB Org)
-    le_uint16_t idProduct{};      /// Product ID (Assigned by Manufacturer)
-    version bcdDevice{};          /// Device Release Number
+        bMaxPacketSize{};  /// Maximum Packet Size for Zero Endpoint. Valid Sizes are 8, 16, 32, 64
+    le_uint16_t idVendor;  /// Vendor ID (Assigned by USB Org)
+    le_uint16_t idProduct; /// Product ID (Assigned by Manufacturer)
+    version bcdDevice;     /// Device Release Number
     istring iManufacturer{};      /// Index of Manufacturer String Descriptor
     istring iProduct{};           /// Index of Product String Descriptor
     istring iSerialNumber{};      /// Index of Serial Number String Descriptor
@@ -99,16 +88,22 @@ struct configuration : public usb::descriptor<configuration>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::CONFIGURATION;
 
-    le_uint16_t wTotalLength{};    /// Total length in bytes of data returned
+    le_uint16_t wTotalLength;      /// Total length in bytes of data returned
     uint8_t bNumInterfaces{};      /// Number of Interfaces
     uint8_t bConfigurationValue{}; /// Value to use as an argument to select this configuration
     istring iConfiguration{};      /// Index of String Descriptor describing this configuration
     uint8_t bmAttributes{0x80};    /// 0b1[Self Powered][Remote Wakeup]00000
     uint8_t bMaxPower{100 / 2};    /// Maximum Power Consumption in 2mA units
 
-    constexpr uint16_t max_power_mA() const { return bMaxPower * 2; }
-    constexpr bool self_powered() const { return static_cast<bool>((bmAttributes >> 6) & 1); }
-    constexpr bool remote_wakeup() const { return static_cast<bool>((bmAttributes >> 5) & 1); }
+    [[nodiscard]] constexpr uint16_t max_power_mA() const { return bMaxPower * 2; }
+    [[nodiscard]] constexpr bool self_powered() const
+    {
+        return static_cast<bool>((bmAttributes >> 6) & 1);
+    }
+    [[nodiscard]] constexpr bool remote_wakeup() const
+    {
+        return static_cast<bool>((bmAttributes >> 5) & 1);
+    }
 };
 
 template <size_t SIZE>
@@ -121,7 +116,8 @@ struct language_id : public usb::descriptor<language_id<SIZE>>
 
     template <typename... TArgs>
     constexpr language_id(TArgs&&... args)
-        : usb::descriptor<language_id<SIZE>>(), wLANGID{{static_cast<le_uint16_t>(args)...}}
+        : usb::descriptor<language_id<SIZE>>(),
+          wLANGID{{static_cast<le_uint16_t>(std::forward<TArgs>(args))...}}
     {}
 };
 
@@ -130,18 +126,20 @@ struct string : public usb::descriptor<string>
     constexpr static auto TYPE_CODE = standard::descriptor::type::STRING;
 
     // TODO: https://people.kernel.org/kees/bounded-flexible-arrays-in-c
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     alignas(char16_t) le_uint16_t Data[0];
 
-    constexpr string() {}
+    constexpr string() = default;
     constexpr string(uint8_t length)
         : usb::descriptor<string>(length)
     {}
-    std::enable_if_t<std::endian::native == std::endian::little, std::u16string_view>
+    [[nodiscard]] std::enable_if_t<std::endian::native == std::endian::little, std::u16string_view>
     u16string() const
     {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-align"
         // return { Data, bLength - offsetof(string, Data) };
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return {reinterpret_cast<const char16_t*>(Data), bLength - sizeof(usb::descriptor_header)};
 #pragma GCC diagnostic pop
     }
@@ -151,13 +149,13 @@ struct interface : public usb::descriptor<interface>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::INTERFACE;
 
-    uint8_t bInterfaceNumber;   /// Number of Interface
-    uint8_t bAlternateSetting;  /// Value used to select alternative setting
-    uint8_t bNumEndpoints;      /// Number of Endpoints used for this interface
-    uint8_t bInterfaceClass;    /// Class Code (Assigned by USB Org)
-    uint8_t bInterfaceSubClass; /// Subclass Code (Assigned by USB Org)
-    uint8_t bInterfaceProtocol; /// Protocol Code (Assigned by USB Org)
-    istring iInterface;         /// Index of String Descriptor Describing this interface
+    uint8_t bInterfaceNumber{};   /// Number of Interface
+    uint8_t bAlternateSetting{};  /// Value used to select alternative setting
+    uint8_t bNumEndpoints{};      /// Number of Endpoints used for this interface
+    uint8_t bInterfaceClass{};    /// Class Code (Assigned by USB Org)
+    uint8_t bInterfaceSubClass{}; /// Subclass Code (Assigned by USB Org)
+    uint8_t bInterfaceProtocol{}; /// Protocol Code (Assigned by USB Org)
+    istring iInterface{};         /// Index of String Descriptor Describing this interface
 };
 
 template <std::endian E>
@@ -199,40 +197,42 @@ struct endpoint : public usb::descriptor<endpoint>
     /// and field may range from 1 to 255 for interrupt endpoints.
     uint8_t bInterval{};
 
-    constexpr usb::endpoint::address address() const { return bEndpointAddress; }
+    [[nodiscard]] constexpr usb::endpoint::address address() const { return bEndpointAddress; }
 
-    auto type() const { return bmAttributes.type; }
-    auto synchronization() const { return bmAttributes.iso_sync; }
-    auto usage() const { return bmAttributes.iso_usage; }
-    constexpr uint16_t max_packet_size() const { return wMaxPacketSize; }
-    constexpr uint8_t interval() const { return bInterval; }
+    [[nodiscard]] auto type() const { return bmAttributes.type; }
+    [[nodiscard]] auto synchronization() const { return bmAttributes.iso_sync; }
+    [[nodiscard]] auto usage() const { return bmAttributes.iso_usage; }
+    [[nodiscard]] constexpr uint16_t max_packet_size() const { return wMaxPacketSize; }
+    [[nodiscard]] constexpr uint8_t interval() const { return bInterval; }
 
-    constexpr static endpoint bulk(usb::endpoint::address addr, uint16_t mps)
+    [[nodiscard]] constexpr static endpoint bulk(usb::endpoint::address addr, uint16_t mps)
     {
-        return endpoint(addr, mps, usb::endpoint::type::BULK);
+        return {addr, mps, usb::endpoint::type::BULK};
     }
-    C2USB_STATIC_CONSTEXPR static endpoint bulk(usb::endpoint::address addr, usb::speed speed)
+    [[nodiscard]] C2USB_STATIC_CONSTEXPR static endpoint bulk(usb::endpoint::address addr,
+                                                              usb::speed speed)
     {
-        return endpoint(addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed),
-                        usb::endpoint::type::BULK);
-    }
-
-    constexpr static endpoint interrupt(usb::endpoint::address addr, uint16_t mps, uint8_t interval)
-    {
-        return endpoint(addr, mps, usb::endpoint::type::INTERRUPT, interval);
-    }
-    C2USB_STATIC_CONSTEXPR static endpoint interrupt(usb::endpoint::address addr, usb::speed speed,
-                                                     uint8_t interval)
-    {
-        return endpoint(addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed),
-                        usb::endpoint::type::INTERRUPT, interval);
+        return {addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed),
+                usb::endpoint::type::BULK};
     }
 
-    constexpr static endpoint isochronous(usb::endpoint::address addr, uint16_t mps,
-                                          usb::endpoint::isochronous::sync sync,
-                                          usb::endpoint::isochronous::usage usage)
+    [[nodiscard]] constexpr static endpoint interrupt(usb::endpoint::address addr, uint16_t mps,
+                                                      uint8_t interval)
     {
-        return endpoint(addr, mps, sync, usage);
+        return {addr, mps, usb::endpoint::type::INTERRUPT, interval};
+    }
+    [[nodiscard]] C2USB_STATIC_CONSTEXPR static endpoint
+    interrupt(usb::endpoint::address addr, usb::speed speed, uint8_t interval)
+    {
+        return {addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed),
+                usb::endpoint::type::INTERRUPT, interval};
+    }
+
+    [[nodiscard]] constexpr static endpoint isochronous(usb::endpoint::address addr, uint16_t mps,
+                                                        usb::endpoint::isochronous::sync sync,
+                                                        usb::endpoint::isochronous::usage usage)
+    {
+        return {addr, mps, sync, usage};
     }
 
   private:
@@ -261,7 +261,7 @@ struct device_qualifier : public usb::descriptor<device_qualifier>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::DEVICE_QUALIFIER;
 
-    version bcdUSB{};          /// USB Specification Number which device complies to
+    version bcdUSB;            /// USB Specification Number which device complies to
     uint8_t bDeviceClass{};    /// Class Code (Assigned by USB Org)
                                /// If equal to Zero, each interface specifies its own class code
                                /// If equal to 0xFF, the class code is vendor specified.
@@ -278,8 +278,8 @@ struct binary_object_store : public usb::descriptor<binary_object_store>
 {
     constexpr static auto TYPE_CODE = standard::descriptor::type::BINARY_OBJECT_STORE;
 
-    le_uint16_t wTotalLength{}; /// Total length in bytes of data returned
-    uint8_t bNumDeviceCaps{};   /// Number of device capabilities to follow
+    le_uint16_t wTotalLength; /// Total length in bytes of data returned
+    uint8_t bNumDeviceCaps{}; /// Number of device capabilities to follow
 };
 
 namespace device_capability
@@ -394,8 +394,6 @@ struct otg : public usb::descriptor<otg>
                             /// D2: ADP support
                             /// D1: HNP support
                             /// D0: SRP support
-    version bcdOTG{};       /// The release of the OTG and EH supplement
+    version bcdOTG;         /// The release of the OTG and EH supplement
 };
 } // namespace usb::standard::descriptor
-
-#endif // __USB_STANDARD_DESCRIPTORS_HPP_

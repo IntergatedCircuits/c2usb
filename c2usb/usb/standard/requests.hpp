@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_STANDARD_REQUESTS_HPP_
-#define __USB_STANDARD_REQUESTS_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/control.hpp"
 #include <bitfilled.hpp>
 
@@ -182,15 +171,9 @@ enum class feature : uint8_t
     HALT = 0,
 };
 
-union status
+struct status : le_uint16_t
 {
-    uint16_t w{};
-    struct
-    {
-        bool halt : 1;
-    };
-    constexpr operator uint16_t() const { return w; }
-    constexpr operator uint16_t&() { return w; };
+    BF_BITS(bool, 0) halt;
 };
 
 constexpr control::request_id GET_STATUS{direction::IN, control::request::type::STANDARD,
@@ -210,5 +193,3 @@ constexpr control::request_id SYNCH_FRAME{direction::IN, control::request::type:
                                           request::SYNCH_FRAME};
 } // namespace endpoint
 } // namespace usb::standard
-
-#endif // __USB_STANDARD_REQUESTS_HPP_

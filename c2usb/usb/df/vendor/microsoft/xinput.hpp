@@ -15,13 +15,13 @@ class xfunction : public df::hid::app_base_function
 
     /// @brief  Use a custom non-HID protocol code, as this report layout cannot be made compatible
     ///         with HID report protocol (due to using report ID 0)
-    constexpr static inline auto PROTOCOL = static_cast<::hid::boot::mode>('X');
+    constexpr static auto PROTOCOL = static_cast<::hid::boot::mode>('X');
 
   private:
     void describe_config(const config::interface& iface, uint8_t if_index,
                          df::buffer& buffer) override;
 
-    std::string_view ms_compatible_id() const override
+    [[nodiscard]] std::string_view ms_compatible_id() const override
     {
         return usb::microsoft::xusb::COMPATIBLE_ID;
     }
@@ -29,10 +29,23 @@ class xfunction : public df::hid::app_base_function
     void enable(const config::interface& iface, uint8_t alt_sel) override;
 };
 
-config::elements<3> xconfig(xfunction& fn, const df::config::endpoint& in_ep,
-                            const df::config::endpoint& out_ep);
+[[nodiscard]] inline auto xconfig(xfunction& fn, const df::config::endpoint& in_ep,
+                                  const df::config::endpoint& out_ep) -> df::config::elements<3>
+{
+    assert((in_ep.address().direction() == direction::IN) and
+           (out_ep.address().direction() == direction::OUT));
+    return config::to_elements({df::config::interface{fn}, in_ep, out_ep});
+}
 
-config::elements<3> xconfig(xfunction& fn, endpoint::address in_addr, uint8_t in_interval,
-                            endpoint::address out_addr, uint8_t out_interval);
+[[nodiscard]] inline auto xconfig(xfunction& fn, endpoint::address in_addr, uint8_t in_interval,
+                                  endpoint::address out_addr, uint8_t out_interval)
+    -> df::config::elements<3>
+{
+    return xconfig(fn,
+                   standard::descriptor::endpoint::interrupt(
+                       in_addr, usb::microsoft::xusb::MAX_INPUT_REPORT_SIZE, in_interval),
+                   standard::descriptor::endpoint::interrupt(
+                       out_addr, usb::microsoft::xusb::MAX_OUTPUT_REPORT_SIZE, out_interval));
+}
 
 } // namespace usb::df::microsoft

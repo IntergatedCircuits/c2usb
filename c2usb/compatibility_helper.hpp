@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2024
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __PORT_COMPATIBILITY_HELPER_HPP_
-#define __PORT_COMPATIBILITY_HELPER_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "c2usb.hpp"
 
 namespace c2usb
@@ -47,5 +36,3 @@ auto invoke_function(Func func, Args&&... args)
 }
 
 } // namespace c2usb
-
-#endif // __PORT_COMPATIBILITY_HELPER_HPP_

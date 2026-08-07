@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_FUNCTION_HPP_
-#define __USB_DF_FUNCTION_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/df/config.hpp"
 #include "usb/df/transfer.hpp"
 #include "usb/standard/requests.hpp"
@@ -49,7 +38,7 @@ class function : public polymorphic
     void init(const config::interface& iface, mac* m);
     void deinit(const config::interface& iface);
 
-    virtual std::string_view ms_compatible_id() const { return {}; }
+    [[nodiscard]] virtual std::string_view ms_compatible_id() const { return {}; }
 
     virtual void ep_callback([[maybe_unused]] const transfer& t) {}
 
@@ -59,20 +48,20 @@ class function : public polymorphic
     void open_eps(const config::interface_endpoint_view& eps, std::array<ep_handle, T>& handles)
     {
         assert(eps.size() <= handles.size());
-        auto h = handles.begin();
-        for (auto& ep : eps)
+        auto eph = handles.begin();
+        for (const auto& ep : eps)
         {
-            *h = open_ep(ep);
-            h++;
+            *eph = open_ep(ep);
+            eph++;
         }
     }
     void close_ep(ep_handle& eph);
     template <size_t T>
     void close_eps(std::array<ep_handle, T>& handles)
     {
-        for (auto& h : handles)
+        for (auto& eph : handles)
         {
-            close_ep(h);
+            close_ep(eph);
         }
     }
     result send_ep(ep_handle eph, const std::span<const uint8_t>& data);
@@ -80,11 +69,12 @@ class function : public polymorphic
     result stall_ep(ep_handle eph, bool stall);
     result cancel_ep(ep_handle eph);
 
-    message* pending_message();
+    [[nodiscard]] message* pending_message();
 
     virtual void control_setup_request(message& msg, const config::interface& iface);
     virtual void control_data_complete(message& msg, const config::interface& iface);
     virtual bool control_endpoint_state([[maybe_unused]] ep_handle eph,
+                                        // NOLINTNEXTLINE(performance-unnecessary-value-param)
                                         [[maybe_unused]] standard::endpoint::status new_state)
     {
         return false;
@@ -92,7 +82,8 @@ class function : public polymorphic
 
     virtual void send_string(uint8_t rel_index, string_message& smsg);
 
-    virtual uint8_t get_alt_setting([[maybe_unused]] const config::interface& iface) const
+    [[nodiscard]] virtual uint8_t
+    get_alt_setting([[maybe_unused]] const config::interface& iface) const
     {
         return 0;
     }
@@ -106,12 +97,13 @@ class function : public polymorphic
         : istr_count_(istr_count)
     {}
 
-    istring to_istring(istring relative_index) const
+    [[nodiscard]] istring to_istring(istring relative_index) const
     {
         return (istr_count_ == 0) ? 0 : istr_base_ + relative_index;
     }
 
-    uint8_t describe_endpoints(const config::interface& iface, df::buffer& buffer);
+    [[nodiscard]] static uint8_t describe_endpoints(const config::interface& iface,
+                                                    df::buffer& buffer);
 
   private:
     void restart(const config::interface& iface, uint8_t alt_sel)
@@ -140,11 +132,9 @@ class named_function : public function
 
     void send_string(uint8_t rel_index, string_message& smsg) override;
 
-    istring name_istring() const { return (name_ != nullptr) ? to_istring(0) : 0; }
+    [[nodiscard]] istring name_istring() const { return (name_ != nullptr) ? to_istring(0) : 0; }
 
   private:
     const char_t* const name_{};
 };
 } // namespace usb::df
-
-#endif // __USB_DF_FUNCTION_HPP_

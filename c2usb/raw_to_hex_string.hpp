@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2025
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __RAW_TO_HEX_STRING_HPP_
-#define __RAW_TO_HEX_STRING_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <cstdint>
 #include <span>
 
@@ -28,7 +17,6 @@ constexpr std::size_t raw_to_hex_string(std::span<const std::uint8_t> data, std:
         {
             return '0' + v;
         }
-        else
         {
             return 'A' + v - 10;
         }
@@ -42,5 +30,3 @@ constexpr std::size_t raw_to_hex_string(std::span<const std::uint8_t> data, std:
     return offset;
 }
 } // namespace c2usb
-
-#endif // __RAW_TO_HEX_STRING_HPP_

@@ -26,15 +26,18 @@ class address
     constexpr address(uint16_t code, mode m = mode::_7BIT)
         : _code((code & code_mask(m)) | static_cast<uint16_t>(m))
     {}
-    bool is_10bit() const { return (_code & MODE_MASK) == static_cast<uint16_t>(mode::_10BIT); }
-    uint16_t raw() const { return _code; }
+    [[nodiscard]] bool is_10bit() const
+    {
+        return (_code & MODE_MASK) == static_cast<uint16_t>(mode::_10BIT);
+    }
+    [[nodiscard]] uint16_t raw() const { return _code; }
 
     constexpr bool operator==(const address& rhs) const = default;
 
     // special reserved addresses
-    constexpr static address general_call() { return address(0); }
-    constexpr static address start_byte() { return address(1); }
-    constexpr static address cbus() { return address(2); }
+    constexpr static address general_call() { return {0}; }
+    constexpr static address start_byte() { return {1}; }
+    constexpr static address cbus() { return {2}; }
 
   private:
     static constexpr uint16_t code_mask(mode m) { return m == mode::_7BIT ? 0x7f : 0x3ff; }

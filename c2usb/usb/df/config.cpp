@@ -1,17 +1,9 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/config.hpp"
 
 using namespace usb::df;
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 namespace usb::df::config
 {
 usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::configuration* desc,
@@ -24,7 +16,7 @@ usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::
 
 interface_endpoint_view interface::endpoints() const
 {
-    return interface_endpoint_view(*this);
+    return {*this};
 }
 
 interface_endpoint_view::reference interface_endpoint_view::operator[](size_t n) const
@@ -35,17 +27,17 @@ interface_endpoint_view::reference interface_endpoint_view::operator[](size_t n)
 
 const config::interface& endpoint::interface() const
 {
-    auto* itfptr = reinterpret_cast<const config::interface*>(this);
-    do
+    const auto* itfptr = reinterpret_cast<const config::interface*>(this);
+    do // NOLINT(cppcoreguidelines-avoid-do-while)
     {
-        itfptr--;
+        itfptr--; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     } while (not itfptr->valid());
     return *itfptr;
 }
 
 interface_view::reference interface_view::operator[](size_t n) const
 {
-    for (auto& iface : *this)
+    for (const auto& iface : *this)
     {
         if (n == 0)
         {
@@ -58,17 +50,18 @@ interface_view::reference interface_view::operator[](size_t n) const
 
 const interface_view& view::interfaces() const
 {
-    return (const interface_view&)(*this);
+    return reinterpret_cast<const interface_view&>(*this);
 }
 
 const endpoint_view& view::endpoints() const
 {
-    return (const endpoint_view&)(*this);
+    return reinterpret_cast<const endpoint_view&>(*this);
 }
 
 const active_endpoint_view& view::active_endpoints() const
 {
-    return (const active_endpoint_view&)(*this);
+    return reinterpret_cast<const active_endpoint_view&>(*this);
 }
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
 } // namespace usb::df::config

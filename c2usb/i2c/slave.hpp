@@ -19,14 +19,14 @@ class slave : public polymorphic
         {}
         virtual bool on_start(direction dir, size_t data_length) = 0;
         virtual void on_stop(direction dir, size_t data_length) = 0;
-        i2c::address address() const { return slave_addr_; }
+        [[nodiscard]] i2c::address address() const { return slave_addr_; }
 
       private:
         i2c::address slave_addr_;
     };
 
-    bool has_module() const { return module_ != nullptr; }
-    bool has_module([[maybe_unused]] address slave_addr) const
+    [[nodiscard]] bool has_module() const { return module_ != nullptr; }
+    [[nodiscard]] bool has_module([[maybe_unused]] address slave_addr) const
     {
         return has_module() and (module_->address() == slave_addr);
     }
@@ -75,6 +75,7 @@ class slave : public polymorphic
     /// @param  a: second data span
     virtual void send(const std::span<const uint8_t>& a, const std::span<const uint8_t>& b) = 0;
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
     template <typename T>
     void send(const T* a)
         requires(std::is_trivially_copyable_v<T>)
@@ -109,6 +110,7 @@ class slave : public polymorphic
     {
         receive(std::span<uint8_t>(reinterpret_cast<uint8_t*>(a), sizeof(T)), b);
     }
+    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
   protected:
     constexpr slave() = default;

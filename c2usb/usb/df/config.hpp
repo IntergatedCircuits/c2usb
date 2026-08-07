@@ -1,19 +1,7 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_CONFIG_HPP_
-#define __USB_DF_CONFIG_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <cassert>
 #include <cstring>
-
 #include "reference_array_view.hpp"
 #include "usb/standard/descriptors.hpp"
 
@@ -30,27 +18,31 @@ class power
   public:
     using source = usb::power::source;
 
-    constexpr static power bus(uint16_t max_current_mA = 100, bool remote_wakeup = false)
+    [[nodiscard]] constexpr static auto bus(uint16_t max_current_mA = 100,
+                                            bool remote_wakeup = false)
     {
         return power(source::BUS, max_current_mA, remote_wakeup);
     }
-    constexpr static power self(bool remote_wakeup = false)
+    [[nodiscard]] constexpr static auto self(bool remote_wakeup = false)
     {
         return power(source::DEVICE, 0, remote_wakeup);
     }
-    constexpr static power shared(uint16_t max_current_mA, bool remote_wakeup = false)
+    [[nodiscard]] constexpr static auto shared(uint16_t max_current_mA, bool remote_wakeup = false)
     {
         return power(source::DEVICE, max_current_mA, remote_wakeup);
     }
 
-    constexpr auto power_source() const
+    [[nodiscard]] constexpr auto power_source() const
     {
         return static_cast<usb::power::source>((value_ >> 6) & 1);
     }
-    constexpr bool self_powered() const { return static_cast<bool>(power_source()); }
-    constexpr auto remote_wakeup() const { return static_cast<bool>((value_ >> 5) & 1); }
-    constexpr unsigned max_power_mA() const { return value_ >> 7; }
-    constexpr bool valid() const { return value_ != 0; }
+    [[nodiscard]] constexpr bool self_powered() const { return static_cast<bool>(power_source()); }
+    [[nodiscard]] constexpr auto remote_wakeup() const
+    {
+        return static_cast<bool>((value_ >> 5) & 1);
+    }
+    [[nodiscard]] constexpr unsigned max_power_mA() const { return value_ >> 7; }
+    [[nodiscard]] constexpr bool valid() const { return value_ != 0; }
 
     friend auto operator<<(standard::descriptor::configuration* desc, const power& p)
         -> standard::descriptor::configuration*;
@@ -75,8 +67,12 @@ class alignas(std::uintptr_t) header : public power
     constexpr header(const power& p, const char_t* name = {})
         : power(p), name_(name)
     {}
-    constexpr const char_t* name() const { return name_; }
-    constexpr uint8_t config_size() const { return config_size_; }
+    [[nodiscard]] constexpr const char_t* name() const { return name_; }
+    [[nodiscard]] constexpr uint8_t config_size() const { return config_size_; }
+
+    header(header&&) = delete;
+    header& operator=(header&&) = delete;
+    ~header() = default;
 
   private:
     friend struct detail;
@@ -86,7 +82,7 @@ class alignas(std::uintptr_t) header : public power
     constexpr header& operator=(const header&) = default;
 
     uint8_t config_size_{};
-    std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_{};
+    [[maybe_unused]] std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_{};
     const char_t* name_{};
 };
 
@@ -103,29 +99,32 @@ class alignas(std::uintptr_t) interface
         // only first byte is guaranteed to exist on all platforms
         reserved_[0] = variant;
     }
-    constexpr bool valid() const
+    [[nodiscard]] constexpr bool valid() const
     {
         return (always_zero_ == 0) and (std::bit_cast<std::uintptr_t>(&function_) !=
                                         std::bit_cast<std::uintptr_t>(nullptr));
     }
-    constexpr df::function& function() const { return function_; }
-    constexpr uint8_t function_index() const { return function_index_; }
-    constexpr bool primary() const { return function_index() == 0; }
-    constexpr uint8_t alt_setting_count() const { return alt_settings_ + 1; }
-    constexpr uint8_t variant() const { return reserved_[0]; }
+    [[nodiscard]] constexpr df::function& function() const { return function_; }
+    [[nodiscard]] constexpr uint8_t function_index() const { return function_index_; }
+    [[nodiscard]] constexpr bool primary() const { return function_index() == 0; }
+    [[nodiscard]] constexpr uint8_t alt_setting_count() const { return alt_settings_ + 1; }
+    [[nodiscard]] constexpr uint8_t variant() const { return reserved_[0]; }
     // only works if the interface is used through the make_config() created object
-    interface_endpoint_view endpoints() const;
+    [[nodiscard]] interface_endpoint_view endpoints() const;
 
     friend std::ostream& operator<<(std::ostream& os, const interface& iface)
     {
-        os << std::hex << reinterpret_cast<std::uintptr_t>(&iface) << std::dec << "\n";
+        os << std::hex << std::bit_cast<std::uintptr_t>(&iface) << std::dec << "\n";
         return os;
     }
 
-  private:
     interface(const interface&) = delete;
     interface& operator=(const interface&) = delete;
+    interface(interface&&) = delete;
+    interface& operator=(interface&&) = delete;
+    ~interface() = default;
 
+  private:
     const uint8_t always_zero_{};
     uint8_t alt_settings_{};
     uint8_t function_index_{};
@@ -144,17 +143,20 @@ class alignas(std::uintptr_t) endpoint : public standard::descriptor::endpoint
         : standard::descriptor::endpoint(desc)
     {
         // only first byte is guaranteed to exist on all platforms
-        reserved_[0] = unused;
+        reserved_[0] = uint8_t(unused);
     }
-    constexpr bool valid() const { return (bLength > 0); }
-    constexpr bool unused() const { return reserved_[0]; }
+    [[nodiscard]] constexpr bool valid() const { return (bLength > 0); }
+    [[nodiscard]] constexpr bool unused() const { return bool(reserved_[0]); }
     // only works if the interface is used through the make_config() created object
-    const config::interface& interface() const;
+    [[nodiscard]] const config::interface& interface() const;
 
-  private:
     endpoint(const endpoint&) = delete;
     endpoint& operator=(const endpoint&) = delete;
+    endpoint(endpoint&&) = delete;
+    endpoint& operator=(endpoint&&) = delete;
+    ~endpoint() = default;
 
+  private:
     std::array<uint8_t, sizeof(std::uintptr_t) == 8 ? 9 : 1> reserved_{};
 };
 static_assert(sizeof(header) == sizeof(endpoint));
@@ -187,19 +189,22 @@ class alignas(std::uintptr_t) element
     constexpr bool operator==(const element&) const = default;
 
     // these methods are for the view specializations
-    constexpr static bool is_header([[maybe_unused]] const header& c) { return false; }
-    constexpr static bool is_interface(const interface& c) { return c.valid(); }
-    constexpr static bool is_endpoint(const endpoint& c) { return c.valid(); }
-    constexpr static bool is_active_endpoint(const endpoint& c)
+    [[nodiscard]] constexpr static bool is_header([[maybe_unused]] const header& c)
+    {
+        return false;
+    }
+    [[nodiscard]] constexpr static bool is_interface(const interface& c) { return c.valid(); }
+    [[nodiscard]] constexpr static bool is_endpoint(const endpoint& c) { return c.valid(); }
+    [[nodiscard]] constexpr static bool is_active_endpoint(const endpoint& c)
     {
         return c.valid() and not c.unused();
     }
-    constexpr bool is_footer() const { return *this == element(); }
+    [[nodiscard]] constexpr bool is_footer() const { return *this == element(); }
 
   private:
     std::array<std::uintptr_t, sizeof(header) / sizeof(std::uintptr_t)> raw_;
     template <class T>
-    element(const T* in)
+    element(const T* in) // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         : raw_(*reinterpret_cast<const decltype(raw_)*>(in))
     {
         static_assert(sizeof(T) == sizeof(raw_));
@@ -218,7 +223,8 @@ template <size_t SIZE>
 using elements = std::array<element, SIZE>;
 
 template <size_t SIZE>
-constexpr inline auto to_elements(element (&&a)[SIZE])
+constexpr auto to_elements(
+    element (&&a)[SIZE]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 {
     return std::to_array<element>(std::move(a));
 }
@@ -228,6 +234,7 @@ struct detail
     constexpr static size_t join_elements(const uint8_t* chunk_sizes, const element** chunks,
                                           element* out)
     {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         element* begin = out;
         while (*chunk_sizes != 0)
         {
@@ -239,6 +246,7 @@ struct detail
             chunks++;
             chunk_sizes++;
         }
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         return static_cast<size_t>(std::distance(begin, out));
     }
 
@@ -249,6 +257,7 @@ struct detail
         assign_element_array(const header& info, const uint8_t* chunk_sizes, const element** chunks,
                              element* out)
     {
+        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         // add the {interface, endpoint} chunks
         auto config_size = 1 + join_elements(chunk_sizes, chunks, out + 1);
 
@@ -259,6 +268,7 @@ struct detail
 
         // finally, a terminating footer
         out[config_size] = {};
+        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 
   private:
@@ -274,7 +284,7 @@ constexpr elements<(SIZES + ...)> join_elements(elements<SIZES>... chunks)
 {
     constexpr uint8_t array_count = sizeof...(chunks);
     constexpr std::array<uint8_t, array_count + 1> array_lengths = {chunks.size()..., 0};
-    std::array<const element*, array_count> arrays = {&chunks[0]...};
+    std::array<const element*, array_count> arrays = {chunks.data()...};
 
     elements<(SIZES + ...)> final_array;
     detail::join_elements(array_lengths.data(), arrays.data(), final_array.data());
@@ -297,7 +307,7 @@ constexpr
 {
     constexpr uint8_t array_count = sizeof...(chunks);
     constexpr std::array<uint8_t, array_count + 1> array_lengths = {chunks.size()..., 0};
-    std::array<const element*, array_count> arrays = {&chunks[0]...};
+    std::array<const element*, array_count> arrays = {chunks.data()...};
 
     elements<1 + (SIZES + ...) + 1> final_array;
     detail::assign_element_array(info, array_lengths.data(), arrays.data(), final_array.data());
@@ -306,6 +316,8 @@ constexpr
 
 template <class T>
 using valid_test_method = bool (*)(const T&);
+
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 
 /// @brief  View type that allows iterating through the different configuration elements.
 template <class T, bool (*valid_test)(const T&), bool CONTINUE_ON_INVALID = true>
@@ -337,7 +349,7 @@ class view_base
             }
             iterator& operator++()
             {
-                do
+                do // NOLINT(cppcoreguidelines-avoid-do-while)
                 {
                     ptr_--;
                 } while (skip_position());
@@ -358,27 +370,25 @@ class view_base
 
             friend std::ostream& operator<<(std::ostream& os, const iterator& it)
             {
-                os << std::hex << reinterpret_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
+                os << std::hex << std::bit_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
                 return os;
             }
 
           private:
-            bool valid() const { return valid_test(*ptr_); }
-            constexpr bool is_footer() const
+            [[nodiscard]] bool valid() const { return valid_test(*ptr_); }
+            [[nodiscard]] constexpr bool is_footer() const
             {
                 return reinterpret_cast<const element*>(ptr_)->is_footer();
             }
-            bool skip_position() const { return (ptr_ > begin_) and not valid(); }
+            [[nodiscard]] bool skip_position() const { return (ptr_ > begin_) and not valid(); }
 
             pointer ptr_;
             pointer const begin_;
         };
 
-        using const_iterator = const iterator;
-
-        const_iterator begin() const { return const_iterator(ptr() + size(), ptr()); }
-        const_iterator end() const { return const_iterator(ptr(), ptr()); }
-        size_t size() const
+        [[nodiscard]] iterator begin() const { return iterator(ptr() + size(), ptr()); }
+        [[nodiscard]] iterator end() const { return iterator(ptr(), ptr()); }
+        [[nodiscard]] size_t size() const
         {
             return view_base::safe_ptr<const config::header*>(ptr_)->config_size();
         }
@@ -389,7 +399,7 @@ class view_base
             : ptr_(ptr)
         {}
 
-        const_pointer ptr() const { return ptr_; }
+        [[nodiscard]] const_pointer ptr() const { return ptr_; }
         const_pointer ptr_;
     };
 
@@ -411,7 +421,7 @@ class view_base
         {
             if constexpr (CONTINUE_ON_INVALID)
             {
-                do
+                do // NOLINT(cppcoreguidelines-avoid-do-while)
                 {
                     ptr_++;
                 } while (skip_position());
@@ -440,43 +450,44 @@ class view_base
         }
 
       private:
-        bool valid() const { return valid_test(*ptr_); }
-        bool is_footer() const { return reinterpret_cast<const element*>(ptr_)->is_footer(); }
-        bool skip_position() const { return not valid() and not is_footer(); }
+        [[nodiscard]] bool valid() const { return valid_test(*ptr_); }
+        [[nodiscard]] bool is_footer() const
+        {
+            return reinterpret_cast<const element*>(ptr_)->is_footer();
+        }
+        [[nodiscard]] bool skip_position() const { return not valid() and not is_footer(); }
 
         pointer ptr_;
     };
 
-    using const_iterator = const iterator;
+    [[nodiscard]] iterator begin() const { return safe_ptr(1); }
+    [[nodiscard]] iterator end() const { return reinterpret_cast<decltype(safe_ptr())>(&footer()); }
 
-    const_iterator begin() const { return safe_ptr(1); }
-    const_iterator end() const { return reinterpret_cast<decltype(safe_ptr())>(&footer()); }
-
-    const reverse_view& reverse() const
+    [[nodiscard]] const reverse_view& reverse() const
         requires(CONTINUE_ON_INVALID)
     {
         return (const reverse_view&)(*this);
     }
 
     template <class Predicate>
-    size_t count(Predicate p) const
+    [[nodiscard]] size_t count(Predicate p) const
     {
-        size_t s = 0;
-        for (auto& i : *this)
+        size_t siz = 0;
+        for (auto& item : *this)
         {
-            if (p(i))
+            if (p(item))
             {
-                s++;
+                siz++;
             }
         }
-        return s;
+        return siz;
     }
-    size_t count() const
+    [[nodiscard]] size_t count() const
     {
         return count([](const_reference) { return true; });
     }
 
-    size_t size() const
+    [[nodiscard]] size_t size() const
     {
         if constexpr (CONTINUE_ON_INVALID)
         {
@@ -495,17 +506,17 @@ class view_base
         : ptr_(ptr)
     {}
     view_base(reference& ref)
-        : view_base(reinterpret_cast<decltype(ptr_)>(&ref))
+        : view_base(std::bit_cast<decltype(ptr_)>(&ref))
     {}
 
-    const config::header& info() const
+    [[nodiscard]] const config::header& info() const
         requires(CONTINUE_ON_INVALID)
     {
         return *reinterpret_cast<const config::header*>(safe_ptr());
     }
 
     template <typename Tout, typename Tin>
-    static Tout safe_ptr(Tin ptr, size_t offset = 0)
+    [[nodiscard]] static Tout safe_ptr(Tin ptr, size_t offset = 0)
     {
         if (ptr != nullptr)
         {
@@ -513,11 +524,12 @@ class view_base
         }
         return reinterpret_cast<Tout>(&footer());
     }
-    const_pointer safe_ptr(size_t offset = 0) const
+    [[nodiscard]] const_pointer safe_ptr(size_t offset = 0) const
     {
         return safe_ptr<const_pointer>(ptr_, offset);
     }
 
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
     const element* ptr_;
 };
 
@@ -558,7 +570,7 @@ class endpoint_view_base : public view_base<endpoint, valid_test, true>
     using base::end;
     using base::size;
 
-    endpoint::index indexof(reference& ep) const
+    [[nodiscard]] endpoint::index indexof(reference& ep) const
     {
         auto ptrdiff = std::distance(reinterpret_cast<pointer>(ptr_), &ep);
         assert((0 < ptrdiff) and (ptrdiff < info().config_size()));
@@ -571,7 +583,7 @@ class endpoint_view_base : public view_base<endpoint, valid_test, true>
         return *safe_ptr(n);
     }
 
-    reference at(usb::endpoint::address addr) const
+    [[nodiscard]] reference at(usb::endpoint::address addr) const
     {
         for (auto& ep : *this)
         {
@@ -608,12 +620,12 @@ class view : protected view_base<header, &element::is_header, true>
 
   public:
     constexpr bool operator==(const view&) const = default;
-    bool valid() const { return (info().config_size() > 0); }
+    [[nodiscard]] bool valid() const { return (info().config_size() > 0); }
 
     using base::info;
-    const interface_view& interfaces() const;
-    const endpoint_view& endpoints() const;
-    const active_endpoint_view& active_endpoints() const;
+    [[nodiscard]] const interface_view& interfaces() const;
+    [[nodiscard]] const endpoint_view& endpoints() const;
+    [[nodiscard]] const active_endpoint_view& active_endpoints() const;
 
     template <size_t N>
     constexpr view(const elements<N>& config)
@@ -627,14 +639,14 @@ class view : protected view_base<header, &element::is_header, true>
     {}
 
     template <typename... Args>
-    constexpr static auto make_config_list_helper(const Args&... args)
+    [[nodiscard]] constexpr static auto make_config_list_helper(const Args&... args)
     {
         return make_reference_array<const element>((*view(args).ptr_)...);
     }
 
     friend std::ostream& operator<<(std::ostream& os, const view& cfg)
     {
-        os << std::hex << reinterpret_cast<std::uintptr_t>(cfg.ptr_) << std::dec << "\n";
+        os << std::hex << std::bit_cast<std::uintptr_t>(cfg.ptr_) << std::dec << "\n";
         return os;
     }
 };
@@ -644,7 +656,7 @@ class view : protected view_base<header, &element::is_header, true>
 /// @param  args: configuration views
 /// @return nullptr-terminated pointer array, used to create @ref view_list
 template <typename... Args>
-constexpr static inline auto make_config_list(const Args&... args)
+[[nodiscard]] constexpr static auto make_config_list(const Args&... args)
 {
     return view::make_config_list_helper(args...);
 }
@@ -662,28 +674,26 @@ class view_list : public reference_array_view<const element, const view>
     constexpr view_list(const std::array<view, SIZE>& arr)
         : view_list(*reinterpret_cast<const std::array<const element*, SIZE>*>(&arr))
     {}
-    constexpr view_list()
-        : reference_array_view()
-    {}
+    constexpr view_list() = default;
     template <typename... Targs>
     void for_all(void (function::*method)(Targs...), Targs... args) const
     {
-        for (auto c : *this)
+        for (auto cfg : *this)
         {
-            for (auto& iface : c.interfaces())
+            for (const auto& iface : cfg.interfaces())
             {
-                (iface.function().*method)(std::forward<Targs>(args)...);
+                (iface.function().*method)(args...);
             }
         }
     }
     template <typename... Targs1, typename... Targs2>
-    bool until_any(bool (function::*method)(Targs1...), Targs2&&... args) const
+    [[nodiscard]] bool until_any(bool (function::*method)(Targs1...), Targs2&... args) const
     {
-        for (auto c : *this)
+        for (auto cfg : *this)
         {
-            for (auto& iface : c.interfaces())
+            for (const auto& iface : cfg.interfaces())
             {
-                if ((iface.function().*method)(std::forward<Targs1>(args)...))
+                if ((iface.function().*method)(args...))
                 {
                     return true;
                 }
@@ -692,6 +702,6 @@ class view_list : public reference_array_view<const element, const view>
         return false;
     }
 };
-} // namespace usb::df::config
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
-#endif // __USB_DF_CONFIG_HPP_
+} // namespace usb::df::config

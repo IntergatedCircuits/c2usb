@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/message.hpp"
 
@@ -101,6 +92,8 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
         assert(msg.data().size() == sizeof(line_coding()));
         set_line(line_config_, line_event::CODING_CHANGE);
         break;
+    default:
+        break;
     }
 
     return msg.confirm();
@@ -134,12 +127,12 @@ void function::ep_callback(const transfer& t)
 {
     if (t.endpoint() == ep_out_handle())
     {
-        return data_received(std::span<uint8_t>(t.data(), t.size() * t.success()));
+        return data_received(std::span<uint8_t>(t.data(), t.transferred_size()));
     }
     if (t.endpoint() == ep_in_handle())
     {
-        bool needs_zlp = t.size() and (t.size() % in_ep_mps_) == 0;
-        return data_sent(std::span<const uint8_t>(t.data(), t.size() * t.success()), needs_zlp);
+        return data_sent(std::span<const uint8_t>(t.data(), t.transferred_size()),
+                         t.needs_zlp(in_ep_mps_));
     }
     // notification sent
 }

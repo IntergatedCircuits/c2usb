@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/function.hpp"
 #include "usb/df/mac.hpp"
 
@@ -20,10 +11,7 @@ bool function::send_owned_string(istring index, string_message& smsg)
         send_string(index - istr_base_, smsg);
         return true;
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 void function::control_setup_request(message& msg, [[maybe_unused]] const config::interface& iface)
@@ -53,10 +41,8 @@ void function::handle_control_setup(message& msg, const config::interface& iface
     }
 
     case SET_INTERFACE:
-    {
-        uint8_t alt_selector = msg.request().wValue.low_byte();
-
-        if (alt_selector < iface.alt_setting_count())
+        if (uint8_t alt_selector = msg.request().wValue.low_byte();
+            alt_selector < iface.alt_setting_count())
         {
             if (alt_selector != get_alt_setting(iface))
             {
@@ -64,11 +50,7 @@ void function::handle_control_setup(message& msg, const config::interface& iface
             }
             return msg.confirm();
         }
-        else
-        {
-            return msg.reject();
-        }
-    }
+        return msg.reject();
 
 #if C2USB_FUNCTION_SUSPEND
     case SET_FEATURE:
@@ -160,10 +142,7 @@ ep_handle function::open_ep(const config::endpoint& ep)
     {
         return mac_->ep_open(ep);
     }
-    else
-    {
-        return {};
-    }
+    return {};
 }
 
 void function::close_ep(ep_handle& eph)
@@ -180,10 +159,7 @@ usb::result function::send_ep(ep_handle eph, const std::span<const uint8_t>& dat
     {
         return mac_->ep_send(eph, data);
     }
-    else
-    {
-        return usb::result::connection_reset;
-    }
+    return usb::result::connection_reset;
 }
 
 usb::result function::receive_ep(ep_handle eph, const std::span<uint8_t>& data)
@@ -192,10 +168,7 @@ usb::result function::receive_ep(ep_handle eph, const std::span<uint8_t>& data)
     {
         return mac_->ep_receive(eph, data);
     }
-    else
-    {
-        return usb::result::connection_reset;
-    }
+    return usb::result::connection_reset;
 }
 
 usb::result function::stall_ep(ep_handle eph, bool stall)
@@ -204,10 +177,7 @@ usb::result function::stall_ep(ep_handle eph, bool stall)
     {
         return mac_->ep_change_stall(eph, stall);
     }
-    else
-    {
-        return usb::result::connection_reset;
-    }
+    return usb::result::connection_reset;
 }
 
 usb::result function::cancel_ep(ep_handle eph)
@@ -216,10 +186,7 @@ usb::result function::cancel_ep(ep_handle eph)
     {
         return mac_->ep_cancel(eph);
     }
-    else
-    {
-        return usb::result::connection_reset;
-    }
+    return usb::result::connection_reset;
 }
 
 message* function::pending_message()
@@ -228,16 +195,13 @@ message* function::pending_message()
     {
         return mac_->get_pending_message(this);
     }
-    else
-    {
-        return nullptr;
-    }
+    return nullptr;
 }
 
 uint8_t function::describe_endpoints(const config::interface& iface, df::buffer& buffer)
 {
     uint8_t count = 0;
-    for (auto& ep : iface.endpoints())
+    for (const auto& ep : iface.endpoints())
     {
         buffer.append(static_cast<const standard::descriptor::endpoint&>(ep));
         count++;

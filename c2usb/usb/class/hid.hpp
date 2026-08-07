@@ -120,7 +120,7 @@ struct hid : public usb::descriptor<hid<CLASS_DESC_COUNT>>
     version bcdHID{SPEC_VERSION};
     country_code bCountryCode{country_code::NOT_SUPPORTED};
     uint8_t bNumDescriptors{CLASS_DESC_COUNT};
-    class_subdescriptor ClassDescriptors[CLASS_DESC_COUNT]{};
+    std::array<class_subdescriptor, CLASS_DESC_COUNT> ClassDescriptors{};
 };
 } // namespace descriptor
 } // namespace usb::hid

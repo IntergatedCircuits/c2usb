@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
 #include "usb/standard/descriptors.hpp"
@@ -97,7 +88,7 @@ void device::interface_control(message& msg,
                                void (function::*handler)(message&, const config::interface&))
 {
     auto ifaces = mac_.active_config().interfaces();
-    auto& iface = ifaces[msg.request().wIndex];
+    const auto& iface = ifaces[msg.request().wIndex];
     if (iface.valid())
     {
         return (iface.function().*handler)(msg, iface);
@@ -109,7 +100,7 @@ void device::interface_control(message& msg,
 void device::endpoint_setup_request(message& msg)
 {
     endpoint::address addr{msg.request().wIndex.low_byte()};
-    auto& ep = mac_.ep_address_to_config(addr);
+    const auto& ep = mac_.ep_address_to_config(addr);
     if (ep.valid())
     {
         return ep.interface().function().handle_control_setup(msg, mac_.ep_config_to_handle(ep));
@@ -118,7 +109,7 @@ void device::endpoint_setup_request(message& msg)
     return msg.reject();
 }
 
-void device::set_address(message& msg)
+void device::set_address(message& msg) const
 {
     if (not configured() and (msg.request().wIndex == 0) and (msg.request().wLength == 0) and
         (msg.request().wValue.low_byte() < 0x80))
@@ -128,10 +119,8 @@ void device::set_address(message& msg)
         // (e.g. ASAP, timely, none)
         return msg.confirm();
     }
-    else
-    {
-        return msg.reject();
-    }
+
+    return msg.reject();
 }
 
 void device::set_config(config::view config, event ev)
@@ -140,7 +129,7 @@ void device::set_config(config::view config, event ev)
     if (config != mac_.active_config())
     {
         // reverse order to ensure consistency
-        for (auto& iface : mac_.active_config().interfaces().reverse())
+        for (const auto& iface : mac_.active_config().interfaces().reverse())
         {
             iface.function().deinit(iface);
         }
@@ -148,7 +137,7 @@ void device::set_config(config::view config, event ev)
         mac_.set_config(config);
         delegate_power_event(ev | event::CONFIGURATION_CHANGE);
 
-        for (auto& iface : mac_.active_config().interfaces())
+        for (const auto& iface : mac_.active_config().interfaces())
         {
             iface.function().init(iface, &mac_);
         }
@@ -207,10 +196,8 @@ void device::set_feature(message& msg, bool active)
         mac_.set_remote_wakeup(active);
         return msg.confirm();
     }
-    else
-    {
-        return msg.reject();
-    }
+
+    return msg.reject();
 }
 
 void device::device_setup_request(message& msg)
@@ -304,26 +291,26 @@ void device::get_string_descriptor(message& msg)
 void device::assign_function_istrings()
 {
     const auto ss = speeds();
-    for (speed s : ss)
+    for (speed sp : ss)
     {
-        configs_by_speed(s).for_all(&function::free_string_index);
+        configs_by_speed(sp).for_all(&function::free_string_index);
     }
 
     istring index = 1;
     extension_.assign_istrings(*this, &index);
 
-    for (speed s : ss)
+    for (speed sp : ss)
     {
-        configs_by_speed(s).for_all(&function::allocate_string_index, &index);
+        configs_by_speed(sp).for_all(&function::allocate_string_index, &index);
     }
     assert(index < istr_config_base());
 }
 
 void device::get_function_string(istring index, string_message& smsg)
 {
-    for (speed s : speeds())
+    for (speed sp : speeds())
     {
-        if (configs_by_speed(s).until_any(&function::send_owned_string, index, smsg))
+        if (configs_by_speed(sp).until_any(&function::send_owned_string, index, smsg))
         {
             return;
         }
@@ -335,8 +322,8 @@ void device::get_config_string(istring index, string_message& smsg)
 {
     const auto ss = speeds();
     index -= istr_config_base();
-    speed s = ss.at(index / max_config_count());
-    auto config = configs_by_speed(s)[index % max_config_count()];
+    speed sp = ss.at(index / max_config_count());
+    auto config = configs_by_speed(sp)[index % max_config_count()];
     if (config.info().name() != nullptr)
     {
         return smsg.send_string(config.info().name());

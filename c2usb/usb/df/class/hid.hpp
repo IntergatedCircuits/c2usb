@@ -18,7 +18,7 @@ class app_base_function : public df::named_function, public ::hid::transport
         : df::named_function(name), app_(app)
     {}
 
-    constexpr const ::hid::application& app() const { return app_; }
+    [[nodiscard]] constexpr const ::hid::application& app() const { return app_; }
 
   protected:
     void start(const config::interface& iface, ::hid::boot::mode prot);
@@ -30,44 +30,36 @@ class app_base_function : public df::named_function, public ::hid::transport
 
     void ep_callback(const transfer& t) override;
 
-    ::hid::application& app_;
-    ::hid::session* session_{};
-    reports_receiver rx_buffers_{};
-    std::array<ep_handle, 2> ephs_{};
     ep_handle& ep_in_handle() { return ephs_[0]; }
     ep_handle& ep_out_handle() { return ephs_[1]; }
+
+    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
+    ::hid::application& app_;
+    ::hid::session* session_{};
+    reports_receiver rx_buffers_;
+    std::array<ep_handle, 2> ephs_{};
+    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 
 /// @brief  The function is the actual USB HID function, implementing the full functionality.
 class function : public app_base_function
 {
   public:
-    constexpr function(::hid::application& app
-#if CONFIG_C2USB_HID_BOOT_PROTOCOL
-                       ,
-                       boot_protocol_mode mode = boot_protocol_mode::NONE
-#endif
-                       )
-        : app_base_function(app)
-#if CONFIG_C2USB_HID_BOOT_PROTOCOL
-          ,
-          protocol_mode_(mode)
-#endif
-    {}
-    constexpr function(::hid::application& app, const char_t* name
-#if CONFIG_C2USB_HID_BOOT_PROTOCOL
-                       ,
-                       boot_protocol_mode mode = boot_protocol_mode::NONE
-#endif
-                       )
+#ifndef CONFIG_C2USB_HID_BOOT_PROTOCOL
+    constexpr function(::hid::application& app, const char_t* name = {})
         : app_base_function(app, name)
-#if CONFIG_C2USB_HID_BOOT_PROTOCOL
-          ,
-          protocol_mode_(mode)
-#endif
     {}
+#else
+    constexpr function(::hid::application& app, boot_protocol_mode mode = boot_protocol_mode::NONE)
+        : app_base_function(app), protocol_mode_(mode)
+    {}
+    constexpr function(::hid::application& app, const char_t* name,
+                       boot_protocol_mode mode = boot_protocol_mode::NONE)
+        : app_base_function(app, name), protocol_mode_(mode)
+    {}
+#endif
 
-  protected:
+  private:
     virtual void get_hid_descriptor(df::buffer& buffer);
     virtual void get_descriptor(message& msg);
 
@@ -77,39 +69,42 @@ class function : public app_base_function
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
 
+    void set_protocol(message& msg, const config::interface& iface);
+
 #if CONFIG_C2USB_HID_BOOT_PROTOCOL
-    boot_protocol_mode protocol_mode() const { return protocol_mode_; }
+    [[nodiscard]] boot_protocol_mode protocol_mode() const { return protocol_mode_; }
     const boot_protocol_mode protocol_mode_;
 #else
     boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
 #endif
 };
 
-inline df::config::elements<2> config(function& fn, const df::config::endpoint& in_ep)
+[[nodiscard]] inline auto config(function& fn, const df::config::endpoint& in_ep)
+    -> df::config::elements<2>
 {
     assert(in_ep.address().direction() == direction::IN);
     return config::to_elements({df::config::interface{fn}, in_ep});
 }
 
-inline df::config::elements<2> config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
-                                      uint8_t in_interval)
+[[nodiscard]] inline auto config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
+                                 uint8_t in_interval) -> df::config::elements<2>
 {
     const size_t in_mps = std::min(fn.app().report_info().max_input_size,
                                    endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
     return config(fn, config::endpoint::interrupt(in_ep_addr, in_mps, in_interval));
 }
 
-inline df::config::elements<3> config(function& fn, const df::config::endpoint& in_ep,
-                                      const df::config::endpoint& out_ep)
+[[nodiscard]] inline auto config(function& fn, const df::config::endpoint& in_ep,
+                                 const df::config::endpoint& out_ep) -> df::config::elements<3>
 {
     assert((in_ep.address().direction() == direction::IN) and
            (out_ep.address().direction() == direction::OUT));
     return config::to_elements({df::config::interface{fn}, in_ep, out_ep});
 }
 
-inline df::config::elements<3> config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
-                                      uint8_t in_interval, endpoint::address out_ep_addr,
-                                      uint8_t out_interval)
+[[nodiscard]] inline auto config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
+                                 uint8_t in_interval, endpoint::address out_ep_addr,
+                                 uint8_t out_interval) -> df::config::elements<3>
 {
     const size_t in_mps = std::min(fn.app().report_info().max_input_size,
                                    endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));

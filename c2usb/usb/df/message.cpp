@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/message.hpp"
 #include "raw_to_hex_string.hpp"
 #include "usb/standard/descriptors.hpp"
@@ -19,7 +10,7 @@ uint8_t* buffer::allocate(size_type size)
 {
     // need to increase CONTROL_BUFFER_SIZE
     assert(data_ and ((used_length() + size) <= max_size()));
-    auto* ptr = data_ + used_length();
+    auto* ptr = data_ + used_length(); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     used_length_ += size;
     return ptr;
 }
@@ -73,7 +64,8 @@ usb::standard::descriptor::string* string_message::safe_allocate(size_t& size, s
         assert(false);
         size = max_size;
     }
-    auto* buf = buffer_.allocate(sizeof(usb::standard::descriptor::string) + size * char_ratio);
+    auto* buf = buffer_.allocate(sizeof(usb::standard::descriptor::string) + (size * char_ratio));
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     return new (buf) usb::standard::descriptor::string(buffer_.used_length());
 }
 

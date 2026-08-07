@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_SPEEDS_HPP_
-#define __USB_SPEEDS_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/base.hpp"
 
 namespace usb
@@ -65,23 +54,27 @@ class speeds
     }
     const speed min;
     const speed max;
-    constexpr iterator begin() const { return min; }
-    constexpr iterator end() const { return static_cast<speed>(static_cast<numeric_t>(max) + 1); }
-    constexpr bool includes(speed s) const { return (min <= s) and (s <= max); }
-    constexpr bool includes(speeds ss) const { return (min <= ss.min) and (ss.max <= max); }
-    constexpr size_t count() const
+    [[nodiscard]] constexpr iterator begin() const { return min; }
+    [[nodiscard]] constexpr iterator end() const
     {
-        return 1u + static_cast<numeric_t>(max) - static_cast<numeric_t>(min);
+        return static_cast<speed>(static_cast<numeric_t>(max) + 1);
     }
-    constexpr size_t offset(speed s) const
+    [[nodiscard]] constexpr bool includes(speed s) const { return (min <= s) and (s <= max); }
+    [[nodiscard]] constexpr bool includes(speeds ss) const
+    {
+        return (min <= ss.min) and (ss.max <= max);
+    }
+    [[nodiscard]] constexpr size_t count() const
+    {
+        return 1U + static_cast<numeric_t>(max) - static_cast<numeric_t>(min);
+    }
+    [[nodiscard]] constexpr size_t offset(speed s) const
     {
         return static_cast<numeric_t>(s) - static_cast<numeric_t>(min);
     }
-    constexpr speed at(size_t index) const
+    [[nodiscard]] constexpr speed at(size_t index) const
     {
         return static_cast<speed>(static_cast<numeric_t>(min) + index);
     }
 };
 } // namespace usb
-
-#endif // __USB_SPEEDS_HPP_

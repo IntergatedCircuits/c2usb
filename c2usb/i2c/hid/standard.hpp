@@ -20,20 +20,20 @@ struct descriptor
 {
     le_uint16_t wHIDDescLength = sizeof(descriptor);
     version bcdVersion = SPEC_VERSION;
-    le_uint16_t wReportDescLength{};
-    le_uint16_t wReportDescRegister{};
-    le_uint16_t wInputRegister{};
-    le_uint16_t wMaxInputLength{};
-    le_uint16_t wOutputRegister{};
-    le_uint16_t wMaxOutputLength{};
-    le_uint16_t wCommandRegister{};
-    le_uint16_t wDataRegister{};
-    le_uint16_t wVendorID{};
-    le_uint16_t wProductID{};
-    le_uint16_t wVersionID{};
-    le_uint32_t reserved{};
+    le_uint16_t wReportDescLength;
+    le_uint16_t wReportDescRegister;
+    le_uint16_t wInputRegister;
+    le_uint16_t wMaxInputLength;
+    le_uint16_t wOutputRegister;
+    le_uint16_t wMaxOutputLength;
+    le_uint16_t wCommandRegister;
+    le_uint16_t wDataRegister;
+    le_uint16_t wVendorID;
+    le_uint16_t wProductID;
+    le_uint16_t wVersionID;
+    reserved_t<4> reserved;
 
-    constexpr descriptor() {}
+    constexpr descriptor() = default;
 
     constexpr descriptor& reset()
     {
@@ -90,31 +90,36 @@ class command_view
 {
   public:
     constexpr static uint8_t SHORT_REPORT_ID_LIMIT = 0xf;
-    constexpr hid::opcode opcode() const { return static_cast<hid::opcode>(buffer_[1]); }
-    constexpr bool is_extended() const
+    [[nodiscard]] constexpr hid::opcode opcode() const
+    {
+        return static_cast<hid::opcode>(buffer_[1]);
+    }
+    [[nodiscard]] constexpr bool is_extended() const
     {
         return (opcode() >= hid::opcode::GET_REPORT) and (opcode() <= hid::opcode::SET_IDLE) and
                ((buffer_[0] & SHORT_REPORT_ID_LIMIT) == SHORT_REPORT_ID_LIMIT);
     }
-    constexpr size_t size() const { return is_extended() ? 3 : 2; }
-    constexpr ::hid::report::type report_type() const
+    [[nodiscard]] constexpr size_t size() const { return is_extended() ? 3 : 2; }
+    [[nodiscard]] constexpr ::hid::report::type report_type() const
     {
         return static_cast<::hid::report::type>((buffer_[0] >> 4) & 0x3);
     }
-    ::hid::report::id::type report_id() const
+    [[nodiscard]] ::hid::report::id::type report_id() const
     {
         return is_extended() ? *(buffer_.data() + 2) : (buffer_[0] & SHORT_REPORT_ID_LIMIT);
     }
-    ::hid::report::selector report_selector() const
+    [[nodiscard]] ::hid::report::selector report_selector() const
     {
-        return ::hid::report::selector(this->report_type(), this->report_id());
+        return {this->report_type(), this->report_id()};
     }
-    constexpr bool sleep() const { return (buffer_[0] & 1) != 0; }
+    [[nodiscard]] constexpr bool sleep() const { return (buffer_[0] & 1) != 0; }
 
   protected:
     constexpr command_view(hid::opcode opcode, uint8_t value)
         : buffer_{value, static_cast<uint8_t>(opcode)}
     {}
+
+  private:
     std::array<uint8_t, 2> buffer_{};
 };
 
@@ -147,8 +152,11 @@ class command : public command_view
 struct short_data
 {
     le_uint16_t length{sizeof(short_data)};
-    le_uint16_t value{};
+    le_uint16_t value;
 
-    constexpr bool valid_size() const { return length == static_cast<uint16_t>(sizeof(*this)); }
+    [[nodiscard]] constexpr bool valid_size() const
+    {
+        return length == static_cast<uint16_t>(sizeof(*this));
+    }
 };
 } // namespace i2c::hid

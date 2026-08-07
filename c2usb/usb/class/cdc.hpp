@@ -179,18 +179,18 @@ enum class parity : uint8_t
 };
 struct line_coding
 {
-    le_uint32_t dwDTERate; /// Data terminal rate, in bits per second
-    stop_bits bCharFormat; /// Stop bits:
-                           ///     @arg 0 -> 1 Stop bit
-                           ///     @arg 1 -> 1.5 Stop bits
-                           ///     @arg 2 -> 2 Stop bits
-    parity bParityType;    /// Parity:
-                           ///     @arg 0 -> None
-                           ///     @arg 1 -> Odd
-                           ///     @arg 2 -> Even
-                           ///     @arg 3 -> Mark
-                           ///     @arg 4 -> Space
-    uint8_t bDataBits;     /// Data bits: (5, 6, 7, 8 or 16)
+    le_uint32_t dwDTERate;   /// Data terminal rate, in bits per second
+    stop_bits bCharFormat{}; /// Stop bits:
+                             ///     @arg 0 -> 1 Stop bit
+                             ///     @arg 1 -> 1.5 Stop bits
+                             ///     @arg 2 -> 2 Stop bits
+    parity bParityType{};    /// Parity:
+                             ///     @arg 0 -> None
+                             ///     @arg 1 -> Odd
+                             ///     @arg 2 -> Even
+                             ///     @arg 3 -> Mark
+                             ///     @arg 4 -> Space
+    uint8_t bDataBits{};     /// Data bits: (5, 6, 7, 8 or 16)
 };
 
 struct state : le_uint16_t
@@ -235,7 +235,7 @@ struct header : protected usb::control::request
 struct network_connection : public header
 {
     constexpr network_connection(bool connected)
-        : header(code::NETWORK_CONNECTION, connected)
+        : header(code::NETWORK_CONNECTION, uint16_t(connected))
     {}
 };
 
@@ -264,7 +264,7 @@ struct speed_change : public header
 struct aux_jack_hook_state : public header
 {
     constexpr aux_jack_hook_state(bool off_hook)
-        : header(code::AUX_JACK_HOOK_STATE, off_hook)
+        : header(code::AUX_JACK_HOOK_STATE, uint16_t(off_hook))
     {}
 };
 
@@ -277,7 +277,7 @@ struct ring_detect : public header
 
 struct serial_state : public header
 {
-    serial_state(serial::state s)
+    serial_state(serial::state s) // NOLINT(performance-unnecessary-value-param)
         : header(code::SERIAL_STATE, 0, sizeof(serial_state) - sizeof(header)), SerialState(s)
     {}
 
@@ -308,24 +308,24 @@ struct parameters
 {
     le_uint16_t Length{sizeof(parameters)}; /// Size in bytes of this NTBT structure
     le_uint16_t NtbFormatsSupported{1};     /// 1 if only 16bit, 3 if 32bit is supported as well
-    le_uint32_t NtbInMaxSize{};             /// IN NTB Maximum Size in bytes
-    le_uint16_t NdpInDivisor{};             /// Divisor used for IN NTB Datagram payload alignment
+    le_uint32_t NtbInMaxSize;               /// IN NTB Maximum Size in bytes
+    le_uint16_t NdpInDivisor;               /// Divisor used for IN NTB Datagram payload alignment
     le_uint16_t
-        NdpInPayloadRemainder{};  /// Remainder used to align input datagram payload within the NTB
-    le_uint16_t NdpInAlignment{}; /// Datagram alignment
-    const le_uint16_t reserved{};
-    le_uint32_t NtbOutMaxSize{};
-    le_uint16_t NdpOutDivisor{};
-    le_uint16_t NdpOutPayloadRemainder{};
-    le_uint16_t NdpOutAlignment{};
-    le_uint16_t NtbOutMaxDatagrams{}; /// Maximum number of datagrams in a single OUT NTB
+        NdpInPayloadRemainder;  /// Remainder used to align input datagram payload within the NTB
+    le_uint16_t NdpInAlignment; /// Datagram alignment
+    const le_uint16_t reserved;
+    le_uint32_t NtbOutMaxSize;
+    le_uint16_t NdpOutDivisor;
+    le_uint16_t NdpOutPayloadRemainder;
+    le_uint16_t NdpOutAlignment;
+    le_uint16_t NtbOutMaxDatagrams; /// Maximum number of datagrams in a single OUT NTB
 };
 
 struct input_size
 {
-    le_uint32_t dwNtbInMaxSize{};
-    le_uint16_t wNtbInMaxDatagrams{};
-    const le_uint16_t reserved{};
+    le_uint32_t dwNtbInMaxSize;
+    le_uint16_t wNtbInMaxDatagrams;
+    const le_uint16_t reserved;
 };
 } // namespace ntb
 } // namespace ncm
@@ -408,7 +408,7 @@ struct union_ : public descriptor<union_<SIZE>>
     uint8_t bControlInterface{};
     std::array<uint8_t, SIZE> bSubordinateInterfaces{};
 
-    constexpr union_() {}
+    constexpr union_() = default;
     constexpr union_(uint8_t first_if)
         : bControlInterface(first_if)
     {
@@ -452,17 +452,17 @@ struct ethernet_networking : public descriptor<ethernet_networking>
 
     istring iMACAddress{}; /// Index of string descriptor. The string descriptor holds the 48bit
                            /// Ethernet MAC address.
-    le_uint32_t bmEthernetStatistics{}; /// Indicates which Ethernet statistics functions the device
-                                        /// collects.
+    le_uint32_t bmEthernetStatistics; /// Indicates which Ethernet statistics functions the device
+                                      /// collects.
     le_uint16_t wMaxSegmentSize{
         DEFAULT_MAX_SEGMENT_SIZE}; /// Typically 1514 bytes, but could be extended.
     le_uint16_t
-        wNumberMCFilters{}; /// Number of multicast filters that can be configured by the host.
+        wNumberMCFilters; /// Number of multicast filters that can be configured by the host.
     uint8_t bNumberPowerFilters{}; /// Number of pattern filters that are available for causing
                                    /// wake-up of the host.
 };
 
-struct network_control : public descriptor<ethernet_networking>
+struct network_control : public descriptor<network_control>
 {
     constexpr static auto FUNC_TYPE_CODE = comm::type::NCM;
 

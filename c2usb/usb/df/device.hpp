@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_DEVICE_HPP_
-#define __USB_DF_DEVICE_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <variant>
 #include <etl/delegate.h>
 #include <magic_enum.hpp>
@@ -42,15 +31,14 @@ class device : public polymorphic
 {
   public:
     /// @brief  The extension is the interface for vendor specific device extensions.
-    class extension
+    class extension : public interface
     {
       public:
         static extension& instance()
         {
-            static extension e;
-            return e;
+            static extension ext;
+            return ext;
         }
-        virtual ~extension() = default;
 
         virtual void bus_reset([[maybe_unused]] device& dev) {}
         virtual void assign_istrings([[maybe_unused]] device& dev, [[maybe_unused]] istring* index)
@@ -83,22 +71,22 @@ class device : public polymorphic
         constexpr extension() = default;
     };
 
-    bool configured() const { return mac_.configured(); }
-    usb::speed bus_speed() const { return mac_.speed(); }
+    [[nodiscard]] bool configured() const { return mac_.configured(); }
+    [[nodiscard]] usb::speed bus_speed() const { return mac_.speed(); }
 
     void set_power_source(usb::power::source src) { mac_.set_power_source(src); }
-    auto power_source() const
+    [[nodiscard]] auto power_source() const
     {
         return static_cast<usb::power::source>(static_cast<bool>(mac_.std_status().self_powered));
     }
-    uint32_t granted_bus_current_uA() const { return mac_.granted_bus_current_uA(); }
-    bool allows_remote_wakeup() const { return mac_.std_status().remote_wakeup; }
-    auto power_state() const { return mac_.power_state(); }
-    const config::power* power_config() const;
+    [[nodiscard]] uint32_t granted_bus_current_uA() const { return mac_.granted_bus_current_uA(); }
+    [[nodiscard]] bool allows_remote_wakeup() const { return mac_.std_status().remote_wakeup; }
+    [[nodiscard]] auto power_state() const { return mac_.power_state(); }
+    [[nodiscard]] const config::power* power_config() const;
     auto remote_wakeup() { return mac_.remote_wakeup(); }
 
     // using namespace magic_enum::bitwise_operators;
-    enum class event : uint8_t
+    enum event : uint8_t
     {
         NONE = 0,
         POWER_STATE_CHANGE = 1,
@@ -112,8 +100,8 @@ class device : public polymorphic
 
     virtual config::view_list configs_by_speed(usb::speed speed) = 0;
 
-    constexpr version usb_spec_version() { return version("2.0.1"); }
-    usb::speeds speeds() const { return speeds_; }
+    [[nodiscard]] static constexpr version usb_spec_version() { return {"2.0.1"}; }
+    [[nodiscard]] usb::speeds speeds() const { return speeds_; }
 
     void open() { mac_.start(); }
 
@@ -122,7 +110,13 @@ class device : public polymorphic
         set_config({});
         mac_.stop();
     }
-    bool is_open() const { return mac_.active(); }
+    [[nodiscard]] bool is_open() const { return mac_.active(); }
+
+    ~device() override { mac_.deinit(*this); }
+    device(const device&) = delete;
+    device& operator=(const device&) = delete;
+    device(device&&) = delete;
+    device& operator=(device&&) = delete;
 
   protected:
     virtual void get_descriptor(message& msg);
@@ -148,23 +142,24 @@ class device : public polymorphic
           extension_(ext),
           speeds_(speeds),
           max_config_count_(max_configs_count),
-          istr_config_base_(ISTR_GLOBAL_BASE - max_configs_count * speeds.count())
+          istr_config_base_(ISTR_GLOBAL_BASE - (max_configs_count * speeds.count()))
     {
         mac_.init(*this, speeds);
     }
-    ~device() override { mac_.deinit(*this); }
 
     void assign_function_istrings();
     void get_device_qualifier_descriptor(message& msg, usb::speed speed);
     void get_config_descriptor(message& msg, usb::speed speed);
 
-    uint8_t max_config_count() const { return max_config_count_; }
+    [[nodiscard]] uint8_t max_config_count() const { return max_config_count_; }
+
+    [[nodiscard]] auto& get_extension() { return extension_; }
 
   private:
     void get_function_string(istring index, string_message& smsg);
     void get_config_string(istring index, string_message& smsg);
-    istring get_config_istring(uint8_t config_index, usb::speed speed);
-    istring istr_config_base() const { return istr_config_base_; }
+    [[nodiscard]] istring get_config_istring(uint8_t config_index, usb::speed speed);
+    [[nodiscard]] istring istr_config_base() const { return istr_config_base_; }
 
     void interface_control(message& msg,
                            void (function::*handler)(message&, const config::interface&));
@@ -172,7 +167,7 @@ class device : public polymorphic
     void get_string_descriptor(message& msg);
     void get_device_descriptor(message& msg);
     void get_bos_descriptor(message& msg);
-    void set_address(message& msg);
+    void set_address(message& msg) const;
     void set_config(config::view config, event ev = event::CONFIGURATION_CHANGE);
     void set_configuration(message& msg);
     void get_configuration(message& msg);
@@ -197,13 +192,11 @@ class device : public polymorphic
     void on_control_setup(message& msg);
     void on_control_data(message& msg);
 
-  protected:
     usb::df::mac& mac_;
     const product_info& product_info_;
     extension& extension_;
-    power_event_delegate power_event_delegate_{};
+    power_event_delegate power_event_delegate_;
 
-  private:
     static constexpr istring ISTR_VENDOR_NAME = 0xFF;
     static constexpr istring ISTR_PRODUCT_NAME = 0xFE;
     static constexpr istring ISTR_SERIAL_NUMBER = 0xFD;
@@ -284,7 +277,7 @@ class device_instance : public device
 
     config::view_list configs_by_speed(usb::speed speed) override
     {
-        auto configs = extension_.configs_by_speed(*this, speed);
+        auto configs = get_extension().configs_by_speed(*this, speed);
         if (not configs.empty())
         {
             return configs;
@@ -315,5 +308,3 @@ struct magic_enum::customize::enum_range<usb::df::device::event>
 {
     static constexpr bool is_flags = true;
 };
-
-#endif // __USB_DF_DEVICE_HPP_

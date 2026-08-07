@@ -24,7 +24,7 @@ class transport : public c2usb::interface
         {
             return buffers_[static_cast<uint8_t>(type) - OFFSET];
         }
-        constexpr std::span<uint8_t>& largest()
+        [[nodiscard]] constexpr std::span<uint8_t>& largest()
         {
             return (buffers_[0].size() > buffers_[1].size()) ? buffers_[0] : buffers_[1];
         }
@@ -42,7 +42,7 @@ class transport : public c2usb::interface
     virtual c2usb::result receive_report(session& sess, const std::span<uint8_t>& data,
                                          report::type type = report::type::OUTPUT) = 0;
 
-  protected:
+  protected: // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void start(application& app, session*& sess, const session::params& params)
     {
         assert(params.transport == this);
@@ -52,14 +52,11 @@ class transport : public c2usb::interface
             {
                 return;
             }
-            else
-            {
-                app.stop(*sess);
-            }
+            app.stop(*sess);
         }
         sess = &app.start(params);
     }
-    void stop(application& app, session*& sess)
+    static void stop(application& app, session*& sess)
     {
         if (sess != nullptr)
         {

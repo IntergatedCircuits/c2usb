@@ -1,0 +1,34 @@
+Checks: >
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  bugprone-*,
+  -bugprone-crtp-constructor-accessibility,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  readability*,
+  -readability-avoid-return-with-void-value,
+  -readability-avoid-unconditional-preprocessor-if,
+  -readability-magic-numbers,
+  -readability-static-accessed-through-instance,
+  cppcoreguidelines*,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  clang-analyzer-*,
+  -clang-analyzer-optin.core.EnumCastOutOfRange
+
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+FormatStyle: file
+CheckOptions:
+  - key:             readability-braces-around-statements.ShortStatementLines
+    value:           '0'
+  - key:             readability-identifier-length.MinimumVariableNameLength
+    value:           '2'
+  - key:             readability-identifier-length.MinimumParameterNameLength
+    value:           '1'
+  - key:             readability-simplify-boolean-expr.IgnoreMacros
+    value:           true

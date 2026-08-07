@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_MESSAGE_HPP_
-#define __USB_DF_MESSAGE_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <cassert>
 #include <cstring>
 #include <new>
@@ -35,20 +24,22 @@ class buffer
   public:
     using size_type = uint16_t;
 
-    size_type max_size() const { return size_; }
-    size_type used_length() const { return used_length_; }
-    bool empty() const { return used_length() == 0; }
-    uint8_t* begin() const { return data_; }
-    uint8_t* end() const { return data_ + used_length(); }
+    [[nodiscard]] size_type max_size() const { return size_; }
+    [[nodiscard]] size_type used_length() const { return used_length_; }
+    [[nodiscard]] bool empty() const { return used_length() == 0; }
+    [[nodiscard]] uint8_t* begin() const { return data_; }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    [[nodiscard]] uint8_t* end() const { return data_ + used_length(); }
 
     void clear() { used_length_ = 0; }
-    uint8_t* allocate(size_type size);
+    [[nodiscard]] uint8_t* allocate(size_type size);
     void free(size_type size);
 
     template <typename T, typename... Args>
-    T* allocate(Args&&... args)
+    [[nodiscard]] T* allocate(Args&&... args)
     {
-        return new (allocate(sizeof(T))) T(args...);
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        return new (allocate(sizeof(T))) T(std::forward<Args>(args)...);
     }
 
     template <typename T>
@@ -59,11 +50,13 @@ class buffer
     }
 
     constexpr buffer() = default;
-
-  private:
     buffer(const buffer&) = delete;
     buffer& operator=(const buffer&) = delete;
+    buffer(buffer&&) = delete;
+    buffer& operator=(buffer&&) = delete;
+    ~buffer() = default;
 
+  private:
     friend class mac;
     constexpr void assign(uint8_t* data, size_type size)
     {
@@ -82,11 +75,11 @@ class buffer
 class string_message
 {
   public:
-    const auto& request() const { return request_; }
-    istring index() const { return request().wValue.low_byte(); }
-    uint16_t language_id() const { return request().wIndex; }
+    [[nodiscard]] const auto& request() const { return request_; }
+    [[nodiscard]] istring index() const { return request().wValue.low_byte(); }
+    [[nodiscard]] uint16_t language_id() const { return request().wIndex; }
 
-    control::stage stage() const { return stage_; }
+    [[nodiscard]] control::stage stage() const { return stage_; }
 
     void reject();
 
@@ -112,11 +105,13 @@ class string_message
 
     void set_pending(const transfer& data = {});
 
+    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
     C2USB_USB_TRANSFER_ALIGN(control::request, request_) {};
-    df::buffer buffer_{};
-    transfer data_{};
+    df::buffer buffer_;
+    transfer data_;
     bool pending_{};
     control::stage stage_{};
+    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
 
   private:
     standard::descriptor::string* safe_allocate(size_t& size, size_t char_ratio = 1);
@@ -140,7 +135,7 @@ class message : protected string_message
     void set_reply(bool accept);
 
     template <typename T>
-    void send_value(T value)
+    void send_value(T value) // NOLINT(performance-unnecessary-value-param)
         requires(std::is_convertible_v<T, sized_unsigned_t<sizeof(T)>>)
     {
         using integral_type = sized_unsigned_t<sizeof(T)>;
@@ -161,9 +156,8 @@ class message : protected string_message
 
     template <typename T>
     void send(const T& data)
-        requires(std::is_trivially_copyable_v<T>)
     {
-        send_data(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&data), sizeof(data)));
+        send_data(std::span<const uint8_t>(std_layout_cast<const uint8_t*>(&data), sizeof(data)));
     }
 
     using string_message::send_buffer;
@@ -172,9 +166,8 @@ class message : protected string_message
 
     template <typename T>
     void receive(T& data)
-        requires(std::is_trivially_copyable_v<T>)
     {
-        receive_data(std::span<uint8_t>(reinterpret_cast<uint8_t*>(&data), sizeof(data)));
+        receive_data(std::span<uint8_t>(std_layout_cast<uint8_t*>(&data), sizeof(data)));
     }
 
     void receive_to_buffer();
@@ -183,5 +176,3 @@ class message : protected string_message
 };
 
 } // namespace usb::df
-
-#endif // __USB_DF_MESSAGE_HPP_

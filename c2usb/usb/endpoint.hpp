@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_ENDPOINT_HPP_
-#define __USB_ENDPOINT_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/base.hpp"
 
 namespace usb::endpoint
@@ -47,6 +36,7 @@ C2USB_STATIC_CONSTEXPR inline uint16_t packet_size_limit(type t, speed s)
     {
         return 0;
     }
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
     C2USB_STATIC_CONSTEXPR static const uint16_t sizes[4][3] = {
         // clang-format off
         // LS    FS    HS
@@ -72,19 +62,20 @@ class address
     constexpr address(usb::direction dir, uint8_t number)
         : value_((static_cast<uint8_t>(dir) << 7) | (number & 0xF))
     {}
-    constexpr uint8_t number() const { return value_ & 0xF; }
+    [[nodiscard]] constexpr uint8_t number() const { return value_ & 0xF; }
 
-    constexpr bool valid() const { return (value_ & 0x70) == 0; }
-    constexpr static address invalid() { return address(0x70); }
-    constexpr static address control(usb::direction dir) { return address(dir, 0); }
-    constexpr static address control_in() { return control(usb::direction::IN); }
-    constexpr static address control_out() { return control(usb::direction::OUT); }
+    [[nodiscard]] constexpr bool valid() const { return (value_ & 0x70) == 0; }
+    [[nodiscard]] constexpr static address invalid() { return address(0x70); }
+    [[nodiscard]] constexpr static address control(usb::direction dir) { return {dir, 0}; }
+    [[nodiscard]] constexpr static address control_in() { return control(usb::direction::IN); }
+    [[nodiscard]] constexpr static address control_out() { return control(usb::direction::OUT); }
 
-    constexpr usb::direction direction() const { return static_cast<usb::direction>(value_ >> 7); }
+    [[nodiscard]] constexpr usb::direction direction() const
+    {
+        return static_cast<usb::direction>(value_ >> 7);
+    }
 
   private:
     uint8_t value_;
 };
 } // namespace usb::endpoint
-
-#endif // __USB_ENDPOINT_HPP_

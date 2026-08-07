@@ -13,15 +13,15 @@ class descriptors : public device::extension
   public:
     static descriptors& instance()
     {
-        static descriptors d;
-        return d;
+        static descriptors descs;
+        return descs;
     }
 
-    bool msos2_support() const { return status_ & MSOS2_SUPPORT_FLAG; }
+    [[nodiscard]] bool msos2_support() const { return (status_ & MSOS2_SUPPORT_FLAG) != 0; }
 
   protected:
     void control_setup_request(device& dev, message& msg) override;
-    unsigned bos_capabilities(device& dev, df::buffer& buffer) override;
+    [[nodiscard]] unsigned bos_capabilities(device& dev, df::buffer& buffer) override;
     void bus_reset([[maybe_unused]] device& dev) override { status_ = 0; }
 
     static void get_msos2_descriptor(device& dev, df::buffer& buffer);
@@ -29,38 +29,38 @@ class descriptors : public device::extension
                                         df::buffer& buffer);
     static void get_msos2_function_subset(const config::interface& iface, uint8_t iface_index,
                                           df::buffer& buffer);
-    static usb::microsoft::platform_descriptor* get_platform_descriptor(device& dev,
-                                                                        df::buffer& buffer);
+    [[nodiscard]] static usb::microsoft::platform_descriptor*
+    get_platform_descriptor(device& dev, df::buffer& buffer);
 
-    constexpr descriptors()
-        : device::extension()
-    {}
+    constexpr descriptors() = default;
 
     static constexpr uint8_t MSOS2_SUPPORT_FLAG = 0x01;
-    uint8_t status_{};
+    uint8_t status_{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
 };
 
 /// @brief Non-template base class for @ref alternate_enumeration.
 class alternate_enumeration_base : public descriptors
 {
   public:
-    bool alternate_enumerated() const { return status_ & ALT_ENUM_FLAG; }
+    [[nodiscard]] bool alternate_enumerated() const { return (status_ & ALT_ENUM_FLAG) != 0; }
 
   protected:
     constexpr alternate_enumeration_base(usb::speeds speeds, uint8_t max_configs_count)
-        : descriptors(), speeds_(speeds), max_config_count_(max_configs_count)
+        : speeds_(speeds), max_config_count_(max_configs_count)
     {}
 
     void assign_istrings(device& dev, istring* index) override;
-    bool send_owned_string(device& dev, istring index, string_message& smsg) override;
+    [[nodiscard]] bool send_owned_string(device& dev, istring index, string_message& smsg) override;
     void control_setup_request(device& dev, message& msg) override;
-    unsigned bos_capabilities(device& dev, df::buffer& buffer) override;
+    [[nodiscard]] unsigned bos_capabilities(device& dev, df::buffer& buffer) override;
 
-    constexpr usb::speeds speeds() const { return speeds_; }
-    virtual config::view_list alt_configs_by_speed(usb::speed speed) = 0;
+    [[nodiscard]] constexpr usb::speeds speeds() const { return speeds_; }
+    [[nodiscard]] virtual config::view_list alt_configs_by_speed(usb::speed speed) = 0;
+    [[nodiscard]] constexpr uint8_t max_config_count() const { return max_config_count_; }
 
     static constexpr uint8_t ALT_ENUM_FLAG = 0x02;
 
+  private:
     const usb::speeds speeds_;
     const uint8_t max_config_count_{};
 };
@@ -115,7 +115,6 @@ class alternate_enumeration : public alternate_enumeration_base
         {
             return alt_configs_by_speed(speed);
         }
-        else
         {
             return {};
         }

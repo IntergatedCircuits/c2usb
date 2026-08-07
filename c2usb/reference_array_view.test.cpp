@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 #include "reference_array_view.hpp"
 #include "test_framework.hpp"
 #include <string_view>

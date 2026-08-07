@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_VENDOR_MICROSOFT_OS_HPP_
-#define __USB_VENDOR_MICROSOFT_OS_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "usb/control.hpp"
 #include "usb/standard/descriptors.hpp"
 #include <string_view>
@@ -47,7 +36,7 @@ struct descriptor_set_info
     le_uint32_t dwWindowsVersion{MIN_WINDOWS_VERSION};
 
     /// The length, in bytes of the MS OS 2.0 descriptor set
-    le_uint16_t wMSOSDescriptorSetTotalLength{};
+    le_uint16_t wMSOSDescriptorSetTotalLength;
 
     /// Vendor defined code to use to retrieve this version of the MS OS 2.0 descriptor
     /// and also to set alternate enumeration behavior on the device
@@ -115,7 +104,7 @@ struct set_header : public descriptor<set_header>
 
     /// The size of entire MS OS 2.0 descriptor set.
     /// The value shall match the value in the descriptor set information structure
-    le_uint16_t wTotalLength{};
+    le_uint16_t wTotalLength;
 };
 
 /// @brief  Microsoft OS 2.0 configuration subset header structure
@@ -132,7 +121,7 @@ struct config_subset_header : public descriptor<config_subset_header>
     uint8_t bReserved{};
 
     /// The size of entire configuration subset including this header
-    le_uint16_t wTotalLength{};
+    le_uint16_t wTotalLength;
 };
 
 /// @brief  Microsoft OS 2.0 function subset header structure
@@ -146,7 +135,7 @@ struct function_subset_header : public descriptor<function_subset_header>
     uint8_t bReserved{};
 
     /// The size of entire function subset including this header
-    le_uint16_t wSubsetLength{};
+    le_uint16_t wSubsetLength;
 };
 
 /// @brief  Microsoft OS 2.0 compatible ID descriptor structure
@@ -155,10 +144,10 @@ struct compatible_id : public descriptor<compatible_id>
     constexpr static auto TYPE_CODE = descriptor_type::MS_OS_20_FEATURE_COMPATBLE_ID;
 
     /// Compatible ID String
-    char CompatibleID[8]{};
+    std::array<char, 8> CompatibleID{};
 
     /// Sub-compatible ID String
-    char SubCompatibleID[8]{};
+    std::array<char, 8> SubCompatibleID{};
 };
 
 /// @brief  Microsoft OS 2.0 registry property descriptor structure
@@ -169,13 +158,13 @@ struct registry_property : public descriptor<registry_property<PROP_NAME, T>>
     constexpr static size_t NAME_SIZE = std::wstring_view(PROP_NAME).length() + 1;
 
     /// The type of registry property (@ref property_data_type)
-    le_uint16_t wPropertyDataType{};
+    le_uint16_t wPropertyDataType;
 
     /// The length of the property name
-    le_uint16_t wPropertyNameLength{};
+    le_uint16_t wPropertyNameLength;
 
     /// The null-terminated? Unicode? name of registry property (variable size)
-    char16_t PropertyName[NAME_SIZE]{};
+    std::array<char16_t, NAME_SIZE> PropertyName{};
 
     /// The length of the property data
     le_uint16_t wPropertyDataLength{sizeof(T)};
@@ -201,10 +190,10 @@ struct minimum_resume_time : public descriptor<minimum_resume_time>
     constexpr static auto TYPE_CODE = descriptor_type::MS_OS_20_FEATURE_MIN_RESUME_TIME;
 
     /// The number of milliseconds the device requires to recover from port resume [0..10]
-    uint8_t bResumeRecoveryTime;
+    uint8_t bResumeRecoveryTime{};
 
     /// The number of milliseconds the device requires resume signaling to be asserted [1..20]
-    uint8_t bResumeSignalingTime;
+    uint8_t bResumeSignalingTime{};
 };
 
 /// @brief  Microsoft OS 2.0 model ID descriptor structure
@@ -252,5 +241,3 @@ struct vendor_revision : public descriptor<vendor_revision>
 };
 } // namespace msos_2p0
 } // namespace usb::microsoft
-
-#endif // __USB_VENDOR_MICROSOFT_OS_HPP_

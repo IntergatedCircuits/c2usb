@@ -82,7 +82,7 @@ class service
         if (auto* serial_str = std::get_if<std::string_view>(&sn))
         {
             return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                                     reinterpret_cast<const uint8_t*>(serial_str->data()),
+                                     c2usb::std_layout_cast<const uint8_t*>(serial_str->data()),
                                      serial_str->size());
         }
         if (auto* serial_span = std::get_if<std::span<const uint8_t>>(&sn))
@@ -107,8 +107,8 @@ class service
                      .vendor_id = info->vendor_id,
                      .product_id = info->product_id,
                      .product_version = info->product_version};
-        return bt_gatt_attr_read(conn, attr, buf, len, offset, reinterpret_cast<uint8_t*>(&pnpid),
-                                 sizeof(pnpid));
+        return bt_gatt_attr_read(conn, attr, buf, len, offset,
+                                 c2usb::std_layout_cast<uint8_t*>(&pnpid), sizeof(pnpid));
     }
 
   protected:

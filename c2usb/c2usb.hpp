@@ -55,6 +55,25 @@ using be_int16_t = bitfilled::packed_integer<std::endian::big, 2, std::int16_t>;
 using be_int32_t = bitfilled::packed_integer<std::endian::big, 4, std::int32_t>;
 using be_int64_t = bitfilled::packed_integer<std::endian::big, 8, std::int64_t>;
 
+template <std::size_t SIZE>
+class reserved_t
+{
+  public:
+    constexpr reserved_t() = default;
+
+  private:
+    using value_type = std::array<uint8_t, SIZE>;
+    value_type data_{};
+};
+template <>
+class reserved_t<0>
+{
+  public:
+    constexpr reserved_t() = default;
+};
+
+/// @brief  The result class is a convenience wrapper for standard error codes,
+///         storing the negative error code as an integer.
 class result
 {
     int code_;
@@ -67,14 +86,19 @@ class result
     constexpr explicit result(int err)
         : code_(err)
     {}
-    constexpr int to_int() const { return code_; }
-    static inline constexpr std::errc ok = static_cast<std::errc>(0);
-    static inline constexpr std::errc OK = static_cast<std::errc>(0);
-    static inline constexpr std::errc INVALID = static_cast<std::errc>(EINVAL);
-    static inline constexpr std::errc NO_TRANSPORT = static_cast<std::errc>(ENODEV);
-    static inline constexpr std::errc BUSY = static_cast<std::errc>(EBUSY);
-    static inline constexpr std::errc NO_CONNECTION = static_cast<std::errc>(ENOTCONN);
-    static inline constexpr std::errc NO_MEMORY = static_cast<std::errc>(ENOMEM);
+    /// @brief  Returns the stored error code as a raw negative POSIX error code.
+    /// @return 0 if the result is OK, or a negative POSIX error code otherwise.
+    [[nodiscard]] constexpr int to_int() const { return code_; }
+
+    [[nodiscard]] constexpr bool success() const { return code_ == 0; }
+
+    static constexpr std::errc ok = static_cast<std::errc>(0);
+    static constexpr std::errc INVALID = static_cast<std::errc>(EINVAL);
+    static constexpr std::errc NO_TRANSPORT = static_cast<std::errc>(ENODEV);
+    static constexpr std::errc BUSY = static_cast<std::errc>(EBUSY);
+    static constexpr std::errc NO_CONNECTION = static_cast<std::errc>(ENOTCONN);
+    static constexpr std::errc NO_MEMORY = static_cast<std::errc>(ENOMEM);
+
     constexpr bool operator==(const result& other) const = default;
 };
 
@@ -89,6 +113,8 @@ class interface
 
     interface(const interface&) = delete;
     interface& operator=(const interface&) = delete;
+    interface(interface&&) = delete;
+    interface& operator=(interface&&) = delete;
 };
 
 /// @brief  The polymorphic base class is used by any subclass that implements polymorphism,
@@ -101,6 +127,8 @@ class polymorphic
 
     polymorphic(const polymorphic&) = delete;
     polymorphic& operator=(const polymorphic&) = delete;
+    polymorphic(polymorphic&&) = delete;
+    polymorphic& operator=(polymorphic&&) = delete;
 };
 
 template <typename Type, std::size_t... sizes>
@@ -111,6 +139,51 @@ constexpr auto join(const std::array<Type, sizes>&... arrays)
     std::size_t index{};
     ((std::copy_n(arrays.begin(), sizes, result.begin() + index), index += sizes), ...);
     return result;
+}
+
+template <typename T>
+constexpr unsigned aligned_size(size_t size)
+{
+    return (size + sizeof(T) - 1) & ~(sizeof(T) - 1);
+}
+
+template <typename T>
+concept RawMemoryStorage =
+    std::is_integral_v<T> and not std::is_same_v<T, bool>; // TODO: add std::byte?
+
+template <typename T>
+concept StdLayoutType = (std::is_standard_layout_v<T> and std::is_trivially_copyable_v<T> and
+                         not std::is_polymorphic_v<T> and std::is_class_v<T>) or
+                        std::is_enum_v<T>;
+
+template <typename To, RawMemoryStorage From>
+    requires StdLayoutType<std::remove_pointer_t<To>> and RawMemoryStorage<From> and
+             (alignof(std::remove_pointer_t<To>) <= alignof(From)) and
+             (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
+[[nodiscard]] To std_layout_cast(From* ptr) noexcept
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<To>(ptr);
+}
+
+template <typename To, StdLayoutType From>
+    requires StdLayoutType<From> and RawMemoryStorage<std::remove_pointer_t<To>> and
+             (alignof(std::remove_pointer_t<To>) <= alignof(From)) and
+             (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
+[[nodiscard]] To std_layout_cast(From* ptr) noexcept
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<To>(ptr);
+}
+
+template <typename To, RawMemoryStorage From>
+    requires RawMemoryStorage<From> and RawMemoryStorage<std::remove_pointer_t<To>> and
+             (alignof(std::remove_pointer_t<To>) <= alignof(From)) and
+             (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
+[[nodiscard]] To std_layout_cast(From* ptr) noexcept
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<To>(ptr);
 }
 
 } // namespace c2usb

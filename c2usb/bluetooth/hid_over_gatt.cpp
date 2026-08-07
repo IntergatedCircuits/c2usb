@@ -45,8 +45,8 @@ ssize_t service::get_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, 
     auto it = std::ranges::find_if(self->sessions_, [&](const auto& s) { return s.conn == conn; });
     auto protocol = (it != self->sessions_.end()) ? it->session->protocol() : hid::protocol::REPORT;
     LOG_DBG("get protocol: %u", static_cast<uint8_t>(protocol));
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, reinterpret_cast<uint8_t*>(&protocol),
-                             sizeof(protocol));
+    return bt_gatt_attr_read(conn, attr, buf, len, offset,
+                             c2usb::std_layout_cast<uint8_t*>(&protocol), sizeof(protocol));
 }
 
 ssize_t service::set_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void const* buf,

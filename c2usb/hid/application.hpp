@@ -36,12 +36,12 @@ class session : public c2usb::polymorphic
         : tp_(p.transport), channel_(p.channel), boot_mode_(p.boot_protocol)
     {}
 
-    hid::protocol protocol() const
+    [[nodiscard]] hid::protocol protocol() const
     {
         return (boot_mode_ == hid::boot::mode::NONE) ? hid::protocol::REPORT : hid::protocol::BOOT;
     }
-    hid::boot::mode boot_protocol() const { return boot_mode_; }
-    hid::channel channel() const { return channel_; }
+    [[nodiscard]] hid::boot::mode boot_protocol() const { return boot_mode_; }
+    [[nodiscard]] hid::channel channel() const { return channel_; }
 
     /// @brief  Send an INPUT report to the host. This is the only device-initiated data transfer.
     c2usb::result send_report(const std::span<const uint8_t>& data);
@@ -76,14 +76,18 @@ class session : public c2usb::polymorphic
     virtual std::span<const uint8_t> get_report(report::selector select,
                                                 const std::span<uint8_t>& buffer) = 0;
 
-    virtual ~session()
+    ~session() override
     {
         tp_.store(nullptr);
         channel_ = channel::NONE;
     }
+    session(const session&) = delete;
+    session& operator=(const session&) = delete;
+    session(session&&) = delete;
+    session& operator=(session&&) = delete;
 
-    uint32_t get_idle([[maybe_unused]] uint8_t report_id = 0,
-                      [[maybe_unused]] unsigned multiplier = 1) const
+    [[nodiscard]] uint32_t get_idle([[maybe_unused]] uint8_t report_id = 0,
+                                    [[maybe_unused]] unsigned multiplier = 1) const
     {
         return report_id == 0 ? idle_rate_ : 0;
     }
@@ -122,15 +126,17 @@ class application : public c2usb::polymorphic
     /// @brief  Start a new session for the given transport type and protocol. The application is
     ///         expected to create a new session object and return a reference to it. The transport
     ///         will then manage the session and call its methods as needed.
-    virtual session& start(const session::params& params) = 0;
+    [[nodiscard]] virtual session& start(const session::params& params) = 0;
 
     /// @brief  Stop the given session. The application is expected to clean up any resources
     ///         associated with the session and delete it if necessary.
     virtual void stop(session& sess) = 0;
 
-    constexpr const report_protocol& report_info() const { return report_info_; }
+    [[nodiscard]] constexpr const report_protocol& report_info() const { return report_info_; }
 
   protected:
+    // allow subclasses to modify the report descriptor at runtime (for advanced use cases)
+    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
     report_protocol report_info_;
 };
 

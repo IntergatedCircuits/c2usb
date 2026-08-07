@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "usb/df/mac.hpp"
 #include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
@@ -118,7 +109,7 @@ bool mac::control_ep_data(direction ep_dir, const transfer& t)
     {
         return false;
     }
-    if (t.size() > 0)
+    if (not t.empty())
     {
         ctrl_msg_.set_pending(t);
         dev_if_->on_control_data(ctrl_msg_);
@@ -128,7 +119,7 @@ bool mac::control_ep_data(direction ep_dir, const transfer& t)
     return true;
 }
 
-void mac::ep_transfer_complete(endpoint::address addr, const transfer& t)
+void mac::ep_transfer_complete(endpoint::address addr, const transfer& t) const
 {
     assert(configured());
     ep_address_to_config(addr).interface().function().ep_callback(t);
@@ -141,7 +132,7 @@ const config::endpoint& mac::ep_address_to_config(endpoint::address addr) const
 
 ep_handle index_handle_mac::ep_address_to_handle(endpoint::address addr) const
 {
-    auto& ep = ep_address_to_config(addr);
+    const auto& ep = ep_address_to_config(addr);
     if (ep.valid())
     {
         return ep_config_to_handle(ep);

@@ -153,19 +153,21 @@ void function::control_setup_request(message& msg, const config::interface& ifac
         if (auto type = static_cast<report::type>(msg.request().wValue.high_byte());
             (type == report::type::FEATURE) or (type == report::type::OUTPUT))
         {
-            auto& buffer = rx_buffers_[type];
-            // prefer the application provided buffer
-            if (buffer.size() >= msg.request().wLength)
+            // if the OUT endpoint is available, the app buffer is dedicated to receiving through it
+            bool allow_app_buffer =
+                (type == report::type::FEATURE) or (not ep_out_handle().valid());
+
+            // the application provided buffer is preferred
+            if (auto& buffer = rx_buffers_[type];
+                allow_app_buffer and (buffer.size() >= msg.request().wLength))
             {
                 return msg.receive_data(buffer);
             }
-#if 0
-            // fall back to generic control buffer
-            else if (msg.buffer().max_size() >= msg.request().wLength)
+            if (msg.buffer().max_size() >= msg.request().wLength)
             {
+                // otherwise use the control transfer buffer
                 return msg.receive_to_buffer();
             }
-#endif
         }
         return msg.reject();
 
@@ -212,7 +214,11 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     case SET_REPORT:
     {
         auto type = static_cast<report::type>(msg.request().wValue.high_byte());
-        rx_buffers_[type] = {};
+        auto data = msg.data().to_span();
+        if (data.data() == rx_buffers_[type].data())
+        {
+            rx_buffers_[type] = {};
+        }
         session_->set_report(type, msg.data().to_span());
         break;
     }

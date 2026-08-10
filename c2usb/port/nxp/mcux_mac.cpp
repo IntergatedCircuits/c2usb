@@ -281,6 +281,7 @@ usb::result mcux_mac::ep_change_stall(ep_handle eph, bool stall)
 void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct& message)
 {
     endpoint::address addr{static_cast<uint8_t>(message.code)};
+    bool cancelled = (message.length == USB_CANCELLED_TRANSFER_LENGTH);
     if (not addr.valid())
     {
         // wrong mapping
@@ -289,6 +290,12 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
     {
         transfer t{};
         direction dir{};
+        if (cancelled)
+        {
+            // control transfer is cancelled at bus reset
+            // react to the reset signal only, ignore this event
+            return;
+        }
         if (message.isSetup)
         {
             if ((message.buffer == nullptr) or (message.length != sizeof(request())))
@@ -344,9 +351,8 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
     {
         busy_flags_.clear(addr);
 
-        bool success = (message.length != USB_CANCELLED_TRANSFER_LENGTH);
-        ep_transfer_complete(addr, transfer(message.buffer, message.length * success, success,
-                                            ep_address_to_handle(addr)));
+        ep_transfer_complete(addr, transfer(message.buffer, cancelled ? 0 : message.length,
+                                            not cancelled, ep_address_to_handle(addr)));
     }
 }
 

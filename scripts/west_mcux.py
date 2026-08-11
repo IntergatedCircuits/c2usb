@@ -34,6 +34,23 @@ class WestMcux(WestCommand):
     def do_run(self, args, unknown_args):
         project_dir = Path(args.project_dir).resolve()
 
+        example_yml_path = project_dir / 'example.yml'
+        if not example_yml_path.exists():
+            log.die(f"example.yml not found in project directory {project_dir}.")
+
+        with open(example_yml_path, 'r') as f:
+            example_yml = yaml.safe_load(f) or {}
+
+        if not isinstance(example_yml, dict) or not example_yml:
+            log.die(f"example.yml in {project_dir} is empty or not a mapping.")
+
+        top_level_name, top_level_data = next(iter(example_yml.items()))
+        boards = top_level_data.get('boards', {}) if isinstance(top_level_data, dict) else {}
+        if not isinstance(boards, dict) or args.board not in boards:
+            log.die(
+                f"Board '{args.board}' not found under '{top_level_name}/boards' in {example_yml_path}."
+            )
+
         # create the .vscode directory in the project directory
         vscode_dotdir = project_dir / '.vscode'
         vscode_dotdir.mkdir(parents=True, exist_ok=True)

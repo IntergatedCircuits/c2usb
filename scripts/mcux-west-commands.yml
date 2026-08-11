@@ -3,4 +3,5 @@ west-commands:
     commands:
       - name: mcux
         class: WestMcux
-        help: Generate MCUXpresso SDK configuration files for projects
+        help:
+          Generate MCUXpresso SDK configuration files for in-tree SDK example projects and boards.

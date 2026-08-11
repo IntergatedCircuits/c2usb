@@ -5,6 +5,7 @@
 #include "test_framework.hpp"
 #include "usb/df/class/cdc.hpp"
 #include "usb/df/class/cdc_acm.hpp"
+#include "usb/df/class/dfu.hpp"
 #include "usb/df/class/hid.hpp"
 #include "usb/df/vendor/microsoft/xinput.hpp"
 
@@ -73,6 +74,7 @@ SUITE(config_)
         static high_resolution_mouse<resolution_multiplier_callback> mouse_handle{};
         static usb::df::hid::function hid_kb{kb_handle, usb::hid::boot_protocol_mode::KEYBOARD};
         static microsoft::xfunction xpad_kb{kb_handle};
+        static dfu::runtime_function dfu_runtime{"dfu", [](std::chrono::milliseconds) {}};
 
         constexpr auto config_header = header(power::bus(500, true));
         const auto shared_config_elems = join_elements(
@@ -87,9 +89,12 @@ SUITE(config_)
             config_header, shared_config_elems,
             xpad_kb.config_entry(usb::endpoint::address(0x83), 1, usb::endpoint::address(0x03), 1));
 
-        static const auto configs = make_config_list(hid_config, xpad_config);
+        static const auto dfu_config =
+            make_config(config_header, shared_config_elems, dfu_runtime.config_entry());
+
+        static const auto configs = make_config_list(hid_config, xpad_config, dfu_config);
         const auto list = view_list(configs);
-        CHECK(list.size() == 2);
+        CHECK(list.size() == 3);
         CHECK(!list.empty());
 
         auto view = list[0];
@@ -151,6 +156,29 @@ SUITE(config_)
         CHECK(!view.interfaces()[3].valid());
 
         view = list[2];
+        CHECK(view.valid());
+        CHECK(view.info().config_size() == dfu_config.size() - 1);
+        CHECK(view.interfaces().reverse().size() == dfu_config.size() - 1);
+
+        CHECK(view.interfaces().count() == 3);
+        CHECK(view.endpoints().count() == 3);
+        CHECK(view.active_endpoints().count() == 2);
+
+        CHECK(&view.interfaces()[0].function() == &serial);
+        CHECK(view.interfaces()[0].endpoints().count() == 1);
+        CHECK(view.interfaces()[0].endpoints()[0].address() == 0x8f);
+        // CHECK(!view.interfaces()[0].endpoints()[1].valid());
+
+        CHECK(&view.interfaces()[1].function() == &serial);
+        CHECK(view.interfaces()[1].endpoints().count() == 2);
+        CHECK(view.interfaces()[1].endpoints()[0].address() == 0x01);
+        CHECK(view.interfaces()[1].endpoints()[1].address() == 0x81);
+        // CHECK(!view.interfaces()[1].endpoints()[2].valid());
+
+        CHECK(&view.interfaces()[2].function() == &dfu_runtime);
+        CHECK(view.interfaces()[2].endpoints().count() == 0);
+
+        view = list[3];
         CHECK(!view.valid());
         CHECK(!view.info().config_size());
     };

@@ -41,6 +41,12 @@ The Abstract Control Model of Communications Device Class is fully implemented.
 Notably the notification endpoint can be marked as unused, skipping any hardware resource allocation,
 but keeping compatibility with all hosts.
 
+#### 🔄 DFU - Firmware Update trigger
+
+The runtime mode of Device Firmware Upgrade protocol is a simple, standardized way
+to request the USB device to boot into its update mode.
+It can operate without custom drivers when used with Microsoft OS descriptors.
+
 ### Vendor extensions
 
 #### 🪟 Microsoft OS descriptors and alternate enumeration

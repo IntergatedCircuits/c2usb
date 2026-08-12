@@ -10,7 +10,9 @@
             "path": "../../mcuxsdk"
         },
         {
-            "path": "../../modules/lib/hid-rp"
+            "name": "libraries",
+            "path": "../../modules/lib"
+        },
         }
     ],
     "settings": {

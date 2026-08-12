@@ -11,11 +11,6 @@ manifest:
       url-base: https://github.com/IntergatedCircuits
 
   projects:
-    # TODO: not relevant for MCUXSDK
-    - name: zephyrrtos-mcpp
-      revision: 1055edd60a7862c963058ac267d188e9439614d3
-      path: modules/lib/zephyrrtos-mcpp
-
     - name: hid-rp
       revision: 1cf78a8905c13e3670fe4999523cb04ad01f18ee
       import:

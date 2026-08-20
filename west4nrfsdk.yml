@@ -2,4 +2,7 @@ manifest:
   self:
     import:
       - west.yml
+      - zephyr/import_zephyr_helpers.yml
+      # choose one of two:
+      #- zephyr/import_zephyr.yml
       - zephyr/import_nrfsdk.yml

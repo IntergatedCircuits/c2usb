@@ -1,0 +1,14 @@
+manifest:
+  remotes:
+    - name: zephyr
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyr
+      revision: v4.4.2
+      clone-depth: 1
+      import:
+        name-allowlist:
+          - cmsis_6
+          - hal_stm32

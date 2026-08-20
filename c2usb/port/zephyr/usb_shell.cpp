@@ -1,4 +1,5 @@
-#include "port/zephyr/usb_shell.hpp"
+// SPDX-License-Identifier: MPL-2.0
+#include "usb_shell.hpp"
 #include <cassert>
 
 extern "C" const struct shell* c2usb_shell_handle();

@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2023
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __USB_DF_EP_FLAGS_HPP_
-#define __USB_DF_EP_FLAGS_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <array>
 #include <atomic>
 
@@ -54,5 +43,3 @@ class ep_flags
 };
 
 } // namespace usb::df
-
-#endif // __USB_DF_EP_FLAGS_HPP_

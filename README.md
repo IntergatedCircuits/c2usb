@@ -1,5 +1,9 @@
 # Configurable Composite (c2) USB device library
 
+![Native Build](https://github.com/IntergatedCircuits/c2usb/actions/workflows/cmake-multi-platform.yml/badge.svg)
+![Zephyr Build](https://github.com/IntergatedCircuits/c2usb/actions/workflows/zephyr.yml/badge.svg)
+![MCUXpresso Build](https://github.com/IntergatedCircuits/c2usb/actions/workflows/arm-gcc.yml/badge.svg)
+
 This is a 2nd generation USB device library,
 designed with an emphasis of maximum flexibility for configurability and composability.
 The device framework is designed to scale well to designs of any complexity,

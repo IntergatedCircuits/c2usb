@@ -1,0 +1,33 @@
+tests:
+  c2usb.usb.device_virtual:
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+      - qemu_cortex_m3
+    integration_platforms:
+      - native_sim/native/64
+    # keep -fpermissive to avoid C++ compilation errors due to zephyr C headers
+    extra_configs:
+      - CONFIG_COMPILER_WARNINGS_AS_ERRORS=n
+    extra_args:
+      - EXTRA_CXXFLAGS=-Wno-error
+    tags:
+      - usb
+      - c2usb
+
+#  c2usb.usb.device_virtual.fs:
+#    platform_allow:
+#      - native_sim
+#      - native_sim/native/64
+#    integration_platforms:
+#      - native_sim/native/64
+    # keep -fpermissive to avoid C++ compilation errors due to zephyr C headers
+#    extra_configs:
+#      - CONFIG_COMPILER_WARNINGS_AS_ERRORS=n
+#      - CONFIG_UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED=n
+#    extra_args:
+#      - EXTRA_CXXFLAGS=-Wno-error
+#    tags:
+#      - usb
+#      - c2usb
+#    build_only: true

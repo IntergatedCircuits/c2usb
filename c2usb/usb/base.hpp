@@ -58,6 +58,8 @@ struct descriptor : public descriptor_header
     constexpr descriptor(uint8_t length)
         : descriptor_header(length, type())
     {}
+
+    [[nodiscard]] constexpr bool type_valid() const { return (bDescriptorType == type()); }
 };
 
 // TODO: https://github.com/mariusbancila/stduuid

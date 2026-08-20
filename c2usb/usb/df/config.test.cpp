@@ -3,6 +3,7 @@
 #include "high_resolution_mouse.hpp"
 #include "simple_keyboard.hpp"
 #include "test_framework.hpp"
+#include "usb/descriptor_set.hpp"
 #include "usb/df/class/cdc.hpp"
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/dfu.hpp"

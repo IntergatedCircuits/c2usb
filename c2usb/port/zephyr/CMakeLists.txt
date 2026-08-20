@@ -13,3 +13,5 @@ target_sources_ifdef(CONFIG_SHELL_BACKEND_C2USB c2usb
         usb_shell.c
         usb_shell.cpp
 )
+# prevent build errors from late generated zephyr/heap_constants.h
+add_dependencies(c2usb zephyr_generated_headers)

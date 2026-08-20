@@ -6,3 +6,6 @@ build:
 
 samples:
   - zephyr/examples
+
+tests:
+  - zephyr/tests

@@ -1,6 +1,5 @@
-#ifndef __USB_SHELL_HPP
-#define __USB_SHELL_HPP
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include <atomic>
 #include <optional>
 #include <zephyr/shell/shell.h>
@@ -119,5 +118,3 @@ class usb_shell : public usb::df::cdc::acm::function
 };
 
 } // namespace usb::zephyr
-
-#endif // __USB_SHELL_HPP

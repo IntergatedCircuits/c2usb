@@ -105,6 +105,8 @@ class function : public polymorphic
     [[nodiscard]] static uint8_t describe_endpoints(const config::interface& iface,
                                                     df::buffer& buffer);
 
+    [[nodiscard]] bool configured() const { return mac_ != nullptr; }
+
   private:
     void restart(const config::interface& iface, uint8_t alt_sel)
     {
@@ -122,6 +124,10 @@ class function : public polymorphic
 
 class named_function : public function
 {
+  public:
+    [[nodiscard]] constexpr bool is_named() const { return name_ != nullptr; }
+    [[nodiscard]] constexpr const char_t* name() const { return name_; }
+
   protected:
     constexpr named_function(const char_t* name = {})
         : function(static_cast<istring>(name != nullptr)), name_(name)
@@ -132,9 +138,10 @@ class named_function : public function
 
     void send_string(uint8_t rel_index, string_message& smsg) override;
 
-    [[nodiscard]] istring name_istring() const { return (name_ != nullptr) ? to_istring(0) : 0; }
+    [[nodiscard]] istring name_istring() const { return is_named() ? to_istring(0) : 0; }
 
   private:
     const char_t* const name_{};
 };
+
 } // namespace usb::df

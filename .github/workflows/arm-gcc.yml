@@ -1,4 +1,4 @@
-name: ARM GNU Toolchain
+name: MCUXpresso SDK with ARM GCC
 
 on:
   push:

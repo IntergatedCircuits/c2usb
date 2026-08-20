@@ -49,7 +49,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
 {
     if (!iface.primary())
     {
-        msg.reject();
+        return msg.reject();
     }
 
     using namespace usb::cdc::control;

@@ -1,4 +1,4 @@
-name: Build for Zephyr
+name: Zephyr Twister build and tests
 
 on:
   push:
@@ -15,7 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04]
-        board: [nrf52840dk/nrf52840]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -38,20 +37,11 @@ jobs:
         with:
           manifest: west4nrfsdk.yml
 
-      - name: Build ble-keyboard firmware
-        working-directory: zephyr/examples/ble-keyboard
+      - name: Run twister build and tests
+        working-directory: zephyr
         shell: bash
         run: |
-          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}
-
-      - name: Build usb-keyboard firmware
-        working-directory: zephyr/examples/usb-keyboard
-        shell: bash
-        run: |
-          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}
-
-      - name: Build usb-shell firmware
-        working-directory: zephyr/examples/usb-shell
-        shell: bash
-        run: |
-          west build -b ${{ matrix.board }} -d build/${{ matrix.board }}
+          west twister -T . \
+            -p native_sim/native/64 -p qemu_cortex_m3 \
+            -p nrf52840dk/nrf52840 -p nrf54lm20dk/nrf54lm20a/cpuapp \
+            --inline-logs -v

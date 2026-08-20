@@ -26,6 +26,16 @@ namespace usb::zephyr
 class udc_mac : public df::mac
 {
   public:
+    static constexpr usb::speeds supported_speeds()
+    {
+        return usb::speeds(usb::speed::FULL
+#if CONFIG_UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+                           ,
+                           usb::speed::HIGH
+#endif
+        );
+    }
+
     udc_mac(const ::device* dev, size_t ctrl_ep_buf_size);
     udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state);
     ~udc_mac() override;

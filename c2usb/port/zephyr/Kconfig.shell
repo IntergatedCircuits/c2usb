@@ -1,6 +1,7 @@
 
 menuconfig SHELL_BACKEND_C2USB
 	bool "c2usb shell backend"
+	depends on SHELL
 	help
 	  Build c2usb shell backend.
 

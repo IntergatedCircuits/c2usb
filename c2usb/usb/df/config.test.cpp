@@ -75,18 +75,17 @@ SUITE(config_)
         static microsoft::xfunction xpad_kb{kb_handle};
 
         constexpr auto config_header = header(power::bus(500, true));
-        const auto shared_config_elems =
-            join_elements(cdc::config(serial, speed, usb::endpoint::address(0x01),
-                                      usb::endpoint::address(0x81), usb::endpoint::address(0x8f)));
+        const auto shared_config_elems = join_elements(
+            serial.config_entry(speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
+                                usb::endpoint::address(0x8f)));
 
         static const auto hid_config =
             make_config(config_header, shared_config_elems,
-                        usb::df::hid::config(hid_kb, speed, usb::endpoint::address(0x82), 1));
+                        hid_kb.config_entry(speed, usb::endpoint::address(0x82), 1));
 
-        static const auto xpad_config =
-            make_config(config_header, shared_config_elems,
-                        microsoft::xconfig(xpad_kb, usb::endpoint::address(0x83), 1,
-                                           usb::endpoint::address(0x03), 1));
+        static const auto xpad_config = make_config(
+            config_header, shared_config_elems,
+            xpad_kb.config_entry(usb::endpoint::address(0x83), 1, usb::endpoint::address(0x03), 1));
 
         static const auto configs = make_config_list(hid_config, xpad_config);
         const auto list = view_list(configs);

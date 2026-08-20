@@ -9,6 +9,26 @@ namespace usb::df::microsoft
 class xfunction : public df::hid::app_base_function
 {
   public:
+    [[nodiscard]] df::config::elements<3> config_entry(const df::config::endpoint& in_ep,
+                                                       const df::config::endpoint& out_ep)
+    {
+        assert((in_ep.address().direction() == direction::IN) and
+               (out_ep.address().direction() == direction::OUT));
+        return config::to_elements({df::config::interface{*this}, in_ep, out_ep});
+    }
+
+    [[nodiscard]] df::config::elements<3> config_entry(endpoint::address in_addr,
+                                                       uint8_t in_interval,
+                                                       endpoint::address out_addr,
+                                                       uint8_t out_interval)
+    {
+        return config_entry(
+            standard::descriptor::endpoint::interrupt(
+                in_addr, usb::microsoft::xusb::MAX_INPUT_REPORT_SIZE, in_interval),
+            standard::descriptor::endpoint::interrupt(
+                out_addr, usb::microsoft::xusb::MAX_OUTPUT_REPORT_SIZE, out_interval));
+    }
+
     xfunction(::hid::application& app, const char_t* name = {})
         : app_base_function(app, name)
     {}
@@ -28,24 +48,5 @@ class xfunction : public df::hid::app_base_function
 
     void enable(const config::interface& iface, uint8_t alt_sel) override;
 };
-
-[[nodiscard]] inline auto xconfig(xfunction& fn, const df::config::endpoint& in_ep,
-                                  const df::config::endpoint& out_ep) -> df::config::elements<3>
-{
-    assert((in_ep.address().direction() == direction::IN) and
-           (out_ep.address().direction() == direction::OUT));
-    return config::to_elements({df::config::interface{fn}, in_ep, out_ep});
-}
-
-[[nodiscard]] inline auto xconfig(xfunction& fn, endpoint::address in_addr, uint8_t in_interval,
-                                  endpoint::address out_addr, uint8_t out_interval)
-    -> df::config::elements<3>
-{
-    return xconfig(fn,
-                   standard::descriptor::endpoint::interrupt(
-                       in_addr, usb::microsoft::xusb::MAX_INPUT_REPORT_SIZE, in_interval),
-                   standard::descriptor::endpoint::interrupt(
-                       out_addr, usb::microsoft::xusb::MAX_OUTPUT_REPORT_SIZE, out_interval));
-}
 
 } // namespace usb::df::microsoft

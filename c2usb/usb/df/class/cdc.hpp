@@ -12,6 +12,64 @@ namespace usb::df::cdc
 {
 class function : public df::named_function
 {
+  public:
+    // no notification endpoint
+    [[nodiscard]] df::config::elements<4> config_entry(const config::endpoint& out_ep,
+                                                       const config::endpoint& in_ep)
+    {
+        assert((out_ep.address().direction() == direction::OUT) and
+               (in_ep.address().direction() == direction::IN));
+        return config::to_elements(
+            {config::interface(*this, 0), config::interface(*this, 1), out_ep, in_ep});
+    }
+
+    // active notification endpoint
+    [[nodiscard]] df::config::elements<5> config_entry(const config::endpoint& out_ep,
+                                                       const config::endpoint& in_ep,
+                                                       const config::endpoint& notify_in_ep)
+    {
+        assert((out_ep.address().direction() == direction::OUT) and
+               (in_ep.address().direction() == direction::IN) and
+               (notify_in_ep.address().direction() == direction::IN));
+        return config::to_elements({config::interface(*this, 0), notify_in_ep,
+                                    config::interface(*this, 1), out_ep, in_ep});
+    }
+
+    [[nodiscard]] df::config::elements<5>
+    config_entry(usb::speed speed, endpoint::address out_ep_addr, endpoint::address in_ep_addr,
+                 endpoint::address notify_in_ep_addr, uint8_t notify_in_ep_interval)
+    {
+        return config_entry(
+            config::endpoint::bulk(out_ep_addr, speed), config::endpoint::bulk(in_ep_addr, speed),
+            config::endpoint::interrupt(notify_in_ep_addr, sizeof(usb::cdc::notification::header),
+                                        notify_in_ep_interval));
+    }
+
+    // unused notification endpoint
+    [[nodiscard]] df::config::elements<5> config_entry(const config::endpoint& out_ep,
+                                                       const config::endpoint& in_ep,
+                                                       endpoint::address notify_in_ep_addr)
+    {
+        assert((out_ep.address().direction() == direction::OUT) and
+               (in_ep.address().direction() == direction::IN) and
+               (notify_in_ep_addr.direction() == direction::IN));
+        return config::to_elements(
+            {config::interface(*this, 0),
+             config::endpoint(config::endpoint::interrupt(notify_in_ep_addr, 8,
+                                                          std::numeric_limits<uint8_t>::max()),
+                              true),
+             config::interface(*this, 1), out_ep, in_ep});
+    }
+
+    [[nodiscard]] df::config::elements<5> config_entry(usb::speed speed,
+                                                       endpoint::address out_ep_addr,
+                                                       endpoint::address in_ep_addr,
+                                                       endpoint::address notify_in_ep_addr)
+    {
+        return config_entry(config::endpoint::bulk(out_ep_addr, speed),
+                            config::endpoint::bulk(in_ep_addr, speed), notify_in_ep_addr);
+    }
+
   protected:
     using df::named_function::named_function;
 
@@ -70,61 +128,5 @@ class function : public df::named_function
     std::array<ep_handle, 2> data_ephs_{};
     ep_handle notify_eph_;
 };
-
-// no notification endpoint
-[[nodiscard]] inline df::config::elements<4> config(function& fn, const config::endpoint& out_ep,
-                                                    const config::endpoint& in_ep)
-{
-    assert((out_ep.address().direction() == direction::OUT) and
-           (in_ep.address().direction() == direction::IN));
-    return config::to_elements({config::interface(fn, 0), config::interface(fn, 1), out_ep, in_ep});
-}
-
-// active notification endpoint
-[[nodiscard]] inline df::config::elements<5> config(function& fn, const config::endpoint& out_ep,
-                                                    const config::endpoint& in_ep,
-                                                    const config::endpoint& notify_in_ep)
-{
-    assert((out_ep.address().direction() == direction::OUT) and
-           (in_ep.address().direction() == direction::IN) and
-           (notify_in_ep.address().direction() == direction::IN));
-    return config::to_elements(
-        {config::interface(fn, 0), notify_in_ep, config::interface(fn, 1), out_ep, in_ep});
-}
-
-[[nodiscard]] inline df::config::elements<5>
-config(function& fn, usb::speed speed, endpoint::address out_ep_addr, endpoint::address in_ep_addr,
-       endpoint::address notify_in_ep_addr, uint8_t notify_in_ep_interval)
-{
-    return config(
-        fn, config::endpoint::bulk(out_ep_addr, speed), config::endpoint::bulk(in_ep_addr, speed),
-        config::endpoint::interrupt(notify_in_ep_addr, sizeof(usb::cdc::notification::header),
-                                    notify_in_ep_interval));
-}
-
-// unused notification endpoint
-[[nodiscard]] inline df::config::elements<5> config(function& fn, const config::endpoint& out_ep,
-                                                    const config::endpoint& in_ep,
-                                                    endpoint::address notify_in_ep_addr)
-{
-    assert((out_ep.address().direction() == direction::OUT) and
-           (in_ep.address().direction() == direction::IN) and
-           (notify_in_ep_addr.direction() == direction::IN));
-    return config::to_elements(
-        {config::interface(fn, 0),
-         config::endpoint(
-             config::endpoint::interrupt(notify_in_ep_addr, 8, std::numeric_limits<uint8_t>::max()),
-             true),
-         config::interface(fn, 1), out_ep, in_ep});
-}
-
-[[nodiscard]] inline df::config::elements<5> config(function& fn, usb::speed speed,
-                                                    endpoint::address out_ep_addr,
-                                                    endpoint::address in_ep_addr,
-                                                    endpoint::address notify_in_ep_addr)
-{
-    return config(fn, config::endpoint::bulk(out_ep_addr, speed),
-                  config::endpoint::bulk(in_ep_addr, speed), notify_in_ep_addr);
-}
 
 } // namespace usb::df::cdc

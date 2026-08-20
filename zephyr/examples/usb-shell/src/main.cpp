@@ -9,6 +9,9 @@
 #include <port/zephyr/udc_mac.hpp>
 #include <port/zephyr/usb_shell.hpp>
 #include <usb/df/device.hpp>
+#include <zephyr/thread.hpp>
+
+using namespace zephyr;
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -72,10 +75,9 @@ int main(void)
 
         static const auto base_config = usb::df::config::make_config(
             config_header,
-            usb::df::cdc::config(
-                usb::zephyr::usb_shell::handle(), speed, usb::endpoint::address(0x01),
-                usb::endpoint::address(0x81),
-                usb::endpoint::address(0x82) // note that notification endpoint is unused here
+            usb::zephyr::usb_shell::handle().config_entry(
+                speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
+                usb::endpoint::address(0x8f) // note that notification endpoint is unused here
                 ));
         device().set_config(base_config);
         device().open();
@@ -83,6 +85,6 @@ int main(void)
 
     while (true)
     {
-        k_sleep(K_FOREVER);
+        this_thread::sleep_for(zephyr::infinity);
     }
 }

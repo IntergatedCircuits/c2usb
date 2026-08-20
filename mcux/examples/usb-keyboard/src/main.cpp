@@ -195,12 +195,12 @@ int main(void)
     static usb::df::hid::function usb_kb{keyboard_app(), usb::hid::boot_protocol_mode::KEYBOARD};
     static const auto single_config = usb::df::config::make_config(
         usb::df::config::header(usb::df::config::power::bus(100, true), "usb-keyboard"),
-        usb::df::hid::config(usb_kb, usb::speed::FULL, usb::endpoint::address(0x81), 1
+        usb_kb.config_entry(usb::speed::FULL, usb::endpoint::address(0x81), 1
 #if 0 // optional dedicated interrupt endpoint for LED output report
-                             ,
-                             usb::endpoint::address(0x01), 20
+                            ,
+                            usb::endpoint::address(0x01), 20
 #endif
-                             ));
+                            ));
 
     device().set_config_for_speed(single_config, usb::speed::FULL);
 #if USB_DEVICE_CONFIG_EHCI

@@ -13,10 +13,11 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 using namespace magic_enum::bitwise_operators;
+using namespace zephyr;
 
 auto& kb_msgq()
 {
-    static zephyr::message_queue_instance<input_event, 2> msgq;
+    static message_queue_instance<input_event, 2> msgq;
     return msgq;
 }
 
@@ -99,12 +100,12 @@ int main(void)
                                              usb::hid::boot_protocol_mode::KEYBOARD};
 
         static const auto base_config = usb::df::config::make_config(
-            config_header, usb::df::hid::config(usb_kb, speed, usb::endpoint::address(0x81), 1
+            config_header, usb_kb.config_entry(speed, usb::endpoint::address(0x81), 1
 #if CONFIG_DEMO_USB_HID_OUT_EP
-                                                ,
-                                                usb::endpoint::address(0x01), 10
+                                               ,
+                                               usb::endpoint::address(0x01), 10
 #endif
-                                                ));
+                                               ));
         device().set_config(base_config);
         device().open();
     }

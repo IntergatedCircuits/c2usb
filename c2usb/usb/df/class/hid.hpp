@@ -45,6 +45,43 @@ class app_base_function : public df::named_function, public ::hid::transport
 class function : public app_base_function
 {
   public:
+    // IN endpoint only
+    [[nodiscard]] df::config::elements<2> config_entry(const df::config::endpoint& in_ep)
+    {
+        assert(in_ep.address().direction() == direction::IN);
+        return config::to_elements({df::config::interface{*this}, in_ep});
+    }
+    [[nodiscard]] df::config::elements<2>
+    config_entry(usb::speed speed, endpoint::address in_ep_addr, uint8_t in_interval)
+    {
+        const size_t in_mps =
+            std::min(this->app().report_info().max_input_size,
+                     endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+        return config_entry(config::endpoint::interrupt(in_ep_addr, in_mps, in_interval));
+    }
+
+    // IN and OUT endpoints
+    [[nodiscard]] df::config::elements<3> config_entry(const df::config::endpoint& in_ep,
+                                                       const df::config::endpoint& out_ep)
+    {
+        assert((in_ep.address().direction() == direction::IN) and
+               (out_ep.address().direction() == direction::OUT));
+        return config::to_elements({df::config::interface{*this}, in_ep, out_ep});
+    }
+    [[nodiscard]] df::config::elements<3>
+    config_entry(usb::speed speed, endpoint::address in_ep_addr, uint8_t in_interval,
+                 endpoint::address out_ep_addr, uint8_t out_interval)
+    {
+        const size_t in_mps =
+            std::min(this->app().report_info().max_input_size,
+                     endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+        const size_t out_mps =
+            std::min(this->app().report_info().max_output_size,
+                     endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
+        return config_entry(config::endpoint::interrupt(in_ep_addr, in_mps, in_interval),
+                            config::endpoint::interrupt(out_ep_addr, out_mps, out_interval));
+    }
+
 #ifndef CONFIG_C2USB_HID_BOOT_PROTOCOL
     constexpr function(::hid::application& app, const char_t* name = {})
         : app_base_function(app, name)
@@ -78,40 +115,5 @@ class function : public app_base_function
     boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
 #endif
 };
-
-[[nodiscard]] inline auto config(function& fn, const df::config::endpoint& in_ep)
-    -> df::config::elements<2>
-{
-    assert(in_ep.address().direction() == direction::IN);
-    return config::to_elements({df::config::interface{fn}, in_ep});
-}
-
-[[nodiscard]] inline auto config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
-                                 uint8_t in_interval) -> df::config::elements<2>
-{
-    const size_t in_mps = std::min(fn.app().report_info().max_input_size,
-                                   endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
-    return config(fn, config::endpoint::interrupt(in_ep_addr, in_mps, in_interval));
-}
-
-[[nodiscard]] inline auto config(function& fn, const df::config::endpoint& in_ep,
-                                 const df::config::endpoint& out_ep) -> df::config::elements<3>
-{
-    assert((in_ep.address().direction() == direction::IN) and
-           (out_ep.address().direction() == direction::OUT));
-    return config::to_elements({df::config::interface{fn}, in_ep, out_ep});
-}
-
-[[nodiscard]] inline auto config(function& fn, usb::speed speed, endpoint::address in_ep_addr,
-                                 uint8_t in_interval, endpoint::address out_ep_addr,
-                                 uint8_t out_interval) -> df::config::elements<3>
-{
-    const size_t in_mps = std::min(fn.app().report_info().max_input_size,
-                                   endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
-    const size_t out_mps = std::min(fn.app().report_info().max_output_size,
-                                    endpoint::packet_size_limit(endpoint::type::INTERRUPT, speed));
-    return config(fn, config::endpoint::interrupt(in_ep_addr, in_mps, in_interval),
-                  config::endpoint::interrupt(out_ep_addr, out_mps, out_interval));
-}
 
 } // namespace usb::df::hid

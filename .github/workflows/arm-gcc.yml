@@ -11,15 +11,12 @@ permissions:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04]
-        board: [frdmk22f, frdmmcxn236]
-        preset: [release]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04
+
     env:
-      ARM_GCC_DIR: /usr
+      BOARDS: "frdmk22f frdmmcxn236"
+      PRESET: "release"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +41,10 @@ jobs:
         with:
           manifest: west4mcuxsdk.yml
 
-      - name: Build usb-keyboard example
+      - name: Build usb-keyboard example for all boards
         working-directory: mcux/examples/usb-keyboard
         run: |
-          BOARD=${{ matrix.board }} west build -d ${{ matrix.preset }} -- --preset ${{ matrix.preset }}
+          for BOARD in $BOARDS; do
+            echo "=== Building for $BOARD ==="
+            west build -d build_$BOARD -- -DBOARD=$BOARD --preset $PRESET
+          done

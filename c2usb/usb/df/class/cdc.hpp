@@ -39,10 +39,11 @@ class function : public df::named_function
     config_entry(usb::speed speed, endpoint::address out_ep_addr, endpoint::address in_ep_addr,
                  endpoint::address notify_in_ep_addr, uint8_t notify_in_ep_interval)
     {
-        return config_entry(
-            config::endpoint::bulk(out_ep_addr, speed), config::endpoint::bulk(in_ep_addr, speed),
-            config::endpoint::interrupt(notify_in_ep_addr, sizeof(usb::cdc::notification::header),
-                                        notify_in_ep_interval));
+        return config_entry(config::endpoint::bulk(out_ep_addr, speed, true),
+                            config::endpoint::bulk(in_ep_addr, speed),
+                            config::endpoint::interrupt(notify_in_ep_addr,
+                                                        sizeof(usb::cdc::notification::header),
+                                                        notify_in_ep_interval));
     }
 
     // unused notification endpoint
@@ -66,7 +67,7 @@ class function : public df::named_function
                                                        endpoint::address in_ep_addr,
                                                        endpoint::address notify_in_ep_addr)
     {
-        return config_entry(config::endpoint::bulk(out_ep_addr, speed),
+        return config_entry(config::endpoint::bulk(out_ep_addr, speed, true),
                             config::endpoint::bulk(in_ep_addr, speed), notify_in_ep_addr);
     }
 

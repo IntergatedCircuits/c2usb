@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <cassert>
+#include <chrono>
 #include "usb/base.hpp"
 
 namespace usb::endpoint
@@ -78,4 +80,68 @@ class address
   private:
     uint8_t value_;
 };
+
+class interval
+{
+  public:
+    /// @brief  Calculate an endpoint interval for full/high speed isochronous
+    ///         or high speed interrupt endpoints.
+    /// @param  microframes: The interval in microframes (125μs units). Must be a power of 2, and in
+    ///         the range 1-32768.
+    /// @return The interval value (1 to 16), or 0 if the input is invalid
+    [[nodiscard]] static constexpr uint8_t from_microframes(uint16_t microframes)
+    {
+        if ((microframes <= 0) or (microframes & (microframes - 1)) != 0)
+        {
+            assert(false && "microframes must be a power of 2");
+            return 0;
+        }
+        constexpr auto offset = std::countr_one(std::numeric_limits<decltype(microframes)>::max());
+        return offset - std::countl_zero(microframes);
+    }
+
+    /// @brief  Calculate an endpoint interval for interrupt endpoints.
+    /// @param  speed: The operating speed of the endpoint.
+    /// @param  period: The interval in microseconds.
+    /// @return The interval value, or 0 if the input is invalid
+    [[nodiscard]] static constexpr uint8_t from_rate(usb::speed speed,
+                                                     std::chrono::microseconds period)
+    {
+        switch (speed)
+        {
+        case usb::speed::FULL:
+            // full speed frame rate is 1ms
+            return static_cast<uint8_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(period).count());
+        case usb::speed::HIGH:
+            // high speed microframe rate is 125us
+            return from_microframes(static_cast<uint16_t>(
+                std::chrono::duration_cast<std::chrono::microseconds>(period).count() / 125));
+        case usb::speed::LOW:
+            return std::max<uint8_t>(
+                10, std::chrono::duration_cast<std::chrono::milliseconds>(period).count());
+        default:
+            assert(false && "invalid speed");
+            return 0;
+        }
+    }
+
+    /// @brief  For high speed bulk out endpoints, interval sets the maximum NAK packet limit.
+    /// @param  max_nak_rate: Set to zero when the device never NAKs the endpoint.
+    ///         When non-zero, device may NAK at most once per max_nak_rate microframes.
+    /// @return The interval value (0 to 255)
+    [[nodiscard]] static constexpr uint8_t bulk_out_nak_rate_limit(uint8_t max_nak_rate)
+    {
+        return max_nak_rate;
+    }
+
+    constexpr operator uint8_t() const { return value_; }
+
+  private:
+    constexpr interval(uint8_t value)
+        : value_(value)
+    {}
+    uint8_t value_;
+};
+
 } // namespace usb::endpoint

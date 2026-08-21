@@ -205,15 +205,17 @@ struct endpoint : public usb::descriptor<endpoint>
     [[nodiscard]] constexpr uint16_t max_packet_size() const { return wMaxPacketSize; }
     [[nodiscard]] constexpr uint8_t interval() const { return bInterval; }
 
-    [[nodiscard]] constexpr static endpoint bulk(usb::endpoint::address addr, uint16_t mps)
+    [[nodiscard]] constexpr static endpoint bulk(usb::endpoint::address addr, uint16_t mps,
+                                                 uint8_t interval = 0)
     {
-        return {addr, mps, usb::endpoint::type::BULK};
+        return {addr, mps, usb::endpoint::type::BULK, interval};
     }
-    [[nodiscard]] C2USB_STATIC_CONSTEXPR static endpoint bulk(usb::endpoint::address addr,
-                                                              usb::speed speed)
+    [[nodiscard]] C2USB_STATIC_CONSTEXPR static endpoint
+    bulk(usb::endpoint::address addr, usb::speed speed, bool may_nak = false)
     {
         return {addr, usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed),
-                usb::endpoint::type::BULK};
+                usb::endpoint::type::BULK,
+                uint8_t((speed == usb::speed::HIGH) and may_nak ? 1 : 0)};
     }
 
     [[nodiscard]] constexpr static endpoint interrupt(usb::endpoint::address addr, uint16_t mps,

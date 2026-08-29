@@ -1,16 +1,5 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2024
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
-#ifndef __PORT_ZEPHYR_UDC_MAC_HPP_
-#define __PORT_ZEPHYR_UDC_MAC_HPP_
-
+// SPDX-License-Identifier: MPL-2.0
+#pragma once
 #include "etl/delegate.h"
 #include "usb/df/ep_flags.hpp"
 #include "usb/df/mac.hpp"
@@ -95,8 +84,8 @@ class udc_mac : public df::mac
     usb::result ep_cancel(usb::df::ep_handle eph) override;
     bool ep_is_stalled(usb::df::ep_handle eph) const override;
     usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
+
+    bool setup_test_mode(uint8_t mode_selector) override;
 };
 
 } // namespace usb::zephyr
-
-#endif // __PORT_ZEPHYR_UDC_MAC_HPP_

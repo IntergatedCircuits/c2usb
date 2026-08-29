@@ -2,6 +2,7 @@
 #include "usb/df/mac.hpp"
 #include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
+#include "usb/standard/requests.hpp"
 
 namespace usb::df
 {
@@ -123,6 +124,18 @@ void mac::ep_transfer_complete(endpoint::address addr, const transfer& t) const
 {
     assert(configured());
     ep_address_to_config(addr).interface().function().ep_callback(t);
+}
+
+bool mac::is_set_address_message() const
+{
+    using namespace usb::standard::device;
+    return (request() == SET_ADDRESS);
+}
+
+bool mac::is_test_mode_message() const
+{
+    using namespace usb::standard::device;
+    return (request() == SET_FEATURE) and (request().wValue == feature::TEST_MODE);
 }
 
 const config::endpoint& mac::ep_address_to_config(endpoint::address addr) const

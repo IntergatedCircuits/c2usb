@@ -1,13 +1,4 @@
-/// @file
-///
-/// @author Benedek Kupper
-/// @date   2024
-///
-/// @copyright
-///         This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-///         If a copy of the MPL was not distributed with this file, You can obtain one at
-///         https://mozilla.org/MPL/2.0/.
-///
+// SPDX-License-Identifier: MPL-2.0
 #include "port/zephyr/udc_mac.hpp"
 #include <atomic>
 #include "compatibility_helper.hpp"
@@ -486,8 +477,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             buf->size = 0;
 
             // setting the address early
-            if (addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
-                [[unlikely]]
+            if (addr_before_status(udc_caps(dev_)) and is_set_address_message()) [[unlikely]]
             {
                 [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
                 assert(ret == 0);
@@ -496,18 +486,26 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
 
         udc_buf_enqueue(dev_, buf);
     }
-    else if (info.status and !info.err)
+    else if (info.status and (info.err == 0))
     {
         // status IN complete
         net_buf_unref(buf);
 
         // timely address setting
-        if (!addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
-            [[unlikely]]
+        if (is_set_address_message())
         {
-            [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
-            assert(ret == 0);
+            if (not addr_before_status(udc_caps(dev_)))
+            {
+                [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
+                assert(ret == 0);
+            }
         }
+#if CONFIG_UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+        else if (is_test_mode_message()) [[unlikely]]
+        {
+            [[maybe_unused]] auto ret = udc_test_mode(dev_, request().wValue.high_byte(), false);
+        }
+#endif
     }
     else
     {
@@ -679,8 +677,7 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
         else // no DATA -> initiate STATUS IN stage
         {
             // setting the address early
-            if (addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
-                [[unlikely]]
+            if (addr_before_status(udc_caps(dev_)) and is_set_address_message()) [[unlikely]]
             {
                 [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
                 assert(ret == 0 and "Failed to set address");
@@ -707,12 +704,20 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
     else if (info.status)
     {
         // timely address setting
-        if (not addr_before_status(udc_caps(dev_)) and (request() == standard::device::SET_ADDRESS))
-            [[unlikely]]
+        if (is_set_address_message())
         {
-            [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
-            assert(ret == 0 and "Failed to set address");
+            if (not addr_before_status(udc_caps(dev_)))
+            {
+                [[maybe_unused]] auto ret = udc_set_address(dev_, request().wValue.low_byte());
+                assert(ret == 0 and "Failed to set address");
+            }
         }
+#if CONFIG_UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+        else if (is_test_mode_message()) [[unlikely]]
+        {
+            [[maybe_unused]] auto ret = udc_test_mode(dev_, request().wValue.high_byte(), false);
+        }
+#endif
     }
     else
     {
@@ -963,6 +968,12 @@ usb::result udc_mac::ep_change_stall(usb::df::ep_handle eph, bool stall)
     {
         return ep_clear_stall(addr);
     }
+}
+
+bool udc_mac::setup_test_mode(uint8_t mode_selector)
+{
+    auto ret = udc_test_mode(dev_, mode_selector, true);
+    return ret == 0;
 }
 
 } // namespace usb::zephyr

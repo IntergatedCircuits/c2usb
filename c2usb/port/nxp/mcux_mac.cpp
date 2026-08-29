@@ -278,6 +278,11 @@ usb::result mcux_mac::ep_change_stall(ep_handle eph, bool stall)
     return (status == kStatus_USB_Success) ? usb::result::ok : usb::result::not_connected;
 }
 
+bool mcux_mac::setup_test_mode([[maybe_unused]] uint8_t mode_selector)
+{
+    return true;
+}
+
 void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct& message)
 {
     endpoint::address addr{static_cast<uint8_t>(message.code)};
@@ -308,7 +313,7 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
             {
                 return control_ep_stall();
             }
-            if (request() == standard::device::SET_ADDRESS)
+            if (is_set_address_message()) [[unlikely]]
             {
                 set_address_early();
             }
@@ -325,9 +330,14 @@ void mcux_mac::process_ep_notification(const _usb_device_callback_message_struct
         else
         {
             // control_ep_status(addr.direction());
-            if (request() == standard::device::SET_ADDRESS)
+            if (is_set_address_message())
             {
                 set_address_timely();
+            }
+            else if (is_test_mode_message()) [[unlikely]]
+            {
+                [[maybe_unused]] auto status = driver_.device_control(
+                    handle(), kUSB_DeviceControlSetTestMode, &request().wValue.high_byte());
             }
             return;
         }

@@ -135,6 +135,9 @@ class device : public polymorphic
         }
     }
 
+    virtual bool set_speed_dependent_feature(message& msg) = 0;
+    bool set_hs_feature(message& msg);
+
     device(usb::df::mac& mac, const product_info& prodinfo, usb::speeds speeds,
            uint8_t max_configs_count, extension& ext)
         : mac_(mac),
@@ -172,7 +175,6 @@ class device : public polymorphic
     void set_configuration(message& msg);
     void get_configuration(message& msg);
     void get_status(message& msg) { return msg.send_value(mac_.std_status()); }
-    void set_feature(message& msg, bool active);
 
     void device_setup_request(message& msg);
     void endpoint_setup_request(message& msg);
@@ -185,6 +187,9 @@ class device : public polymorphic
         }
     }
 
+    // instead of a public API
+    // MAC uses these calls below
+    // while ep_callback directly delivered to the function
     friend class mac;
 
     void on_power_state_change(power::state new_state);
@@ -293,6 +298,15 @@ class device_instance : public device
     {
         return get_descriptor_by_speed_support<(
             SPEEDS.includes(usb::speeds(speed::FULL, speed::HIGH)))>(msg);
+    }
+
+    bool set_speed_dependent_feature(message& msg) override
+    {
+        if constexpr (SPEEDS.includes(speed::HIGH))
+        {
+            return set_hs_feature(msg);
+        }
+        return false;
     }
 
     std::array<config::view_list, SPEEDS.count()> configs_store_{};

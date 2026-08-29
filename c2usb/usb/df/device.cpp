@@ -187,17 +187,18 @@ void device::get_configuration(message& msg)
     return msg.send_value(0);
 }
 
-void device::set_feature(message& msg, bool active)
+bool device::set_hs_feature(message& msg)
 {
     using namespace standard::device;
-
-    if (msg.request().wValue == feature::REMOTE_WAKEUP)
+    if ((msg.request().wValue == feature::TEST_MODE) and (bus_speed() == usb::speed::HIGH) and
+        (msg.request().wIndex.low_byte() == 0)) [[unlikely]]
     {
-        mac_.set_remote_wakeup(active);
-        return msg.confirm();
+        // just as set_address, this request must be handled after the status stage
+        // implemented by the MAC independently
+        msg.set_reply(mac_.setup_test_mode(msg.request().wIndex.high_byte()));
+        return true;
     }
-
-    return msg.reject();
+    return false;
 }
 
 void device::device_setup_request(message& msg)
@@ -224,8 +225,18 @@ void device::device_setup_request(message& msg)
             return get_status(msg);
 
         case SET_FEATURE:
+            if (set_speed_dependent_feature(msg)) [[unlikely]]
+            {
+                return;
+            }
+            [[fallthrough]];
         case CLEAR_FEATURE:
-            return set_feature(msg, msg.request() == SET_FEATURE);
+            if (msg.request().wValue == feature::REMOTE_WAKEUP)
+            {
+                mac_.set_remote_wakeup(msg.request() == SET_FEATURE);
+                return msg.confirm();
+            }
+            return msg.reject();
 
         default:
             return msg.reject();
@@ -433,7 +444,7 @@ void device::get_descriptor(message& msg)
 {
     using namespace standard::descriptor;
 
-    switch (static_cast<type>(msg.request().wValue.high_byte()))
+    switch (type(msg.request().wValue.high_byte()))
     {
     case type::DEVICE:
         return get_device_descriptor(msg);
@@ -459,7 +470,7 @@ void device::get_descriptor_dual_speed(message& msg)
     using namespace standard::descriptor;
     auto alternative_speed = bus_speed() == speed::HIGH ? speed::FULL : speed::HIGH;
 
-    switch (static_cast<type>(msg.request().wValue.high_byte()))
+    switch (type(msg.request().wValue.high_byte()))
     {
     case type::DEVICE_QUALIFIER:
         return get_device_qualifier_descriptor(msg, alternative_speed);

@@ -98,6 +98,14 @@ class mac : public polymorphic
     [[nodiscard]] virtual ep_handle ep_address_to_handle(endpoint::address addr) const = 0;
     [[nodiscard]] virtual ep_handle ep_config_to_handle(const config::endpoint& ep) const = 0;
 
+    /// @brief  Check whether a high-speed test mode is supported.
+    /// @param  mode_selector: high byte of request wIndex
+    /// @return True if mode_selector is supported
+    [[nodiscard]] virtual bool setup_test_mode([[maybe_unused]] uint8_t mode_selector)
+    {
+        return false;
+    }
+
   protected:
     [[nodiscard]] control::request& request() { return ctrl_msg_.request_; }
     [[nodiscard]] const control::request& request() const { return ctrl_msg_.request_; }
@@ -112,6 +120,9 @@ class mac : public polymorphic
     virtual void deinit() {}
     virtual bool set_attached(bool attached) { return attached; }
     virtual result signal_remote_wakeup() { return result::operation_not_supported; }
+
+    [[nodiscard]] bool is_set_address_message() const;
+    [[nodiscard]] bool is_test_mode_message() const;
 
     [[nodiscard]] static auto create_ep_handle(uint8_t raw) { return ep_handle(raw); }
 

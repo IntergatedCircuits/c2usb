@@ -87,6 +87,8 @@ class mcux_mac : public df::address_handle_mac
 
     bool ep_is_stalled(usb::df::ep_handle eph) const override;
     usb::result ep_change_stall(usb::df::ep_handle eph, bool stall) override;
+
+    bool setup_test_mode(uint8_t mode_selector) override;
 };
 
 } // namespace usb::df::nxp

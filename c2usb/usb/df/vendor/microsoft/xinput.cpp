@@ -9,7 +9,7 @@ using namespace usb;
 namespace usb::df::microsoft
 {
 void xfunction::describe_config(const config::interface& iface, uint8_t if_index,
-                                df::buffer& buffer)
+                                df::buffer& buffer) const
 {
     auto* iface_desc = buffer.allocate<standard::descriptor::interface>();
 

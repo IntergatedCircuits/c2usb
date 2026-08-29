@@ -40,7 +40,7 @@ class runtime_function : public df::named_function
     usb::dfu::state state_{usb::dfu::state::APP_IDLE};
 
     void describe_config(const config::interface& iface, uint8_t if_index,
-                         df::buffer& buffer) override;
+                         df::buffer& buffer) const override;
 
     void enable([[maybe_unused]] const config::interface& iface,
                 [[maybe_unused]] uint8_t alt_sel) override

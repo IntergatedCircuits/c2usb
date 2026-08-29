@@ -9,7 +9,7 @@ namespace usb::df::dfu
 {
 
 void runtime_function::describe_config([[maybe_unused]] const config::interface& iface,
-                                       uint8_t if_index, df::buffer& buffer)
+                                       uint8_t if_index, df::buffer& buffer) const
 {
     auto* iface_desc = buffer.allocate<standard::descriptor::interface>();
 

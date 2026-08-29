@@ -39,7 +39,7 @@ class xfunction : public df::hid::app_base_function
 
   private:
     void describe_config(const config::interface& iface, uint8_t if_index,
-                         df::buffer& buffer) override;
+                         df::buffer& buffer) const override;
 
     [[nodiscard]] std::string_view ms_compatible_id() const override
     {

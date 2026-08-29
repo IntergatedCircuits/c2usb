@@ -60,7 +60,7 @@ class function : public cdc::function
     using capabilities = usb::cdc::descriptor::abstract_control_management::capabilities;
 
     void describe_config(const config::interface& iface, uint8_t if_index,
-                         df::buffer& buffer) override;
+                         df::buffer& buffer) const override;
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;
     void enable(const config::interface& iface, uint8_t alt_sel) override;

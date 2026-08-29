@@ -22,7 +22,9 @@ class dummy_function : public usb::df::function
         : usb::df::function(owned_strings)
     {}
 
-    void describe_config(const usb::df::config::interface&, uint8_t, usb::df::buffer&) override {}
+    void describe_config(const usb::df::config::interface&, uint8_t,
+                         usb::df::buffer&) const override
+    {}
 };
 
 constexpr auto bulk_ep(uint8_t addr, uint16_t mps = 64)

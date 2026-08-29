@@ -22,7 +22,7 @@ class function : public polymorphic
     void handle_control_data(message& msg, const config::interface& iface);
 
     virtual void describe_config(const config::interface& iface, uint8_t if_index,
-                                 df::buffer& buffer) = 0;
+                                 df::buffer& buffer) const = 0;
 
     void free_string_index() { istr_base_ = 0; }
     void allocate_string_index(istring* pindex)

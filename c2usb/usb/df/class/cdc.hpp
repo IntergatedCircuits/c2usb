@@ -75,7 +75,7 @@ class function : public df::named_function
     using df::named_function::named_function;
 
     [[nodiscard]] standard::descriptor::interface*
-    get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df::buffer& buffer);
+    get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df::buffer& buffer) const;
 
     void open_notify_ep(const config::interface& iface)
     {

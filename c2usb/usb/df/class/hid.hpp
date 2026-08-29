@@ -97,11 +97,11 @@ class function : public app_base_function
 #endif
 
   private:
-    virtual void get_hid_descriptor(df::buffer& buffer);
-    virtual void get_descriptor(message& msg);
+    void get_hid_descriptor(df::buffer& buffer) const;
+    void get_descriptor(message& msg) const;
 
     void describe_config(const config::interface& iface, uint8_t if_index,
-                         df::buffer& buffer) override;
+                         df::buffer& buffer) const override;
 
     void control_setup_request(message& msg, const config::interface& iface) override;
     void control_data_complete(message& msg, const config::interface& iface) override;

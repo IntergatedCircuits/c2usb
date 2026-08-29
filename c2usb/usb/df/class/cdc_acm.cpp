@@ -4,7 +4,8 @@
 
 namespace usb::df::cdc::acm
 {
-void function::describe_config(const config::interface& iface, uint8_t if_index, df::buffer& buffer)
+void function::describe_config(const config::interface& iface, uint8_t if_index,
+                               df::buffer& buffer) const
 {
     if (iface.primary())
     {

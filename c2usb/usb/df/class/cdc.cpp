@@ -9,8 +9,9 @@ using namespace usb;
 
 namespace usb::df::cdc
 {
-standard::descriptor::interface*
-function::get_base_functional_descriptors(class_info cinfo, uint8_t if_index, df::buffer& buffer)
+standard::descriptor::interface* function::get_base_functional_descriptors(class_info cinfo,
+                                                                           uint8_t if_index,
+                                                                           df::buffer& buffer) const
 {
     struct desc_set
     {

@@ -53,13 +53,16 @@ struct descriptor : public descriptor_header
     constexpr static uint8_t type() { return static_cast<uint8_t>(T::TYPE_CODE); }
 
     constexpr descriptor()
-        : descriptor_header(size(), type())
+        : descriptor_header(size(), descriptor::type())
     {}
     constexpr descriptor(uint8_t length)
-        : descriptor_header(length, type())
+        : descriptor_header(length, descriptor::type())
     {}
 
-    [[nodiscard]] constexpr bool type_valid() const { return (bDescriptorType == type()); }
+    [[nodiscard]] constexpr bool type_valid() const
+    {
+        return (bDescriptorType == descriptor::type());
+    }
 };
 
 // TODO: https://github.com/mariusbancila/stduuid

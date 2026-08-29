@@ -69,7 +69,7 @@ void app_base_function::ep_callback(const transfer& t)
     }
 }
 
-void function::get_hid_descriptor(df::buffer& buffer)
+void function::get_hid_descriptor(df::buffer& buffer) const
 {
     auto* hid_desc = buffer.allocate<hid::descriptor::hid<1>>();
 
@@ -78,7 +78,8 @@ void function::get_hid_descriptor(df::buffer& buffer)
     report_subdesc->wItemLength = app_.report_info().descriptor.size();
 }
 
-void function::describe_config(const config::interface& iface, uint8_t if_index, df::buffer& buffer)
+void function::describe_config(const config::interface& iface, uint8_t if_index,
+                               df::buffer& buffer) const
 {
     auto* iface_desc = buffer.allocate<standard::descriptor::interface>();
 
@@ -96,7 +97,7 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
              (iface.endpoints()[1].address().direction() == direction::OUT))));
 }
 
-void function::get_descriptor(message& msg)
+void function::get_descriptor(message& msg) const
 {
     switch (static_cast<hid::descriptor::type>(msg.request().wValue.high_byte()))
     {

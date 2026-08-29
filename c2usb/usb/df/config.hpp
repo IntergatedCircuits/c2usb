@@ -44,8 +44,9 @@ class power
     [[nodiscard]] constexpr unsigned max_power_mA() const { return value_ >> 7; }
     [[nodiscard]] constexpr bool valid() const { return value_ != 0; }
 
-    friend auto operator<<(standard::descriptor::configuration* desc, const power& p)
-        -> standard::descriptor::configuration*;
+    // functions for populating the configuration descriptor
+    [[nodiscard]] constexpr uint8_t desc_max_power() const { return value_ >> 8; }
+    [[nodiscard]] constexpr uint8_t desc_attributes() const { return 0x80 | value_; }
 
   protected:
     constexpr power(source src = source::BUS, uint16_t max_current_mA = 100,

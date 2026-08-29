@@ -193,22 +193,22 @@ SUITE(config_)
         CHECK(!p_bus.self_powered());
         CHECK(p_bus.remote_wakeup());
         CHECK(p_bus.max_power_mA() == 500);
+        CHECK(p_bus.desc_max_power() == 250);
+        CHECK(p_bus.desc_attributes() == (0x80 | 0x20));
 
         constexpr auto p_self = power::self(true);
         CHECK(p_self.self_powered());
         CHECK(p_self.remote_wakeup());
         CHECK(p_self.max_power_mA() == 0);
+        CHECK(p_self.desc_max_power() == 0);
+        CHECK(p_self.desc_attributes() == (0x80 | 0x40 | 0x20));
 
         constexpr auto p_shared = power::shared(250, false);
         CHECK(p_shared.self_powered());
         CHECK(!p_shared.remote_wakeup());
         CHECK(p_shared.max_power_mA() == 250);
-
-        usb::standard::descriptor::configuration desc{};
-        (&desc) << p_bus;
-        CHECK(desc.max_power_mA() == 500);
-        CHECK(!desc.self_powered());
-        CHECK(desc.remote_wakeup());
+        CHECK(p_shared.desc_max_power() == 125);
+        CHECK(p_shared.desc_attributes() == (0x80 | 0x40));
     };
 
     TEST_CASE("configuration api coverage")

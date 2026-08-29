@@ -92,18 +92,15 @@ struct configuration : public usb::descriptor<configuration>
     uint8_t bNumInterfaces{};      /// Number of Interfaces
     uint8_t bConfigurationValue{}; /// Value to use as an argument to select this configuration
     istring iConfiguration{};      /// Index of String Descriptor describing this configuration
-    uint8_t bmAttributes{0x80};    /// 0b1[Self Powered][Remote Wakeup]00000
-    uint8_t bMaxPower{100 / 2};    /// Maximum Power Consumption in 2mA units
+    struct attributes : bitfilled::host_integer<uint8_t>
+    {
+        BF_COPY_SUPERCLASS(attributes)
+        BF_BITS(bool, 5) remote_wakeup;
+        BF_BITS(bool, 6) self_powered;
+    } bmAttributes{0x80};       /// 0b1[Self Powered][Remote Wakeup]00000
+    uint8_t bMaxPower{100 / 2}; /// Maximum Power Consumption in 2mA units
 
     [[nodiscard]] constexpr uint16_t max_power_mA() const { return bMaxPower * 2; }
-    [[nodiscard]] constexpr bool self_powered() const
-    {
-        return static_cast<bool>((bmAttributes >> 6) & 1);
-    }
-    [[nodiscard]] constexpr bool remote_wakeup() const
-    {
-        return static_cast<bool>((bmAttributes >> 5) & 1);
-    }
 };
 
 template <size_t SIZE>

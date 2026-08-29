@@ -6,14 +6,6 @@ using namespace usb::df;
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 namespace usb::df::config
 {
-usb::standard::descriptor::configuration* operator<<(usb::standard::descriptor::configuration* desc,
-                                                     const power& p)
-{
-    desc->bMaxPower = p.value_ >> 8;
-    desc->bmAttributes = 0x80 | p.value_;
-    return desc;
-}
-
 interface_endpoint_view interface::endpoints() const
 {
     return {*this};

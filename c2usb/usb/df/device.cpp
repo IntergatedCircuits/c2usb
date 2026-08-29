@@ -357,7 +357,9 @@ void device::get_config_descriptor(message& msg, usb::speed speed)
     // offset by 1 so SET_CONFIGURATION 0 can clear any configuration
     config_desc->bConfigurationValue = 1 + config_index;
 
-    config_desc << config.info();
+    // configuration specific information
+    config_desc->bMaxPower = config.info().desc_max_power();
+    config_desc->bmAttributes = config.info().desc_attributes();
     if (config.info().name() != nullptr)
     {
         config_desc->iConfiguration = get_config_istring(config_index, speed);

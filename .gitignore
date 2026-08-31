@@ -72,6 +72,12 @@ $RECYCLE.BIN/
 # Mac crap
 .DS_Store
 
+# vscode
 **/.vscode/c_cpp_properties.json
 **/.vscode/launch.json
+
+# python
 __pycache__/
+
+# zephyr
+twister-out*

@@ -1,6 +1,5 @@
 menuconfig C2USB_HOGP
-	bool "c2usb HID over GATT"
-    select C2USB
+    bool "c2usb HID over GATT"
     depends on BT
 
 if C2USB_HOGP

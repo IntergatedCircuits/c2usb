@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 # TODO: list all kconfig options that aren't dependent on SDK
 set(CONFIG_C2USB ON)
+set(CONFIG_C2USB_DF ON)
 set(CONFIG_C2USB_I2C_HID ON)
 set(CONFIG_C2USB_HID_BOOT_PROTOCOL ON)
 
@@ -18,6 +19,7 @@ add_subdirectory(${PROJECT_NAME})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC
     CONFIG_C2USB=1
+    CONFIG_C2USB_DF=1
     CONFIG_C2USB_I2C_HID=1
     CONFIG_C2USB_HID_BOOT_PROTOCOL=1
 )

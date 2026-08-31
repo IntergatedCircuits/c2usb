@@ -1,6 +1,5 @@
 menuconfig C2USB_I2C_HID
-	bool "c2usb HID over I2C"
-    select C2USB
+    bool "c2usb HID over I2C"
 
 if C2USB_I2C_HID
 

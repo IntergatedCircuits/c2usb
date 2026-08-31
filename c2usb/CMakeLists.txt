@@ -9,6 +9,7 @@ set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
 
 # ports
 if(ZEPHYR_BASE)
+    target_link_libraries(app PRIVATE c2usb)
     add_subdirectory(bluetooth)
     add_subdirectory(port/zephyr)
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE) # https://github.com/zephyrproject-rtos/zephyr/pull/69490
@@ -18,6 +19,7 @@ if(ZEPHYR_BASE)
         $<IF:$<BOOL:${CONFIG_DEBUG}>,DEBUG,NDEBUG>
     )
 elseif(MCUX_SDK_PROJECT_NAME)
+    target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE c2usb)
     add_subdirectory(port/nxp)
 endif()
 
@@ -61,20 +63,25 @@ target_include_directories(c2usb
 target_sources(c2usb
     PRIVATE
         hid/application.cpp
-        usb/class/dfu.cpp
-        usb/df/class/cdc.cpp
-        usb/df/class/cdc_acm.cpp
-        usb/df/class/dfu.cpp
-        usb/df/class/hid.cpp
-        usb/df/vendor/microsoft/os_extension.cpp
-        usb/df/vendor/microsoft/xinput.cpp
-        usb/df/config.cpp
-        usb/df/device.cpp
-        usb/df/function.cpp
-        usb/df/mac.cpp
-        usb/df/message.cpp
-        usb/standard/descriptors.cpp
 )
+if(CONFIG_C2USB_DF)
+    target_sources(c2usb
+        PRIVATE
+            usb/class/dfu.cpp
+            usb/df/class/cdc.cpp
+            usb/df/class/cdc_acm.cpp
+            usb/df/class/dfu.cpp
+            usb/df/class/hid.cpp
+            usb/df/vendor/microsoft/os_extension.cpp
+            usb/df/vendor/microsoft/xinput.cpp
+            usb/df/config.cpp
+            usb/df/device.cpp
+            usb/df/function.cpp
+            usb/df/mac.cpp
+            usb/df/message.cpp
+            usb/standard/descriptors.cpp
+    )
+endif()
 if(CONFIG_C2USB_I2C_HID)
     target_sources(c2usb
         PRIVATE

@@ -1,2 +1,6 @@
+# shared Kconfig, both zephyr and mcux
 rsource "hid/Kconfig"
 rsource "i2c/Kconfig"
+
+config C2USB_DF
+    bool "C2USB Device Framework"

@@ -2,27 +2,27 @@
 menu "C2USB demo options"
 
 config DEMO_MANUFACTURER
-	string "USB/BLE device manufacturer string"
-	default "Zephyr Project"
+    string "USB/BLE device manufacturer string"
+    default "Zephyr Project"
 
 config DEMO_MANUFACTURER_ID
-	hex "USB/BLE device manufacturer ID"
-	default 0x2fe3
+    hex "USB/BLE device manufacturer ID"
+    default 0x2fe3
 
 config DEMO_PRODUCT
-	string "USB/BLE device product string"
-	default "Demo Product"
+    string "USB/BLE device product string"
+    default "Demo Product"
 
 config DEMO_PRODUCT_ID
-	hex "USB/BLE device product ID"
-	default 0x0001
+    hex "USB/BLE device product ID"
+    default 0x0001
 
 config DEMO_USB_HID_OUT_EP
-	bool "Enable USB HID OUT endpoint"
-	default n
-	help
-	  Enable USB HID OUT endpoint for receiving data from host.
-	  Otherwise OUT data is received through the control endpoint.
+    bool "Enable USB HID OUT endpoint"
+    default n
+    help
+      Enable USB HID OUT endpoint for receiving data from host.
+      Otherwise OUT data is received through the control endpoint.
 
 endmenu
 

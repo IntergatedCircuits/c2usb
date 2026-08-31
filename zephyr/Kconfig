@@ -1,22 +1,22 @@
-menu "c2usb configuration"
-
-config C2USB
+menuconfig C2USB
     bool "c2usb library"
     select CPP
     select REQUIRES_FULL_LIBCPP
     select HID_RP
     select ETL
 
+if C2USB
+
 rsource "../c2usb/port/zephyr/Kconfig"
 rsource "../c2usb/bluetooth/Kconfig"
 rsource "../c2usb/Kconfig"
 
-endmenu
+endif
 
 rsource "Kconfig.hwinfo"
 
 choice STD_CPP
-	default STD_CPP20 if C2USB
+    default STD_CPP20 if C2USB
 endchoice
 
 configdefault SHELL_STACK_SIZE

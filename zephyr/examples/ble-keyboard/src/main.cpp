@@ -21,6 +21,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 using namespace std::chrono_literals;
 
+static const uint8_t caps_led = 0;
 static const uint8_t adv_led = 1;
 
 static auto advertise(void)
@@ -208,17 +209,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_SUBCMD_SET_END);
 SHELL_CMD_REGISTER(bt, &sub_bt, "BT", NULL);
 
-static void update_leds(keyboard_leds_data leds)
-{
-    leds::set(0, leds.test(hid::page::leds::CAPS_LOCK));
-}
-
-auto& keyboard_app()
-{
-    static simple_keyboard<&update_leds> keyb{};
-    return keyb;
-}
-
 const auto sec_lvl = bluetooth::security::L3_AUTH_ENC;
 
 static auto& hog_service()
@@ -231,14 +221,14 @@ static auto& hog_service()
 
     using hogp_type =
         service_instance<hid::app::keyboard::app_report_descriptor<0>(), hid::boot::mode::KEYBOARD>;
-    static hogp_type hog{keyboard_app(), sec_lvl, features};
+    static hogp_type hog{simple_keyboard::instance(), sec_lvl, features};
 
     static const STRUCT_SECTION_ITERABLE(bt_gatt_service_static, keyboard_hogp) =
         hog.static_service();
     return hog;
 }
 
-auto& kb_msgq()
+auto& input_msgq()
 {
     static zephyr::message_queue_instance<input_event, 2> msgq;
     return msgq;
@@ -246,7 +236,7 @@ auto& kb_msgq()
 
 static void input_cb(input_event* evt, void*)
 {
-    kb_msgq().post(*evt);
+    input_msgq().post(*evt);
 }
 
 INPUT_CALLBACK_DEFINE(nullptr, input_cb, nullptr);
@@ -290,10 +280,10 @@ auto& device_info()
 
 int main(void)
 {
-#if CONFIG_HWINFO
-    // use HW info as serial number
-    hwinfo_get_device_id(serial_number, sizeof(serial_number));
-#endif
+    simple_keyboard::instance().set_leds_callback(
+        [](keyboard_leds_data leds)
+        { leds::set(caps_led, leds.test(hid::page::leds::CAPS_LOCK)); });
+
     if (auto err = bt_conn_auth_cb_register(&conn_auth_callbacks); err)
     {
         LOG_ERR("Failed to register authorization callbacks.\n");
@@ -304,8 +294,14 @@ int main(void)
         LOG_ERR("Failed to register authorization info callbacks.\n");
         return 0;
     }
+
+#if CONFIG_HWINFO
+    // use HW info as serial number
+    hwinfo_get_device_id(serial_number, sizeof(serial_number));
+#endif
     device_info();
     hog_service();
+
     if (auto err = bt_enable(nullptr); err)
     {
         LOG_ERR("Bluetooth init failed (err %d)\n", err);
@@ -319,11 +315,12 @@ int main(void)
 
     while (true)
     {
-        auto msg = kb_msgq().get();
+        auto msg = input_msgq().get();
         switch (msg.code)
         {
         case INPUT_KEY_0:
-            keyboard_app().send_key(hid::page::keyboard_keypad::KEYBOARD_CAPS_LOCK, msg.value);
+            simple_keyboard::instance().send_key(hid::page::keyboard_keypad::KEYBOARD_CAPS_LOCK,
+                                                 msg.value);
             break;
         default:
             break;

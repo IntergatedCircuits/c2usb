@@ -6,13 +6,13 @@
 #include <etl/alignment.h>
 #include <hid/app/mouse.hpp>
 
-template <void (*ResolutionCallback)(uint8_t, uint8_t),
-          // Linux only works if a report ID is used, see
-          // https://bugzilla.kernel.org/show_bug.cgi?id=220144
-          std::uint8_t MOUSE_REPORT_ID = 1, std::int16_t AXIS_LIMIT = 127,
-          int16_t WHEEL_LIMIT = 32767>
 class high_resolution_mouse : public hid::application
 {
+    // Linux only works if a report ID is used, see
+    // https://bugzilla.kernel.org/show_bug.cgi?id=220144
+    static constexpr uint8_t MOUSE_REPORT_ID = 1;
+    static constexpr int16_t AXIS_LIMIT = 127;
+    static constexpr int16_t WHEEL_LIMIT = 32767;
     static constexpr auto LAST_BUTTON = hid::page::button(3);
     static constexpr int16_t MAX_SCROLL_RESOLUTION = 120;
 
@@ -20,7 +20,7 @@ class high_resolution_mouse : public hid::application
     template <uint8_t REPORT_ID = 0>
     struct mouse_report_base : public hid::report::base<hid::report::type::INPUT, REPORT_ID>
     {
-        hid::report_bitset<hid::page::button, hid::page::button(1), LAST_BUTTON> buttons{};
+        hid::report_bitset_range<hid::page::button(1), LAST_BUTTON> buttons{};
         bitfilled::packed_integer<std::endian::little, bitfilled::byte_width(AXIS_LIMIT), int> x{};
         bitfilled::packed_integer<std::endian::little, bitfilled::byte_width(AXIS_LIMIT), int> y{};
         bitfilled::packed_integer<std::endian::little, bitfilled::byte_width(WHEEL_LIMIT), int>
@@ -43,7 +43,10 @@ class high_resolution_mouse : public hid::application
         session(const hid::session::params& params)
             : hid::session(params)
         {
-            ResolutionCallback(1, 1);
+            if (auto cb = high_resolution_mouse::instance().resolution_cbk_; cb != nullptr)
+            {
+                cb(1, 1);
+            }
             receive_report(&multiplier_report_);
         }
 
@@ -54,8 +57,11 @@ class high_resolution_mouse : public hid::application
             {
                 multiplier_report_ =
                     *reinterpret_cast<const resolution_multiplier_report*>(data.data());
-                ResolutionCallback(multiplier_report_.vertical_scroll_multiplier(),
-                                   multiplier_report_.horizontal_scroll_multiplier());
+                if (auto cb = high_resolution_mouse::instance().resolution_cbk_; cb != nullptr)
+                {
+                    cb(multiplier_report_.vertical_scroll_multiplier(),
+                       multiplier_report_.horizontal_scroll_multiplier());
+                }
             }
             receive_report(&multiplier_report_);
         }
@@ -117,18 +123,11 @@ class high_resolution_mouse : public hid::application
         // clang-format on
     }
 
-    high_resolution_mouse()
-        : hid::application(hid::report_protocol::from_descriptor<report_desc()>())
-    {}
-
     c2usb::result send_report(const mouse_report& report)
     {
         if (!session_)
         {
-            // work around compiler bug ( ICE when resolving such using enum members during template
-            // instantiation (tsubst_copy at cp/pt.cc:17004))
-            // return c2usb::result::not_connected;
-            return c2usb::result::NO_CONNECTION;
+            return c2usb::result::not_connected;
         }
         return session_->send_report(&report);
     }
@@ -141,12 +140,24 @@ class high_resolution_mouse : public hid::application
         return session_->multiplier_report();
     }
 
+    void set_resolution_callback(void (*cbk)(uint8_t, uint8_t)) { resolution_cbk_ = cbk; }
+
+    static high_resolution_mouse& instance()
+    {
+        static high_resolution_mouse inst;
+        return inst;
+    }
+
+  private:
+    high_resolution_mouse()
+        : hid::application(hid::report_protocol::from_descriptor<report_desc()>())
+    {}
     hid::session& start([[maybe_unused]] const hid::session::params& params) override
     {
         return session_.emplace(params);
     }
     void stop([[maybe_unused]] hid::session& sess) override { session_.reset(); }
 
-  private:
+    void (*resolution_cbk_)(uint8_t, uint8_t){};
     std::optional<session> session_{};
 };

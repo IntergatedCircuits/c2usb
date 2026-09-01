@@ -125,17 +125,6 @@ extern "C" void USB_DeviceClockInit(void)
 #endif
 }
 
-auto& keyboard_app()
-{
-    static simple_keyboard<[](keyboard_leds_data leds)
-                           {
-                               GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN,
-                                             !leds.test(hid::page::leds::CAPS_LOCK));
-                           }>
-        kb{};
-    return kb;
-}
-
 auto& device()
 {
     static constexpr usb::product_info prinfo{0x1FC9, "NXP", 0x0091, "c2usb keyboard",
@@ -171,7 +160,8 @@ extern "C" void BOARD_SW2_IRQ_HANDLER(void)
         }
         break;
     case usb::power::state::L0_ON:
-        keyboard_app().send_key(hid::page::keyboard_keypad::KEYBOARD_CAPS_LOCK, pressed);
+        simple_keyboard::instance().send_key(hid::page::keyboard_keypad::KEYBOARD_CAPS_LOCK,
+                                             pressed);
         break;
     default:
         break;
@@ -184,6 +174,13 @@ int main(void)
     BOARD_InitHardware();
     USB_DeviceClockInit();
 
+    simple_keyboard::instance().set_leds_callback(
+        [](keyboard_leds_data leds)
+        {
+            GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN,
+                          not leds.test(hid::page::leds::CAPS_LOCK));
+        });
+
     /* Define the init structure for the output LED pin */
     gpio_pin_config_t led_config = {
         kGPIO_DigitalOutput,
@@ -192,7 +189,8 @@ int main(void)
     GPIO_PinInit(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, &led_config);
     GPIO_PinInit(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PIN, &led_config);
 
-    static usb::df::hid::function usb_kb{keyboard_app(), usb::hid::boot_protocol_mode::KEYBOARD};
+    static usb::df::hid::function usb_kb{simple_keyboard::instance(),
+                                         usb::hid::boot_protocol_mode::KEYBOARD};
     static const auto single_config = usb::df::config::make_config(
         usb::df::config::header(usb::df::config::power::bus(100, true), "usb-keyboard"),
         usb_kb.config_entry(usb::speed::FULL, usb::endpoint::address(0x81), 1

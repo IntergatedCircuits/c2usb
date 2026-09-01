@@ -12,7 +12,7 @@ manifest:
 
   projects:
     - name: hid-rp
-      revision: 770f31f71bf602f6d0a9c387dccd4b54dbe6d7c8
+      revision: 894bd1f49c44bfbd20b44e6fd22ccf961a2f46db
       import:
         path-prefix: modules/lib
 

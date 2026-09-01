@@ -7,10 +7,10 @@
 #include <hid/application.hpp>
 #include <magic_enum.hpp>
 #include <memory_resource>
-#include <port/zephyr/udc_mac.hpp>
-#include <port/zephyr/usb_shell.hpp>
 #include <usb/df/config_storage.hpp>
 #include <usb/df/device.hpp>
+#include <usb/df/vendor/zephyr/shell.hpp>
+#include <usb/df/vendor/zephyr/udc_mac.hpp>
 #include <zephyr/thread.hpp>
 
 using namespace zephyr;
@@ -33,7 +33,7 @@ constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID,
 
 auto& device()
 {
-    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 128};
+    static usb::df::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 128};
     static usb::df::device_instance<mac.supported_speeds()> device{mac, product_info};
     return device;
 }
@@ -68,7 +68,7 @@ int main(void)
     using namespace usb::df::config;
 
     // provide just enough buffer space for the configuration arrays
-    monotonic_storage<usb::zephyr::udc_mac::supported_speeds(), 7> config_buffer{};
+    monotonic_storage<usb::df::zephyr::udc_mac::supported_speeds(), 7> config_buffer{};
 
     // define configurations and start device
     for (auto speed : device().speeds())
@@ -77,7 +77,7 @@ int main(void)
 
         auto cfg = make_config(
             config_buffer.resource(), config_header,
-            usb::zephyr::usb_shell::handle().config_entry(
+            usb::df::zephyr::shell::handle().config_entry(
                 speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
                 usb::endpoint::address(0x8f) // note that notification endpoint is unused here
                 ));

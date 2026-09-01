@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "usb/df/config.hpp"
-#include "high_resolution_mouse.hpp"
-#include "simple_keyboard.hpp"
+#include "hid/example/high_resolution_mouse.hpp"
+#include "hid/example/simple_keyboard.hpp"
 #include "test_framework.hpp"
 #include "usb/descriptor_set.hpp"
 #include "usb/df/class/cdc.hpp"

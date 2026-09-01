@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#include "port/nxp/mcux_mac.hpp"
+#include "usb/df/vendor/nxp/mcux_mac.hpp"
 #include "usb/standard/requests.hpp"
 #include <usb_device.h>
 #include <usb_device_config.h>

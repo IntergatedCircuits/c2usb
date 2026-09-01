@@ -15,9 +15,6 @@ include("${SdkRootDirPath}/CMakeLists.txt")
 mcux_add_macro(
     CC "-DUSB_STACK_BM"
 )
-target_link_libraries(${PROJECT_NAME} PUBLIC
-    c2usb-examples
-)
 mcux_add_source(
     SOURCES
         src/main.cpp

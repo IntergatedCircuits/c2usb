@@ -7,15 +7,15 @@
 #include <ranges>
 #include <string_view>
 
-#include <port/zephyr/udc_mac.hpp>
-#include <port/zephyr/usb_shell.hpp>
-#include <simple_keyboard.hpp>
+#include <hid/example/simple_keyboard.hpp>
 #include <usb/descriptor_set.hpp>
 #include <usb/df/class/cdc_acm.hpp>
 #include <usb/df/class/dfu.hpp>
 #include <usb/df/class/hid.hpp>
 #include <usb/df/config.hpp>
 #include <usb/df/device.hpp>
+#include <usb/df/vendor/zephyr/shell.hpp>
+#include <usb/df/vendor/zephyr/udc_mac.hpp>
 #include <usb/product_info.hpp>
 #include <usb/standard/descriptors.hpp>
 #include <usb/standard/requests.hpp>
@@ -62,7 +62,7 @@ const auto& loop_config(const char* name)
 
     static const auto cfg = usb::df::config::make_config(
         config_header,
-        usb::zephyr::usb_shell::handle().config_entry(SPEED, usb::endpoint::address(0x01),
+        usb::df::zephyr::shell::handle().config_entry(SPEED, usb::endpoint::address(0x01),
                                                       usb::endpoint::address(0x81),
                                                       usb::endpoint::address(0x8f)),
         dfu_runtime_fn().config_entry());
@@ -73,8 +73,8 @@ const auto& loop_config(const char* name)
 auto& mac()
 {
     constexpr uint16_t CTRL_EP_BUF_SIZE = 512;
-    static usb::zephyr::udc_mac loop_mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)),
-                                         CTRL_EP_BUF_SIZE};
+    static usb::df::zephyr::udc_mac loop_mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)),
+                                             CTRL_EP_BUF_SIZE};
     return loop_mac;
 }
 
@@ -293,7 +293,7 @@ static void* test_setup()
     auto& dev = loop_device().emplace(mac(), product_info);
 
     dev.set_config_for_speed(loop_config<usb::speed::FULL>("fs-cfg"), usb::speed::FULL);
-    if constexpr (usb::zephyr::udc_mac::supported_speeds().includes(usb::speed::HIGH))
+    if constexpr (usb::df::zephyr::udc_mac::supported_speeds().includes(usb::speed::HIGH))
     {
         dev.set_config_for_speed(loop_config<usb::speed::HIGH>("hs-cfg"), usb::speed::HIGH);
     }

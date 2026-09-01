@@ -4,10 +4,10 @@
 #include <zephyr/logging/log.h>
 
 #include "../../iolib.hpp"
-#include <port/zephyr/udc_mac.hpp>
-#include <simple_keyboard.hpp>
+#include <hid/example/simple_keyboard.hpp>
 #include <usb/df/class/hid.hpp>
 #include <usb/df/device.hpp>
+#include <usb/df/vendor/zephyr/udc_mac.hpp>
 #include <zephyr/message_queue.hpp>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
@@ -46,7 +46,7 @@ constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID,
 
 auto& device()
 {
-    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 400};
+    static usb::df::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 400};
     static usb::df::device_instance<mac.supported_speeds()> device{mac, product_info};
     return device;
 }

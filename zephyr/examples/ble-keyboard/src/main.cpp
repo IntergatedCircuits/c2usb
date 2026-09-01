@@ -9,7 +9,7 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/shell/shell.h>
 
-#include "simple_keyboard.hpp"
+#include "hid/example/simple_keyboard.hpp"
 #include <bluetooth/advertise.hpp>
 #include <bluetooth/device_info.hpp>
 #include <bluetooth/hid_over_gatt.hpp>

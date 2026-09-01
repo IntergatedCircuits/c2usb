@@ -10,9 +10,15 @@ set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
 # ports
 if(ZEPHYR_BASE)
     target_link_libraries(app PRIVATE c2usb)
+    target_link_libraries(c2usb
+        PUBLIC      zephyr_interface
+        INTERFACE   kernel
+    )
+    # prevent build errors from late generated zephyr/heap_constants.h
+    add_dependencies(c2usb zephyr_generated_headers)
+
     add_subdirectory(bluetooth)
-    add_subdirectory(port/zephyr)
-    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive" PARENT_SCOPE) # https://github.com/zephyrproject-rtos/zephyr/pull/69490
+    add_subdirectory(usb/df/vendor/zephyr)
 
     target_compile_definitions(zephyr_interface INTERFACE
         # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended
@@ -20,7 +26,7 @@ if(ZEPHYR_BASE)
     )
 elseif(MCUX_SDK_PROJECT_NAME)
     target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE c2usb)
-    add_subdirectory(port/nxp)
+    add_subdirectory(usb/df/vendor/nxp)
 endif()
 
 if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/bitfilled/CMakeLists.txt")
@@ -88,5 +94,3 @@ if(CONFIG_C2USB_I2C_HID)
             i2c/hid/device.cpp
     )
 endif()
-
-add_subdirectory(examples)

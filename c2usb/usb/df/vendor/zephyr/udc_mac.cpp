@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-#include "port/zephyr/udc_mac.hpp"
+#include "usb/df/vendor/zephyr/udc_mac.hpp"
 #include <atomic>
 #include "compatibility_helper.hpp"
 #include <zephyr/logging/log.h>
@@ -13,8 +13,6 @@ extern "C"
 // for assert() to be active in debug configuration only, this is necessary
 #error "Either CONFIG_DEBUG or NDEBUG must be defined"
 #endif
-
-using namespace usb::df;
 
 LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
 
@@ -42,7 +40,7 @@ UDC_CAPS_FLAG(bool, rwup, false)
 UDC_CAPS_FLAG(bool, out_ack, false)
 UDC_CAPS_FLAG(int, mps0, 3)
 
-namespace usb::zephyr
+namespace usb::df::zephyr
 {
 constexpr bool udc_init_has_ctx = c2usb::function_arg_count(udc_init) == 3;
 template <typename T>
@@ -976,4 +974,4 @@ bool udc_mac::setup_test_mode(uint8_t mode_selector)
     return ret == 0;
 }
 
-} // namespace usb::zephyr
+} // namespace usb::df::zephyr

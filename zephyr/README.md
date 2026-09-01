@@ -43,6 +43,13 @@ from a successful build:
 west vscode -d usb-keyboard/build --build "usb-keyboard" --debug "usb-keyboard"
 ```
 
+### ble-keyboard
+
+A straightforward BLE HID keyboard. UART shell access is needed to complete BLE pairing:
+`bt passkey XXXXXX`
+Use the button on the board to trigger a caps lock press,
+and observe as the host changes the caps lock state on the board's LED.
+
 ### usb-keyboard
 
 A straightforward USB HID keyboard to illustrate a minimal project integration.
@@ -50,7 +57,7 @@ Use the button on the board to trigger a caps lock press, and observe as the hos
 
 ### usb-shell
 
-Demonstrating USB serial port functionality with shell access to the zephyr OS.
+Demonstrating USB serial port functionality with shell access to the zephyr OS. Supports full and high-speed device targets.
 
 [zephyr]: https://docs.zephyrproject.org/latest/index.html
 [west]: https://docs.zephyrproject.org/latest/develop/west/index.html

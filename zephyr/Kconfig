@@ -7,9 +7,9 @@ menuconfig C2USB
 
 if C2USB
 
-rsource "../c2usb/port/zephyr/Kconfig"
-rsource "../c2usb/bluetooth/Kconfig"
 rsource "../c2usb/Kconfig"
+rsource "../c2usb/bluetooth/Kconfig"
+rsource "../c2usb/usb/df/vendor/zephyr/Kconfig"
 
 endif
 

@@ -6,7 +6,7 @@
 
 #include "usb/df/class/cdc_acm.hpp"
 
-namespace usb::zephyr
+namespace usb::df::zephyr
 {
 template <typename T>
 class double_buffer
@@ -73,16 +73,16 @@ class acm_tx_buffer : public double_buffer<uint8_t>
                                                     bool needs_zlp);
 };
 
-class usb_shell : public usb::df::cdc::acm::function
+class shell : public usb::df::cdc::acm::function
 {
   public:
 #if CONFIG_SHELL_BACKEND_C2USB
-    static usb_shell& handle();
+    static shell& handle();
 #endif
 
   private:
-    usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer);
-    ~usb_shell() override;
+    shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer);
+    ~shell() override;
 
     void set_line(const line_config& cfg, line_event ev) override;
     void reset_line() override;
@@ -117,4 +117,4 @@ class usb_shell : public usb::df::cdc::acm::function
     acm_rx_buffer rx_buffer_;
 };
 
-} // namespace usb::zephyr
+} // namespace usb::df::zephyr

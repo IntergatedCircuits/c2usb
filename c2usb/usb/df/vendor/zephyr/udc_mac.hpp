@@ -9,7 +9,7 @@ struct net_buf;
 struct udc_buf_info;
 struct udc_event;
 
-namespace usb::zephyr
+namespace usb::df::zephyr
 {
 /// @brief  The udc_mac implements the MAC interface to the Zephyr next USB device stack.
 class udc_mac : public df::mac
@@ -88,4 +88,4 @@ class udc_mac : public df::mac
     bool setup_test_mode(uint8_t mode_selector) override;
 };
 
-} // namespace usb::zephyr
+} // namespace usb::df::zephyr

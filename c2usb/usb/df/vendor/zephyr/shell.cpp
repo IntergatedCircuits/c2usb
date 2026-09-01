@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
-#include "usb_shell.hpp"
+#include "usb/df/vendor/zephyr/shell.hpp"
 #include <cassert>
 
 extern "C" const struct shell* c2usb_shell_handle();
 extern struct shell_transport c2usb_shell_transport;
 
-namespace usb::zephyr
+namespace usb::df::zephyr
 {
 
-usb_shell& usb_shell::handle()
+shell& shell::handle()
 {
     // the buffers and their midpoints have to be USB transfer aligned
     static_assert(((CONFIG_SHELL_BACKEND_C2USB_TX_BUFFER_SIZE / 2) % alignof(std::uintptr_t)) == 0);
@@ -17,11 +17,11 @@ usb_shell& usb_shell::handle()
         std::uintptr_t);
     static std::array<uint8_t, CONFIG_SHELL_BACKEND_C2USB_RX_BUFFER_SIZE> rx alignas(
         std::uintptr_t);
-    static usb_shell shell(tx, rx);
-    return shell;
+    static shell sh(tx, rx);
+    return sh;
 }
 
-const ::shell_transport_api& usb_shell::shell_tp_api()
+const ::shell_transport_api& shell::shell_tp_api()
 {
     static const ::shell_transport_api api = {
         .init = shell_tp_init,
@@ -33,7 +33,7 @@ const ::shell_transport_api& usb_shell::shell_tp_api()
     return api;
 }
 
-void usb_shell::change_active(bool active)
+void shell::change_active(bool active)
 {
     if (active == ::shell_ready(c2usb_shell_handle()))
     {
@@ -54,7 +54,7 @@ void usb_shell::change_active(bool active)
     }
 }
 
-void usb_shell::set_line(const line_config& cfg, line_event ev)
+void shell::set_line(const line_config& cfg, line_event ev)
 {
     if (ev == line_event::STATE_CHANGE)
     {
@@ -62,12 +62,12 @@ void usb_shell::set_line(const line_config& cfg, line_event ev)
     }
 }
 
-void usb_shell::reset_line()
+void shell::reset_line()
 {
     change_active(false);
 }
 
-usb_shell::usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer)
+shell::shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_buffer)
     : function(sizeof(CONFIG_SHELL_C2USB_FUNCTION_NAME) > sizeof("")
                    ? CONFIG_SHELL_C2USB_FUNCTION_NAME
                    : nullptr),
@@ -76,7 +76,7 @@ usb_shell::usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_
 {
     assert(c2usb_shell_transport.ctx == nullptr);
     c2usb_shell_transport.ctx = this;
-    c2usb_shell_transport.api = &usb_shell::shell_tp_api();
+    c2usb_shell_transport.api = &shell::shell_tp_api();
 
     // CONFIG_SHELL_LOG_BACKEND
     bool log_backend = CONFIG_SHELL_BACKEND_C2USB_LOG_LEVEL > 0;
@@ -88,26 +88,26 @@ usb_shell::usb_shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_
     ::shell_init(c2usb_shell_handle(), this, cfg_flags, log_backend, level);
 }
 
-usb_shell::~usb_shell()
+shell::~shell()
 {
     ::shell_uninit(c2usb_shell_handle(), nullptr);
 }
 
-int usb_shell::shell_tp_init(const ::shell_transport* transport, const void* config,
-                             ::shell_transport_handler_t evt_handler, void* context)
+int shell::shell_tp_init(const ::shell_transport* transport, const void* config,
+                         ::shell_transport_handler_t evt_handler, void* context)
 {
-    auto* this_ = static_cast<usb_shell*>(const_cast<void*>(config));
+    auto* this_ = static_cast<shell*>(const_cast<void*>(config));
     this_->tp_handler_ = evt_handler;
     this_->shell_context_ = context;
     return 0;
 }
 
-int usb_shell::shell_tp_uninit(const ::shell_transport* transport)
+int shell::shell_tp_uninit(const ::shell_transport* transport)
 {
     return 0;
 }
 
-int usb_shell::shell_tp_enable(const ::shell_transport* transport, bool blocking_tx)
+int shell::shell_tp_enable(const ::shell_transport* transport, bool blocking_tx)
 {
     // shell thread start: false
     // shell log backend enable, with CONFIG_LOG_MODE_IMMEDIATE=y: true
@@ -164,10 +164,10 @@ std::optional<std::span<const uint8_t>> acm_tx_buffer::write(const uint8_t* data
     return std::nullopt;
 }
 
-int usb_shell::shell_tp_write(const ::shell_transport* transport, const void* data, size_t length,
-                              size_t* cnt)
+int shell::shell_tp_write(const ::shell_transport* transport, const void* data, size_t length,
+                          size_t* cnt)
 {
-    auto* this_ = static_cast<usb_shell*>(transport->ctx);
+    auto* this_ = static_cast<shell*>(transport->ctx);
     assert(length);
     *cnt = length;
 
@@ -232,7 +232,7 @@ std::optional<std::span<const uint8_t>> acm_tx_buffer::advance(const std::span<c
     return std::nullopt;
 }
 
-void usb_shell::data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
+void shell::data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
 {
     if (!tx.empty())
     {
@@ -288,11 +288,11 @@ acm_rx_buffer::size_type acm_rx_buffer::read(uint8_t* data, size_type length)
     return readable;
 }
 
-int usb_shell::shell_tp_read(const struct shell_transport* transport, void* data, size_t length,
-                             size_t* cnt)
+int shell::shell_tp_read(const struct shell_transport* transport, void* data, size_t length,
+                         size_t* cnt)
 {
     // read some data from the buffer (character-by-character)
-    auto* this_ = static_cast<usb_shell*>(transport->ctx);
+    auto* this_ = static_cast<shell*>(transport->ctx);
     *cnt = this_->rx_buffer_.read(static_cast<uint8_t*>(data), length);
     this_->receive_buffer_data();
     return 0;
@@ -310,7 +310,7 @@ std::span<uint8_t> acm_rx_buffer::empty_side()
     return {};
 }
 
-void usb_shell::receive_buffer_data()
+void shell::receive_buffer_data()
 {
     auto read_to = rx_buffer_.empty_side();
     if (read_to.size())
@@ -327,7 +327,7 @@ bool acm_rx_buffer::set_produced(const std::span<uint8_t>& data)
     return produce_pos_[1 - produce_idx].load() == 0;
 }
 
-void usb_shell::data_received(const std::span<uint8_t>& rx)
+void shell::data_received(const std::span<uint8_t>& rx)
 {
     if (rx_buffer_.set_produced(rx))
     {
@@ -336,4 +336,4 @@ void usb_shell::data_received(const std::span<uint8_t>& rx)
     rx_ready_handler();
 }
 
-} // namespace usb::zephyr
+} // namespace usb::df::zephyr

@@ -11,10 +11,10 @@ extern "C"
 #include "usb_phy.h"
 #endif
 }
-#include "port/nxp/mcux_mac.hpp"
-#include "simple_keyboard.hpp"
+#include "hid/example/simple_keyboard.hpp"
 #include "usb/df/class/hid.hpp"
 #include "usb/df/device.hpp"
+#include "usb/df/vendor/nxp/mcux_mac.hpp"
 
 auto& mac()
 {
@@ -193,7 +193,7 @@ int main(void)
                                          usb::hid::boot_protocol_mode::KEYBOARD};
     static const auto single_config = usb::df::config::make_config(
         usb::df::config::header(usb::df::config::power::bus(100, usb::df::config::remote_wakeup),
-                                "usb-keyboard"),
+                                "shared"),
         usb_kb.config_entry(usb::speed::FULL, usb::endpoint::address(0x81), 1
 #if 0 // optional dedicated interrupt endpoint for LED output report
                             ,

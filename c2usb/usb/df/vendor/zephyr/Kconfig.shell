@@ -22,12 +22,13 @@ config SHELL_C2USB_FUNCTION_NAME
 
 config SHELL_BACKEND_C2USB_TX_BUFFER_SIZE
     int "c2usb shell TX double buffer overall size"
-    range 128 256
-    default 256
+    range 128 1024
+    default 1024 if UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+    default 128
 
 config SHELL_BACKEND_C2USB_RX_BUFFER_SIZE
     int "c2usb shell RX double buffer overall size"
-    range 32 128
+    range 32 1024
     default 128
 
 module = SHELL_BACKEND_C2USB

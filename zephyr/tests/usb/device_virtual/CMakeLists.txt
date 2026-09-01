@@ -9,8 +9,3 @@ target_include_directories(app PRIVATE
         ../include
 )
 target_sources(app PRIVATE src/main.cpp)
-
-target_link_libraries(app PRIVATE
-    c2usb
-    c2usb-examples
-)

@@ -192,7 +192,8 @@ int main(void)
     static usb::df::hid::function usb_kb{simple_keyboard::instance(),
                                          usb::hid::boot_protocol_mode::KEYBOARD};
     static const auto single_config = usb::df::config::make_config(
-        usb::df::config::header(usb::df::config::power::bus(100, true), "usb-keyboard"),
+        usb::df::config::header(usb::df::config::power::bus(100, usb::df::config::remote_wakeup),
+                                "usb-keyboard"),
         usb_kb.config_entry(usb::speed::FULL, usb::endpoint::address(0x81), 1
 #if 0 // optional dedicated interrupt endpoint for LED output report
                             ,

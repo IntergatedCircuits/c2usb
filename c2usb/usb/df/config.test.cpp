@@ -8,6 +8,7 @@
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/dfu.hpp"
 #include "usb/df/class/hid.hpp"
+#include "usb/df/config_storage.hpp"
 #include "usb/df/vendor/microsoft/xinput.hpp"
 
 using namespace usb::df;
@@ -76,7 +77,7 @@ SUITE(config_)
         static microsoft::xfunction xpad_kb{high_resolution_mouse::instance()};
         static dfu::runtime_function dfu_runtime{"dfu", [](std::chrono::milliseconds) {}};
 
-        constexpr auto config_header = header(power::bus(500, true));
+        constexpr auto config_header = header(power::bus(500, remote_wakeup));
         const auto shared_config_elems = join_elements(
             serial.config_entry(speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
                                 usb::endpoint::address(0x8f)));
@@ -185,7 +186,7 @@ SUITE(config_)
 
     TEST_CASE("power and descriptor mapping")
     {
-        constexpr auto p_bus = power::bus(500, true);
+        constexpr auto p_bus = power::bus(500, remote_wakeup);
         CHECK(p_bus.valid());
         CHECK(!p_bus.self_powered());
         CHECK(p_bus.remote_wakeup());
@@ -193,14 +194,14 @@ SUITE(config_)
         CHECK(p_bus.desc_max_power() == 250);
         CHECK(p_bus.desc_attributes() == (0x80 | 0x20));
 
-        constexpr auto p_self = power::self(true);
+        constexpr auto p_self = power::self(remote_wakeup);
         CHECK(p_self.self_powered());
         CHECK(p_self.remote_wakeup());
         CHECK(p_self.max_power_mA() == 0);
         CHECK(p_self.desc_max_power() == 0);
         CHECK(p_self.desc_attributes() == (0x80 | 0x40 | 0x20));
 
-        constexpr auto p_shared = power::shared(250, false);
+        constexpr auto p_shared = power::shared(250);
         CHECK(p_shared.self_powered());
         CHECK(!p_shared.remote_wakeup());
         CHECK(p_shared.max_power_mA() == 250);
@@ -223,7 +224,7 @@ SUITE(config_)
         const auto joined = join_elements(chunk0, chunk1);
         CHECK(joined.size() == 5);
 
-        constexpr auto cfg_header = header(power::shared(250, true), "cfg");
+        constexpr auto cfg_header = header(power::shared(250, remote_wakeup), "cfg");
         const auto cfg = make_config(cfg_header, chunk0, chunk1);
         const auto cfg_view = view(cfg);
 
@@ -284,7 +285,7 @@ SUITE(config_)
         }
         CHECK(reverse_iface_count == 2);
 
-        const auto cfg2 = make_config(header(power::bus(100, false), "cfg2"), chunk1);
+        const auto cfg2 = make_config(header(power::bus(100), "cfg2"), chunk1);
         const auto cfg_list = make_config_list(cfg, cfg2);
         const auto list = view_list(cfg_list);
         CHECK(list.size() == 2);
@@ -293,5 +294,26 @@ SUITE(config_)
         const std::array<view, 3> view_arr = {view(cfg), view(cfg2), view()};
         const auto list_from_views = view_list(view_arr);
         CHECK(list_from_views.size() == 2);
+    };
+
+    TEST_CASE("resource-backed configuration")
+    {
+        static dummy_function function{};
+        const auto chunk = to_elements({element(interface(function)),
+                                        element(endpoint(bulk_ep(usb::endpoint::address(0x81))))});
+        constexpr auto cfg_header = header(power::shared(250, remote_wakeup), "resource");
+
+        alignas(elements<4>) std::array<std::byte, sizeof(elements<4>)> storage{};
+        std::pmr::monotonic_buffer_resource resource(storage.data(), storage.size(),
+                                                     std::pmr::null_memory_resource());
+        const auto cfg_view = make_config(&resource, cfg_header, chunk);
+
+        CHECK(cfg_view.valid());
+        CHECK(cfg_view.info().config_size() == 3);
+        CHECK(cfg_view.interfaces().count() == 1);
+        CHECK(cfg_view.endpoints().count() == 1);
+        CHECK(cfg_view.active_endpoints().count() == 1);
+        CHECK(&cfg_view.interfaces()[0].function() == &function);
+        CHECK(cfg_view.endpoints().at(usb::endpoint::address(0x81)).valid());
     };
 };

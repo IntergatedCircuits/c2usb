@@ -6,8 +6,10 @@
 #include <hid/app/mouse.hpp>
 #include <hid/application.hpp>
 #include <magic_enum.hpp>
+#include <memory_resource>
 #include <port/zephyr/udc_mac.hpp>
 #include <port/zephyr/usb_shell.hpp>
+#include <usb/df/config_storage.hpp>
 #include <usb/df/device.hpp>
 #include <zephyr/thread.hpp>
 
@@ -29,15 +31,10 @@ constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID,
 #endif
 };
 
-auto& mac()
-{
-    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 128};
-    return mac;
-}
-
 auto& device()
 {
-    static usb::df::device_instance<usb::speed::FULL> device{mac(), product_info};
+    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 128};
+    static usb::df::device_instance<mac.supported_speeds()> device{mac, product_info};
     return device;
 }
 
@@ -56,7 +53,8 @@ int main(void)
             using event = enum usb::df::device::event;
             if (ev == event::CONFIGURATION_CHANGE)
             {
-                LOG_INF("USB configured: %u, granted current: %uuA", (unsigned)dev.configured(),
+                LOG_INF("USB configured: %u, speed: %s, granted current: %uuA",
+                        (unsigned)dev.configured(), magic_enum::enum_name(dev.bus_speed()).data(),
                         dev.granted_bus_current_uA());
             }
             else
@@ -67,21 +65,25 @@ int main(void)
             }
         });
 
-    // define configuration and start device
-    {
-        constexpr auto speed = usb::speed::FULL;
-        constexpr auto config_header =
-            usb::df::config::header(usb::df::config::power::bus(500, true), "base config");
+    using namespace usb::df::config;
 
-        static const auto base_config = usb::df::config::make_config(
-            config_header,
+    // provide just enough buffer space for the configuration arrays
+    monotonic_storage<usb::zephyr::udc_mac::supported_speeds(), 7> config_buffer{};
+
+    // define configurations and start device
+    for (auto speed : device().speeds())
+    {
+        const auto config_header = header(power::bus(200), magic_enum::enum_name(speed).data());
+
+        auto cfg = make_config(
+            config_buffer.resource(), config_header,
             usb::zephyr::usb_shell::handle().config_entry(
                 speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
                 usb::endpoint::address(0x8f) // note that notification endpoint is unused here
                 ));
-        device().set_config(base_config);
-        device().open();
+        device().set_config_for_speed(cfg, speed);
     }
+    device().open();
 
     while (true)
     {

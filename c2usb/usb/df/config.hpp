@@ -12,6 +12,19 @@ class function;
 
 namespace usb::df::config
 {
+
+/// @brief  A boolean wrapper for explicitly typed remote wakeup configuration.
+struct remote_wakeup_tag
+{
+    constexpr explicit remote_wakeup_tag(bool enabled = false)
+        : enabled_(enabled)
+    {}
+    constexpr operator bool() const { return enabled_; }
+
+  private:
+    bool enabled_;
+} constexpr inline remote_wakeup{true};
+
 /// @brief  Contains all power-related configuration data.
 class power
 {
@@ -19,17 +32,18 @@ class power
     using source = usb::power::source;
 
     [[nodiscard]] constexpr static auto bus(uint16_t max_current_mA = 100,
-                                            bool remote_wakeup = false)
+                                            remote_wakeup_tag remote_wake = remote_wakeup_tag())
     {
-        return power(source::BUS, max_current_mA, remote_wakeup);
+        return power(source::BUS, max_current_mA, remote_wake);
     }
-    [[nodiscard]] constexpr static auto self(bool remote_wakeup = false)
+    [[nodiscard]] constexpr static auto self(remote_wakeup_tag remote_wake = remote_wakeup_tag())
     {
-        return power(source::DEVICE, 0, remote_wakeup);
+        return power(source::DEVICE, 0, remote_wake);
     }
-    [[nodiscard]] constexpr static auto shared(uint16_t max_current_mA, bool remote_wakeup = false)
+    [[nodiscard]] constexpr static auto shared(uint16_t max_current_mA,
+                                               remote_wakeup_tag remote_wake = remote_wakeup_tag())
     {
-        return power(source::DEVICE, max_current_mA, remote_wakeup);
+        return power(source::DEVICE, max_current_mA, remote_wake);
     }
 
     [[nodiscard]] constexpr auto power_source() const
@@ -50,9 +64,9 @@ class power
 
   protected:
     constexpr power(source src = source::BUS, uint16_t max_current_mA = 100,
-                    bool remote_wakeup = false)
-        : value_((static_cast<uint16_t>(remote_wakeup) << 5) | (static_cast<uint16_t>(src) << 6) |
-                 (max_current_mA << 7))
+                    remote_wakeup_tag remote_wake = remote_wakeup_tag())
+        : value_((static_cast<uint16_t>(bool(remote_wake)) << 5) |
+                 (static_cast<uint16_t>(src) << 6) | (max_current_mA << 7))
     {}
 
   private:
@@ -299,11 +313,8 @@ constexpr elements<(SIZES + ...)> join_elements(elements<SIZES>... chunks)
 ///                   bound to sub-arrays by calling @ref std::to_array<element>(...)
 /// @return The finished configuration array that can be used via @ref view
 template <size_t... SIZES>
-#ifdef __cpp_lib_bit_cast
-constexpr
-#endif
-    elements<1 + (SIZES + ...) + 1>
-    make_config(const header& info, elements<SIZES>... chunks)
+constexpr auto make_config(const header& info, elements<SIZES>... chunks)
+    -> elements<1 + (SIZES + ...) + 1>
     requires((1 + (SIZES + ...) + 1) <= std::numeric_limits<uint8_t>::max())
 {
     constexpr uint8_t array_count = sizeof...(chunks);

@@ -44,15 +44,10 @@ constexpr usb::product_info product_info{CONFIG_DEMO_MANUFACTURER_ID,
 #endif
 };
 
-auto& mac()
-{
-    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 400};
-    return mac;
-}
-
 auto& device()
 {
-    static usb::df::device_instance<usb::speed::FULL> device{mac(), product_info};
+    static usb::zephyr::udc_mac mac{DEVICE_DT_GET(DT_NODELABEL(zephyr_udc0)), 400};
+    static usb::df::device_instance<mac.supported_speeds()> device{mac, product_info};
     return device;
 }
 
@@ -74,7 +69,8 @@ int main(void)
         {
             if (ev == usb::df::device::event::CONFIGURATION_CHANGE)
             {
-                LOG_INF("USB configured: %u, granted current: %uuA", (unsigned)dev.configured(),
+                LOG_INF("USB configured: %u, speed: %s, granted current: %uuA",
+                        (unsigned)dev.configured(), magic_enum::enum_name(dev.bus_speed()).data(),
                         dev.granted_bus_current_uA());
             }
             else
@@ -91,21 +87,24 @@ int main(void)
 
     // define configurations and start device
     {
+        using namespace std::chrono_literals;
+        using namespace usb::df::config;
         constexpr auto speed = usb::speed::FULL;
-        constexpr auto config_header = usb::df::config::header(
-            usb::df::config::power::bus(500, true), "base config but make it longer.");
+        const auto config_header =
+            header(power::bus(100, remote_wakeup), magic_enum::enum_name(speed).data());
 
-
-        static const auto base_config = usb::df::config::make_config(
-            config_header, usb_kb.config_entry(speed, usb::endpoint::address(0x81), 1
+        static const auto cfg = make_config(
+            config_header, usb_kb.config_entry(speed, usb::endpoint::address(0x81),
+                                               usb::endpoint::interval::from_rate(speed, 4ms)
 #if CONFIG_DEMO_USB_HID_OUT_EP
-                                               ,
-                                               usb::endpoint::address(0x01), 10
+                                                   ,
+                                               usb::endpoint::address(0x01),
+                                               usb::endpoint::interval::from_rate(speed, 16ms)
 #endif
-                                               ));
-        device().set_config(base_config);
-        device().open();
+                                                   ));
+        device().set_config(cfg);
     }
+    device().open();
 
     while (true)
     {

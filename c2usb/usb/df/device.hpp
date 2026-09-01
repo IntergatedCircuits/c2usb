@@ -213,9 +213,8 @@ class device : public polymorphic
 };
 
 /// @brief  The device_instance class is the high level controller of the USB link on the device
-/// side.
-///         It manages the configurations and functions, and handles the device-related control
-///         messages.
+///         side. It manages the configurations and functions, and handles the device-related
+///         control messages.
 ///
 /// @tparam SPEEDS: Select which bus speeds may have an active configuration associated with it.
 ///         If only a single speed is supported, @ref set_configs API is available.

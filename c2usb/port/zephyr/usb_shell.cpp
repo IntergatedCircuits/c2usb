@@ -179,8 +179,7 @@ int usb_shell::shell_tp_write(const ::shell_transport* transport, const void* da
     else if (auto to_consume = this_->tx_buffer_.write(static_cast<const uint8_t*>(data), cnt);
              to_consume)
     {
-        [[maybe_unused]] auto result = this_->send_data(to_consume.value());
-        assert(result != usb::result::device_or_resource_busy);
+        auto result = this_->send_data(to_consume.value());
         if (result != usb::result::ok)
         {
             this_->tx_buffer_.cancel_consume(to_consume.value());
@@ -238,18 +237,21 @@ void usb_shell::data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
     if (!tx.empty())
     {
         // data sent
-        tx_done_handler();
     }
     else
     {
-        // zlp
-        assert(tx.data() != nullptr);
+        // zlp or cancelled
     }
+    tx_done_handler();
 
+    // TODO: how to advance if last transfer was cancelled?
     if (auto next = tx_buffer_.advance(tx, needs_zlp); next)
     {
-        [[maybe_unused]] auto result = send_data(next.value());
-        assert(result == usb::result::ok);
+        auto result = send_data(next.value());
+        if (result != usb::result::ok)
+        {
+            tx_buffer_.cancel_consume(next.value());
+        }
     }
 }
 

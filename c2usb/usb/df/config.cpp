@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "usb/df/config.hpp"
+#include "usb/df/config_storage.hpp"
 
 using namespace usb::df;
 

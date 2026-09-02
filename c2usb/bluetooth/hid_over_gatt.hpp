@@ -26,7 +26,7 @@ struct info
     usb::hid::country_code bCountryCode{};
     flags bFlags{};
 
-    info(flags flag = {}, usb::hid::country_code country_code = {})
+    constexpr info(flags flag = {}, usb::hid::country_code country_code = {})
         : bCountryCode(country_code), bFlags(flag)
     {}
 };
@@ -288,7 +288,7 @@ class service : public hid::transport
     std::span<gatt::attribute>
     fill_attributes(const std::span<const hid::report::properties>& report_table,
                     const std::span<gatt::attribute>& attrs, const std::span<ccc_data>& cccs,
-                    flags f)
+                    hid_over_gatt::info desc)
     {
         auto* ccc_ptr = cccs.data();
 
@@ -305,7 +305,7 @@ class service : public hid::transport
                 .characteristic(report_map_info(), read_access(), &service::get_report_map, nullptr,
                                 this)
 #endif
-                .characteristic(hid_info(), read_access(), hid_over_gatt::info(f))
+                .characteristic(hid_info(), read_access(), desc)
                 .characteristic(control_point_info(), write_access(), nullptr,
                                 &service::control_point_request, this);
 
@@ -487,10 +487,11 @@ class service_instance : public service
   public:
     constexpr service_instance(hid::application& app, security level,
                                flags f = (flags)((uint8_t)flags::REMOTE_WAKE |
-                                                 (uint8_t)flags::NORMALLY_CONNECTABLE))
+                                                 (uint8_t)flags::NORMALLY_CONNECTABLE),
+                               usb::hid::country_code country = {})
         : service(app, level, attributes_, BOOT)
     {
-        fill_attributes(REPORT_TABLE, attributes_, ccc_stores_, f);
+        fill_attributes(REPORT_TABLE, attributes_, ccc_stores_, hid_over_gatt::info(f, country));
     }
 
     constexpr std::span<const gatt::attribute> attributes() const { return {attributes_}; }

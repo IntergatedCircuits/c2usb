@@ -189,8 +189,18 @@ int main(void)
     GPIO_PinInit(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, &led_config);
     GPIO_PinInit(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PIN, &led_config);
 
-    static usb::df::hid::function usb_kb{simple_keyboard::instance(),
-                                         usb::hid::boot_protocol_mode::KEYBOARD};
+    // keyboard layout localization, using country code and extended attributes
+    auto& kb_attrs = simple_keyboard::instance().attributes;
+    kb_attrs.form_factor = hid::app::keyboard::form_factor::FULL_SIZE;
+    kb_attrs.key_type = hid::app::keyboard::key_type::FULL_TRAVEL;
+    kb_attrs.layout = hid::app::keyboard::layout::_102;
+
+    static constexpr auto custom_strings = c2usb::make_reference_array<const char>("hu-hu");
+
+    static usb::df::hid::string_function usb_kb{simple_keyboard::instance(), "keyboard",
+                                                custom_strings, hid::boot::mode::KEYBOARD,
+                                                usb::hid::country_code::HUNGARY};
+
     static const auto single_config = usb::df::config::make_config(
         usb::df::config::header(usb::df::config::power::bus(100, usb::df::config::remote_wakeup),
                                 "shared"),
@@ -205,6 +215,9 @@ int main(void)
 #if USB_DEVICE_CONFIG_EHCI
     device().set_config_for_speed(single_config, usb::speed::HIGH);
 #endif
+
+    // string indexes are finalized by the last set_config... call
+    kb_attrs.ietf_lang_tag_index = usb_kb.string_index(0);
 
     device().open();
     device().set_power_event_delegate(

@@ -56,12 +56,13 @@ class reference_array_view : public reference_array_view_base
       public:
         using iterator_category = std::input_iterator_tag;
         using difference_type = std::ptrdiff_t;
-        using value_type = T&;
+        using value_type = TView;
+        using reference = TView;
         using pointer = T*;
-        using reference = T&;
         using const_pointer = const T*;
         using const_reference = const T&;
 
+        constexpr iterator() = default;
         constexpr iterator(pointer const* data)
             : ptr_(data)
         {}
@@ -82,6 +83,7 @@ class reference_array_view : public reference_array_view_base
         {
             return (*ptr_ == nullptr);
         }
+        constexpr bool operator==([[maybe_unused]] const iterator& rhs) const = default;
 
         friend std::ostream& operator<<(std::ostream& os, const iterator& it)
         {
@@ -90,7 +92,7 @@ class reference_array_view : public reference_array_view_base
         }
 
       private:
-        pointer const* ptr_;
+        pointer const* ptr_{};
     };
 
     using const_pointer = const T*;

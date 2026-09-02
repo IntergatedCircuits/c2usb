@@ -72,6 +72,7 @@ void app_base_function::ep_callback(const transfer& t)
 void function::get_hid_descriptor(df::buffer& buffer) const
 {
     auto* hid_desc = buffer.allocate<hid::descriptor::hid<1>>();
+    hid_desc->bCountryCode = country_code();
 
     auto* report_subdesc = hid_desc->ClassDescriptors.data();
     report_subdesc->bDescriptorType = hid::descriptor::type::REPORT;
@@ -236,6 +237,26 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     }
 
     return msg.confirm();
+}
+
+void string_function::send_string(uint8_t rel_index, string_message& smsg)
+{
+    if (is_named())
+    {
+        if (rel_index == 0)
+        {
+            smsg.send_string(name());
+            return;
+        }
+        rel_index--;
+    }
+    const auto* extra_str = extra_strings_[rel_index];
+    if (extra_str != nullptr)
+    {
+        smsg.send_string(extra_str);
+        return;
+    }
+    smsg.reject();
 }
 
 } // namespace usb::df::hid

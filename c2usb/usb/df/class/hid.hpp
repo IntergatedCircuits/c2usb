@@ -14,8 +14,9 @@ using namespace usb::hid;
 class app_base_function : public df::named_function, public ::hid::transport
 {
   public:
-    constexpr app_base_function(::hid::application& app, const char_t* name = {})
-        : df::named_function(name), app_(app)
+    constexpr app_base_function(::hid::application& app, const char_t* name = {},
+                                istring istr_extra_count = 0)
+        : df::named_function(name, istr_extra_count), app_(app)
     {}
 
     [[nodiscard]] constexpr const ::hid::application& app() const { return app_; }
@@ -87,12 +88,29 @@ class function : public app_base_function
         : app_base_function(app, name)
     {}
 #else
-    constexpr function(::hid::application& app, boot_protocol_mode mode = boot_protocol_mode::NONE)
-        : app_base_function(app), protocol_mode_(mode)
+    constexpr function(::hid::application& app, boot_protocol_mode mode = boot_protocol_mode::NONE,
+                       usb::hid::country_code country = usb::hid::country_code::NOT_SUPPORTED)
+        : app_base_function(app), protocol_mode_(mode), country_code_(country)
     {}
     constexpr function(::hid::application& app, const char_t* name,
-                       boot_protocol_mode mode = boot_protocol_mode::NONE)
-        : app_base_function(app, name), protocol_mode_(mode)
+                       boot_protocol_mode mode = boot_protocol_mode::NONE,
+                       usb::hid::country_code country = usb::hid::country_code::NOT_SUPPORTED)
+        : app_base_function(app, name), protocol_mode_(mode), country_code_(country)
+    {}
+#endif
+
+  protected:
+#ifndef CONFIG_C2USB_HID_BOOT_PROTOCOL
+    constexpr function(::hid::application& app, const char_t* name, istring istr_extra_count)
+        : app_base_function(app, name, istr_extra_count)
+    {}
+#else
+    constexpr function(::hid::application& app, const char_t* name, istring istr_extra_count,
+                       boot_protocol_mode mode,
+                       usb::hid::country_code country = usb::hid::country_code::NOT_SUPPORTED)
+        : app_base_function(app, name, istr_extra_count),
+          protocol_mode_(mode),
+          country_code_(country)
     {}
 #endif
 
@@ -110,10 +128,60 @@ class function : public app_base_function
 
 #if CONFIG_C2USB_HID_BOOT_PROTOCOL
     [[nodiscard]] boot_protocol_mode protocol_mode() const { return protocol_mode_; }
+    [[nodiscard]] usb::hid::country_code country_code() const { return country_code_; }
     const boot_protocol_mode protocol_mode_;
+    const usb::hid::country_code country_code_;
 #else
-    boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
+   [[nodiscard]] boot_protocol_mode protocol_mode() const { return boot_protocol_mode::NONE; }
+   [[nodiscard]] usb::hid::country_code country_code() const { return usb::hid::country_code::NOT_SUPPORTED; }
 #endif
+};
+
+/// @brief  The string_function extends baseline HID functionality with fixed string descriptors.
+///         HID class functions can specify string descriptors in the HID report descriptor,
+///         as well as in the report data.
+class string_function : public function
+{
+  public:
+#ifndef CONFIG_C2USB_HID_BOOT_PROTOCOL
+    constexpr string_function(::hid::application& app, const char_t* name = {},
+                              reference_array_view<const char_t> extra_strings = {})
+        : function(app, name, extra_strings.size()), extra_strings_(extra_strings)
+    {}
+#else
+    constexpr string_function(
+        ::hid::application& app, const char_t* name,
+        reference_array_view<const char_t> extra_strings = {},
+        boot_protocol_mode mode = boot_protocol_mode::NONE,
+        usb::hid::country_code country = usb::hid::country_code::NOT_SUPPORTED)
+        : function(app, name, extra_strings.size(), mode, country), extra_strings_(extra_strings)
+    {}
+#endif
+
+    [[nodiscard]] istring string_index(istring relative_index) const
+    {
+        return to_istring(int(is_named()) + relative_index);
+    }
+#if 0
+    [[nodiscard]] istring string_index(const char_t* str) const
+    {
+        if (str == nullptr)
+        {
+            return 0;
+        }
+        auto it = std::ranges::find(extra_strings_, str);
+        if (it == extra_strings_.end())
+        {
+            return 0;
+        }
+        return string_index(std::distance(extra_strings_.begin(), it));
+    }
+#endif
+
+  private:
+    reference_array_view<const char_t> extra_strings_;
+
+    void send_string(uint8_t rel_index, string_message& smsg) override;
 };
 
 } // namespace usb::df::hid

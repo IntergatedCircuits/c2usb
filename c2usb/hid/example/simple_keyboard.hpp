@@ -3,9 +3,9 @@
 
 #include "hid/application.hpp"
 #include <hid/app/keyboard.hpp>
+#include <hid/page/consumer.hpp>
 
-using keyboard_leds_data =
-    hid::report_bitset_range<hid::page::leds::NUM_LOCK, hid::page::leds::KANA>;
+using keyboard_leds_data = hid::app::keyboard::output_report<0>::leds_t;
 
 class simple_keyboard : public hid::application
 {
@@ -13,17 +13,52 @@ class simple_keyboard : public hid::application
     using keys_report = hid::app::keyboard::keys_input_report<0>;
     using kb_leds_report = hid::app::keyboard::output_report<0>;
 
+    struct attributes_report : public hid::report::base<hid::report::type::FEATURE, 0>
+    {
+        hid::app::keyboard::form_factor form_factor{};
+        hid::app::keyboard::key_type key_type{};
+        hid::app::keyboard::layout layout{};
+        usb::istring ietf_lang_tag_index{};
+
+        [[nodiscard]] static constexpr auto descriptor()
+        {
+            using namespace hid::page;
+            using namespace hid::rdf;
+
+            // clang-format off
+            return hid::rdf::descriptor(
+                usage_page<consumer>(),
+                collection::logical(
+                    conditional_report_id<0>(),
+                    report_size(8),
+                    report_count(4),
+                    usage(consumer::KEYBOARD_FORM_FACTOR),
+                    usage(consumer::KEYBOARD_KEY_TYPE),
+                    usage(consumer::KEYBOARD_PHYSICAL_LAYOUT),
+                    usage(consumer::KEYBOARD_IETF_LANGUAGE_TAG_INDEX),
+                    logical_limits<1, 2>(0, std::numeric_limits<std::uint8_t>::max()),
+                    feature::absolute_constant()
+                )
+            );
+            // clang-format on
+        }
+    };
+    attributes_report attributes{};
+
     class session : public hid::session
     {
       public:
         session(const hid::session::params& params)
             : hid::session(params)
         {
+            receive_report(&leds_buffer_);
+        }
+        ~session() override
+        {
             if (auto& cb = simple_keyboard::instance().leds_cbk_; cb != nullptr)
             {
-                cb(leds_buffer_.leds);
+                cb(keyboard_leds_data{});
             }
-            receive_report(&leds_buffer_);
         }
 
         void set_report(hid::report::type type, const std::span<const uint8_t>& data) override
@@ -49,6 +84,11 @@ class simple_keyboard : public hid::application
             if (select == kb_leds_report::selector())
             {
                 return std::span<const uint8_t>(leds_buffer_.data(), sizeof(leds_buffer_));
+            }
+            if (select == attributes_report::selector())
+            {
+                return std::span<const uint8_t>(simple_keyboard::instance().attributes.data(),
+                                                sizeof(attributes_report));
             }
             return {};
         }
@@ -82,9 +122,12 @@ class simple_keyboard : public hid::application
     void stop([[maybe_unused]] hid::session& sess) override { session_.reset(); }
 
   private:
+    static constexpr auto report_descriptor()
+    {
+        return hid::app::keyboard::app_report_descriptor<0>(attributes_report::descriptor());
+    }
     simple_keyboard()
-        : hid::application(hid::report_protocol::from_descriptor<
-                           hid::app::keyboard::app_report_descriptor<0>()>())
+        : hid::application(hid::report_protocol::from_descriptor<report_descriptor()>())
     {}
     void (*leds_cbk_)(keyboard_leds_data){};
     std::optional<session> session_{};

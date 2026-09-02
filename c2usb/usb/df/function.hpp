@@ -133,7 +133,7 @@ class named_function : public function
         : function(static_cast<istring>(name != nullptr)), name_(name)
     {}
     constexpr named_function(const char_t* name, istring istr_extra_count)
-        : function(1 + istr_extra_count), name_(name)
+        : function(istring(name != nullptr) + istr_extra_count), name_(name)
     {}
 
     void send_string(uint8_t rel_index, string_message& smsg) override;

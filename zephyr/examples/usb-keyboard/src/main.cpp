@@ -81,9 +81,17 @@ int main(void)
             }
         });
 
-    // single class function instance
-    static usb::df::hid::function usb_kb{simple_keyboard::instance(), "keyboard",
-                                         hid::boot::mode::KEYBOARD};
+    // keyboard layout localization, using country code and extended attributes
+    auto& kb_attrs = simple_keyboard::instance().attributes;
+    kb_attrs.form_factor = hid::app::keyboard::form_factor::FULL_SIZE;
+    kb_attrs.key_type = hid::app::keyboard::key_type::FULL_TRAVEL;
+    kb_attrs.layout = hid::app::keyboard::layout::_102;
+
+    static constexpr auto custom_strings = c2usb::make_reference_array<const char>("hu-hu");
+
+    static usb::df::hid::string_function usb_kb{simple_keyboard::instance(), "keyboard",
+                                                custom_strings, hid::boot::mode::KEYBOARD,
+                                                usb::hid::country_code::HUNGARY};
 
     // define configurations and start device
     {
@@ -103,6 +111,9 @@ int main(void)
 #endif
                                                    ));
         device().set_config(cfg);
+
+        // string indexes are finalized by the last set_config... call
+        kb_attrs.ietf_lang_tag_index = usb_kb.string_index(0);
     }
     device().open();
 

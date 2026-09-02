@@ -51,5 +51,9 @@ SUITE(reference_array_view)
         CHECK(view[2] == "array"sv);
         CHECK(view[3] == "world"sv);
         CHECK(view[4] == ""sv);
+
+        auto it = std::ranges::find(view, "array"sv);
+        CHECK(it != view.end());
+        CHECK(std::distance(view.begin(), it) == 2);
     };
 };

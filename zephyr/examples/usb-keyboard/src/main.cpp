@@ -61,7 +61,7 @@ int main(void)
 
     simple_keyboard::instance().set_leds_callback(
         [](keyboard_leds_data leds)
-        { leds::set(caps_led, leds.test(hid::page::leds::CAPS_LOCK)); });
+        { board_leds::set(caps_led, leds.test(hid::page::leds::CAPS_LOCK)); });
 
     // observing device state
     device().set_power_event_delegate(

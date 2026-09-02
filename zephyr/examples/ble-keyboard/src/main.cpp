@@ -38,7 +38,7 @@ static auto advertise(void)
     auto err = advertisement::connectable(30ms, 60ms).start(ad_data, sd_data);
     if (err == c2usb::result::ok)
     {
-        leds::set(adv_led, true);
+        board_leds::set(adv_led, true);
         LOG_INF("Advertising successfully started\n");
     }
     else if (err == c2usb::result::connection_already_in_progress)
@@ -69,7 +69,7 @@ static void connected(bt_conn* conn, uint8_t err)
     }
     LOG_INF("Connected %s\n", addr.data());
 
-    leds::set(adv_led, false);
+    board_leds::set(adv_led, false);
 }
 
 static void disconnected(bt_conn* conn, uint8_t reason)
@@ -282,7 +282,7 @@ int main(void)
 {
     simple_keyboard::instance().set_leds_callback(
         [](keyboard_leds_data leds)
-        { leds::set(caps_led, leds.test(hid::page::leds::CAPS_LOCK)); });
+        { board_leds::set(caps_led, leds.test(hid::page::leds::CAPS_LOCK)); });
 
     if (auto err = bt_conn_auth_cb_register(&conn_auth_callbacks); err)
     {

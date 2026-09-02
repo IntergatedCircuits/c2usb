@@ -1,7 +1,7 @@
 #pragma once
 #include <zephyr/drivers/gpio.h>
 
-struct leds
+struct board_leds
 {
   private:
 #define GPIO_SPEC_AND_COMMA(param) GPIO_DT_SPEC_GET(param, gpios),
@@ -12,7 +12,7 @@ struct leds
 #endif
     };
 
-    leds()
+    board_leds()
     {
         int err;
         for (size_t i = 0; i < ARRAY_SIZE(led_spec); i++)
@@ -22,9 +22,9 @@ struct leds
             gpio_pin_set_dt(&led_spec[i], false);
         }
     }
-    static leds& instance()
+    static board_leds& instance()
     {
-        static leds l;
+        static board_leds l;
         return l;
     }
 

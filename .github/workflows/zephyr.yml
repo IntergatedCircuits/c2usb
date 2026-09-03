@@ -37,6 +37,12 @@ jobs:
         with:
           manifest: west4nrfsdk.yml
 
+      - name: Generate HID usage tables
+        run: |
+          cmake -S ../modules/lib/hid-rp -B build/hid-rp-codegen \
+            -DHID_RP_TESTS=OFF
+          cmake --build build/hid-rp-codegen --target hid-usage-tables
+
       - name: Run twister build and tests
         working-directory: zephyr
         shell: bash

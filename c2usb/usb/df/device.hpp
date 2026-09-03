@@ -104,12 +104,7 @@ class device : public polymorphic
     [[nodiscard]] usb::speeds speeds() const { return speeds_; }
 
     void open() { mac_.start(); }
-
-    void close()
-    {
-        set_config({});
-        mac_.stop();
-    }
+    void close() { mac_.stop(); }
     [[nodiscard]] bool is_open() const { return mac_.active(); }
 
     ~device() override { mac_.deinit(*this); }

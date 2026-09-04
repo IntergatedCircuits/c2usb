@@ -166,7 +166,7 @@ class device : public polymorphic
     void get_device_descriptor(message& msg);
     void get_bos_descriptor(message& msg);
     void set_address(message& msg) const;
-    void set_config(config::view config, event ev = event::CONFIGURATION_CHANGE);
+    void set_configuration(config::view config, event ev = event::CONFIGURATION_CHANGE);
     void set_configuration(message& msg);
     void get_configuration(message& msg);
     void get_status(message& msg) { return msg.send_value(mac_.std_status()); }

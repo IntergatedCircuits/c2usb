@@ -16,7 +16,7 @@ void device::on_power_state_change(usb::power::state new_state)
 {
     if ((new_state == usb::power::state::L3_OFF) and configured())
     {
-        set_config({}, event::POWER_STATE_CHANGE);
+        set_configuration({}, event::POWER_STATE_CHANGE);
     }
     else
     {
@@ -28,7 +28,7 @@ void device::on_bus_reset(event ev)
 {
     if (configured())
     {
-        set_config({}, ev);
+        set_configuration({}, ev);
     }
     else if (ev != event::NONE)
     {
@@ -123,7 +123,7 @@ void device::set_address(message& msg) const
     return msg.reject();
 }
 
-void device::set_config(config::view config, event ev)
+void device::set_configuration(config::view config, event ev)
 {
     // effective change in configuration
     if (config != mac_.active_config())
@@ -163,7 +163,7 @@ void device::set_configuration(message& msg)
         }
     }
 
-    set_config(config);
+    set_configuration(config);
 
     return msg.confirm();
 }

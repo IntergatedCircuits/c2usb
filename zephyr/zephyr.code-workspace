@@ -32,7 +32,7 @@
 			"*.cpp": "cpp"
 		},
 		"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-		"C_Cpp.workspaceParsingPriority": "high",
+		"C_Cpp.workspaceParsingPriority": "low",
 		"C_Cpp.autoAddFileAssociations": false,
 		"cmake.useCMakePresets": "always",
 		"cmake.configureOnOpen": false,
@@ -65,7 +65,11 @@
 			"editor.formatOnSave": true
 		},
 		"task.allowAutomaticTasks": "on",
-		"c2usb.startupSdk": "nrfsdk"
+		"c2usb.startupSdk": "nrfsdk",
+		"C_Cpp.inlayHints.parameterNames.enabled": true,
+		"C_Cpp.inlayHints.autoDeclarationTypes.showOnLeft": true,
+		"C_Cpp.inlayHints.referenceOperator.enabled": true,
+		"C_Cpp.formatting": "clangFormat"
 	},
 	"extensions": {
 		"recommendations": [

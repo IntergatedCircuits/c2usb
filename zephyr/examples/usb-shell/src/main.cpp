@@ -7,7 +7,7 @@
 #include <hid/application.hpp>
 #include <magic_enum.hpp>
 #include <memory_resource>
-#include <usb/df/config_storage.hpp>
+#include <usb/df/config_factory.hpp>
 #include <usb/df/device.hpp>
 #include <usb/df/vendor/zephyr/shell.hpp>
 #include <usb/df/vendor/zephyr/udc_mac.hpp>

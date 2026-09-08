@@ -1,20 +1,21 @@
 extern "C"
 {
-#include "board.h"
-#include "fsl_gpio.h"
-#include "pin_mux.h"
+#include <board.h>
+#include <fsl_gpio.h>
+#include <pin_mux.h>
 
 #if FSL_FEATURE_SOC_PORT_COUNT
-#include "fsl_port.h"
+#include <fsl_port.h>
 #endif
 #if __has_include("usb_phy.h")
-#include "usb_phy.h"
+#include <usb_phy.h>
 #endif
 }
-#include "hid/example/simple_keyboard.hpp"
-#include "usb/df/class/hid.hpp"
-#include "usb/df/device.hpp"
-#include "usb/df/vendor/nxp/mcux_mac.hpp"
+#include <hid/example/simple_keyboard.hpp>
+#include <usb/df/class/hid.hpp>
+#include <usb/df/config_factory.hpp>
+#include <usb/df/device.hpp>
+#include <usb/df/vendor/nxp/mcux_mac.hpp>
 
 auto& mac()
 {

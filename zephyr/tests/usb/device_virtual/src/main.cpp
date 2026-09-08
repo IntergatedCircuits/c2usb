@@ -12,7 +12,7 @@
 #include <usb/df/class/cdc_acm.hpp>
 #include <usb/df/class/dfu.hpp>
 #include <usb/df/class/hid.hpp>
-#include <usb/df/config.hpp>
+#include <usb/df/config_factory.hpp>
 #include <usb/df/device.hpp>
 #include <usb/df/vendor/zephyr/shell.hpp>
 #include <usb/df/vendor/zephyr/udc_mac.hpp>

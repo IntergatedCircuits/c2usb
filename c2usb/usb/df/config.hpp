@@ -244,87 +244,7 @@ constexpr auto to_elements(
     return std::to_array<element>(std::move(a));
 }
 
-struct detail
-{
-    constexpr static size_t join_elements(const uint8_t* chunk_sizes, const element** chunks,
-                                          element* out)
-    {
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        element* begin = out;
-        while (*chunk_sizes != 0)
-        {
-            for (uint8_t i = 0; i < *chunk_sizes; i++)
-            {
-                *out = (*chunks)[i];
-                out++;
-            }
-            chunks++;
-            chunk_sizes++;
-        }
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        return static_cast<size_t>(std::distance(begin, out));
-    }
-
-#ifdef __cpp_lib_bit_cast
-    constexpr
-#endif
-        static void
-        assign_element_array(const header& info, const uint8_t* chunk_sizes, const element** chunks,
-                             element* out)
-    {
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-        // add the {interface, endpoint} chunks
-        auto config_size = 1 + join_elements(chunk_sizes, chunks, out + 1);
-
-        // first element is the info header
-        auto inf = info;
-        inf.set_size(config_size);
-        out[0] = inf;
-
-        // finally, a terminating footer
-        out[config_size] = {};
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    }
-
-  private:
-    detail() = default;
-};
-
-/// @brief Join element arrays into a single contiguous array.
-/// @tparam ...SIZES deduced template parameter
-/// @param ...chunks element arrays to join
-/// @return element array containing the input arrays in a single sequence
-template <size_t... SIZES>
-constexpr elements<(SIZES + ...)> join_elements(elements<SIZES>... chunks)
-{
-    constexpr uint8_t array_count = sizeof...(chunks);
-    constexpr std::array<uint8_t, array_count + 1> array_lengths = {chunks.size()..., 0};
-    std::array<const element*, array_count> arrays = {chunks.data()...};
-
-    elements<(SIZES + ...)> final_array;
-    detail::join_elements(array_lengths.data(), arrays.data(), final_array.data());
-    return final_array;
-}
-
-/// @brief Creates the configuration array from the input header and list of elements.
-/// @tparam ...SIZES: deduced template parameter
-/// @param info: the configuration's base information
-/// @param ...chunks: the parts of the configuration (@ref interface s and @ref endpoint s)
-///                   bound to sub-arrays by calling @ref std::to_array<element>(...)
-/// @return The finished configuration array that can be used via @ref view
-template <size_t... SIZES>
-constexpr auto make_config(const header& info, elements<SIZES>... chunks)
-    -> elements<1 + (SIZES + ...) + 1>
-    requires((1 + (SIZES + ...) + 1) <= std::numeric_limits<uint8_t>::max())
-{
-    constexpr uint8_t array_count = sizeof...(chunks);
-    constexpr std::array<uint8_t, array_count + 1> array_lengths = {chunks.size()..., 0};
-    std::array<const element*, array_count> arrays = {chunks.data()...};
-
-    elements<1 + (SIZES + ...) + 1> final_array;
-    detail::assign_element_array(info, array_lengths.data(), arrays.data(), final_array.data());
-    return final_array;
-}
+// configuration construction methods are in config_factory.hpp
 
 template <class T>
 using valid_test_method = bool (*)(const T&);
@@ -349,8 +269,15 @@ class view_base
         {
           public:
             using iterator_category = std::input_iterator_tag;
+            using iterator_concept = std::input_iterator_tag;
+            using value_type = T;
             using difference_type = std::ptrdiff_t;
+            using pointer = const T*;
+            using reference = const T&;
 
+            iterator()
+                : ptr_(reinterpret_cast<pointer>(&footer())), begin_(ptr_)
+            {}
             iterator(pointer data, pointer begin)
                 : ptr_(data), begin_(begin)
             {
@@ -373,12 +300,13 @@ class view_base
                 ++(*this);
                 return retval;
             }
-            reference operator*() { return *(ptr_); }
-            pointer operator->() { return (ptr_); }
+            reference operator*() const { return *(ptr_); }
+            pointer operator->() const { return ptr_; }
             bool operator==(const iterator& rhs) const
             {
                 return (ptr_ == rhs.ptr_) or (is_footer() and (rhs.is_footer()));
             }
+            bool operator!=(const iterator& rhs) const { return not(*this == rhs); }
 
             friend std::ostream& operator<<(std::ostream& os, const iterator& it)
             {
@@ -395,7 +323,7 @@ class view_base
             [[nodiscard]] bool skip_position() const { return (ptr_ > begin_) and not valid(); }
 
             pointer ptr_;
-            pointer const begin_;
+            pointer /*const*/ begin_;
         };
 
         [[nodiscard]] iterator begin() const { return iterator(ptr() + size(), ptr()); }
@@ -419,8 +347,15 @@ class view_base
     {
       public:
         using iterator_category = std::input_iterator_tag;
+        using iterator_concept = std::input_iterator_tag;
+        using value_type = T;
         using difference_type = std::ptrdiff_t;
+        using pointer = const T*;
+        using reference = const T&;
 
+        iterator()
+            : ptr_(reinterpret_cast<pointer>(&footer()))
+        {}
         iterator(pointer data)
             : ptr_(data)
         {
@@ -454,12 +389,13 @@ class view_base
             ++(*this);
             return retval;
         }
-        reference operator*() { return *ptr_; }
-        pointer operator->() { return ptr_; }
+        reference operator*() const { return *ptr_; }
+        pointer operator->() const { return ptr_; }
         bool operator==(const iterator& rhs) const
         {
             return (ptr_ == rhs.ptr_) or (is_footer() and (rhs.is_footer()));
         }
+        bool operator!=(const iterator& rhs) const { return not(*this == rhs); }
 
       private:
         [[nodiscard]] bool valid() const { return valid_test(*ptr_); }
@@ -471,6 +407,7 @@ class view_base
 
         pointer ptr_;
     };
+    using sentinel = iterator;
 
     [[nodiscard]] iterator begin() const { return safe_ptr(1); }
     [[nodiscard]] iterator end() const { return reinterpret_cast<decltype(safe_ptr())>(&footer()); }

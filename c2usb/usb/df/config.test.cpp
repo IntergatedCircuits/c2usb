@@ -8,11 +8,18 @@
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/dfu.hpp"
 #include "usb/df/class/hid.hpp"
-#include "usb/df/config_storage.hpp"
+#include "usb/df/config_factory.hpp"
 #include "usb/df/vendor/microsoft/xinput.hpp"
 
 using namespace usb::df;
 using namespace usb::df::config;
+
+static_assert(std::input_iterator<interface_view::iterator>);
+static_assert(std::default_initializable<interface_view::iterator>);
+static_assert(std::same_as<interface_view::sentinel, interface_view::iterator>);
+static_assert(std::input_iterator<interface_view::reverse_view::iterator>);
+static_assert(std::input_iterator<endpoint_view::iterator>);
+static_assert(std::input_iterator<active_endpoint_view::iterator>);
 
 namespace
 {
@@ -37,6 +44,60 @@ constexpr auto bulk_ep(uint8_t addr, uint16_t mps = 64)
 
 SUITE(config_)
 {
+    TEST_CASE("stl range contract")
+    {
+        static dummy_function f0{};
+        static dummy_function f1{};
+
+        const auto if0 = interface(f0, 0, 0, true);
+        const auto if1 = interface(f1, 1, 0, false);
+        const auto cfg =
+            make_config(header(power::bus(100)), to_elements({element(if0), element(if1)}));
+        const auto cfg_view = view(cfg);
+
+        interface_view::iterator default_it{};
+        const bool default_is_end = (default_it == interface_view::iterator{});
+        const bool default_matches_end = (default_it == cfg_view.interfaces().end());
+        CHECK(default_is_end);
+        CHECK(default_matches_end);
+
+        const auto begin = cfg_view.interfaces().begin();
+        const auto end = cfg_view.interfaces().end();
+        const bool begin_is_valid = (begin != end);
+        const bool begin_copy_ok = (begin == begin);
+        const bool deref_ok = (&*begin == &cfg_view.interfaces()[0]);
+        CHECK(begin_is_valid);
+        CHECK(begin_copy_ok);
+        CHECK(deref_ok);
+
+        auto copy = begin;
+        const bool copy_eq = (copy == begin);
+        ++copy;
+        const bool copy_advanced = (copy != begin) && (copy != end);
+        CHECK(copy_eq);
+        CHECK(copy_advanced);
+
+        const auto rev_begin = cfg_view.interfaces().reverse().begin();
+        const auto rev_end = cfg_view.interfaces().reverse().end();
+        const bool reverse_is_valid = (rev_begin != rev_end);
+        const bool reverse_self_equal = (rev_begin == rev_begin);
+        const bool reverse_distance_ok = (std::distance(rev_begin, rev_end) == 2);
+        const bool reverse_find_ok =
+            (std::find_if(rev_begin, rev_end, [](const interface& iface)
+                          { return iface.function_index() == 1; }) != rev_end);
+        CHECK(reverse_is_valid);
+        CHECK(reverse_self_equal);
+        CHECK(reverse_distance_ok);
+        CHECK(reverse_find_ok);
+
+        auto rev_copy = rev_begin;
+        const bool rev_copy_eq = (rev_copy == rev_begin);
+        ++rev_copy;
+        const bool rev_copy_advanced = (rev_copy != rev_begin) && (rev_copy != rev_end);
+        CHECK(rev_copy_eq);
+        CHECK(rev_copy_advanced);
+    };
+
     TEST_CASE("empty config view")
     {
         const auto empty = view();
@@ -50,11 +111,17 @@ SUITE(config_)
 
         auto rev_if = empty.interfaces().reverse();
         CHECK(rev_if.size() == 0);
-        CHECK(rev_if.begin() == rev_if.end());
+        {
+            const bool rev_if_empty = (rev_if.begin() == rev_if.end());
+            CHECK(rev_if_empty);
+        }
 
         auto rev_ep = empty.endpoints().reverse();
         CHECK(rev_ep.size() == 0);
-        CHECK(rev_ep.begin() == rev_ep.end());
+        {
+            const bool rev_ep_empty = (rev_ep.begin() == rev_ep.end());
+            CHECK(rev_ep_empty);
+        }
 
         CHECK(!empty.interfaces()[0].valid());
         CHECK(!empty.endpoints().at(usb::endpoint::address(0x81)).valid());

@@ -6,6 +6,7 @@
 #include "../../iolib.hpp"
 #include <hid/example/simple_keyboard.hpp>
 #include <usb/df/class/hid.hpp>
+#include <usb/df/config_factory.hpp>
 #include <usb/df/device.hpp>
 #include <usb/df/vendor/zephyr/udc_mac.hpp>
 #include <zephyr/message_queue.hpp>

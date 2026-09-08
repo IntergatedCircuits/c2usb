@@ -62,7 +62,7 @@ void descriptors::get_msos2_config_subset(const config::view& config, uint8_t co
     }
 }
 
-void descriptors::get_msos2_descriptor(device& dev, df::buffer& buffer)
+void descriptors::get_msos2_descriptor(const device& dev, df::buffer& buffer)
 {
     auto* set_header = buffer.allocate<usb::microsoft::set_header>();
 
@@ -103,7 +103,7 @@ void descriptors::control_setup_request(device& dev, message& msg)
     return msg.reject();
 }
 
-usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(device& dev,
+usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(const device& dev,
                                                                           df::buffer& buffer)
 {
     // the only way to get the MSOS descriptor total length is to assemble it temporarily
@@ -117,7 +117,7 @@ usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(device
     return platform_desc;
 }
 
-unsigned descriptors::bos_capabilities(device& dev, df::buffer& buffer)
+unsigned descriptors::bos_capabilities(const device& dev, df::buffer& buffer) const
 {
     std::ignore = get_platform_descriptor(dev, buffer);
     return 1;
@@ -147,7 +147,7 @@ void alternate_enumeration_base::control_setup_request(device& dev, message& msg
     }
 }
 
-unsigned alternate_enumeration_base::bos_capabilities(device& dev, df::buffer& buffer)
+unsigned alternate_enumeration_base::bos_capabilities(const device& dev, df::buffer& buffer) const
 {
     auto* platform_desc = get_platform_descriptor(dev, buffer);
     platform_desc->CapabilityData.bAltEnumCode =
@@ -171,8 +171,8 @@ void alternate_enumeration_base::assign_istrings([[maybe_unused]] device& dev, i
     }
 }
 
-bool alternate_enumeration_base::send_owned_string([[maybe_unused]] device& dev, istring index,
-                                                   string_message& smsg)
+bool alternate_enumeration_base::send_owned_string([[maybe_unused]] const device& dev,
+                                                   istring index, string_message& smsg) const
 {
     const auto ss = speeds();
     // first try to match the index to a configuration

@@ -135,12 +135,6 @@ class alignas(std::uintptr_t) interface
     // only works if the interface is used through the make_config() created object
     [[nodiscard]] interface_endpoint_view endpoints() const;
 
-    friend std::ostream& operator<<(std::ostream& os, const interface& iface)
-    {
-        os << std::hex << std::bit_cast<std::uintptr_t>(&iface) << std::dec << "\n";
-        return os;
-    }
-
     interface(const interface&) = delete;
     interface& operator=(const interface&) = delete;
     interface(interface&&) = delete;
@@ -319,12 +313,6 @@ class view_base
                 return (ptr_ == rhs.ptr_) or (is_footer() and (rhs.is_footer()));
             }
             bool operator!=(const iterator& rhs) const { return not(*this == rhs); }
-
-            friend std::ostream& operator<<(std::ostream& os, const iterator& it)
-            {
-                os << std::hex << std::bit_cast<std::uintptr_t>(it.ptr_) << std::dec << "\n";
-                return os;
-            }
 
           private:
             [[nodiscard]] bool valid() const { return valid_test(*ptr_); }
@@ -607,12 +595,6 @@ class view : protected view_base<header, &element::is_header, true>
     [[nodiscard]] constexpr static auto make_config_list_helper(const Args&... args)
     {
         return make_reference_array<const element>((*view(args).ptr_)...);
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const view& cfg)
-    {
-        os << std::hex << std::bit_cast<std::uintptr_t>(cfg.ptr_) << std::dec << "\n";
-        return os;
     }
 };
 

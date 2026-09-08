@@ -43,13 +43,15 @@ class device : public polymorphic
         virtual void bus_reset([[maybe_unused]] device& dev) {}
         virtual void assign_istrings([[maybe_unused]] device& dev, [[maybe_unused]] istring* index)
         {}
-        virtual bool send_owned_string([[maybe_unused]] device& dev, [[maybe_unused]] istring index,
-                                       [[maybe_unused]] string_message& smsg)
+        virtual bool send_owned_string([[maybe_unused]] const device& dev,
+                                       [[maybe_unused]] istring index,
+                                       [[maybe_unused]] string_message& smsg) const
         {
             return false;
         }
-        virtual config::view_list configs_by_speed([[maybe_unused]] device& dev,
-                                                   [[maybe_unused]] usb::speed speed)
+        [[nodiscard]] virtual config::view_list
+        configs_by_speed([[maybe_unused]] const device& dev,
+                         [[maybe_unused]] usb::speed speed) const
         {
             return {};
         }
@@ -61,8 +63,8 @@ class device : public polymorphic
         {
             return msg.confirm();
         }
-        virtual unsigned bos_capabilities([[maybe_unused]] device& dev,
-                                          [[maybe_unused]] df::buffer& buffer)
+        virtual unsigned bos_capabilities([[maybe_unused]] const device& dev,
+                                          [[maybe_unused]] df::buffer& buffer) const
         {
             return 0;
         }
@@ -98,7 +100,7 @@ class device : public polymorphic
         power_event_delegate_ = delegate;
     }
 
-    virtual config::view_list configs_by_speed(usb::speed speed) = 0;
+    [[nodiscard]] virtual config::view_list configs_by_speed(usb::speed speed) const = 0;
 
     [[nodiscard]] static constexpr version usb_spec_version() { return {"2.0.1"}; }
     [[nodiscard]] usb::speeds speeds() const { return speeds_; }
@@ -114,11 +116,11 @@ class device : public polymorphic
     device& operator=(device&&) = delete;
 
   protected:
-    virtual void get_descriptor(message& msg);
-    void get_descriptor_dual_speed(message& msg);
+    virtual void get_descriptor(message& msg) const;
+    void get_descriptor_dual_speed(message& msg) const;
 
     template <bool DUAL_SPEED>
-    void get_descriptor_by_speed_support(message& msg)
+    void get_descriptor_by_speed_support(message& msg) const
     {
         if constexpr (DUAL_SPEED)
         {
@@ -146,30 +148,30 @@ class device : public polymorphic
     }
 
     void assign_function_istrings();
-    void get_device_qualifier_descriptor(message& msg, usb::speed speed);
-    void get_config_descriptor(message& msg, usb::speed speed);
+    void get_device_qualifier_descriptor(message& msg, usb::speed speed) const;
+    void get_config_descriptor(message& msg, usb::speed speed) const;
 
     [[nodiscard]] uint8_t max_config_count() const { return max_config_count_; }
 
-    [[nodiscard]] auto& get_extension() { return extension_; }
+    [[nodiscard]] auto& get_extension() const { return extension_; }
 
   private:
-    void get_function_string(istring index, string_message& smsg);
-    void get_config_string(istring index, string_message& smsg);
-    [[nodiscard]] istring get_config_istring(uint8_t config_index, usb::speed speed);
+    void get_function_string(istring index, string_message& smsg) const;
+    void get_config_string(istring index, string_message& smsg) const;
+    [[nodiscard]] istring get_config_istring(uint8_t config_index, usb::speed speed) const;
     [[nodiscard]] istring istr_config_base() const { return istr_config_base_; }
 
     void interface_control(message& msg,
                            void (function::*handler)(message&, const config::interface&));
 
-    void get_string_descriptor(message& msg);
-    void get_device_descriptor(message& msg);
-    void get_bos_descriptor(message& msg);
+    void get_string_descriptor(message& msg) const;
+    void get_device_descriptor(message& msg) const;
+    void get_bos_descriptor(message& msg) const;
     void set_address(message& msg) const;
     void set_configuration(config::view config, event ev = event::CONFIGURATION_CHANGE);
     void set_configuration(message& msg);
-    void get_configuration(message& msg);
-    void get_status(message& msg) { return msg.send_value(mac_.std_status()); }
+    void get_configuration(message& msg) const;
+    void get_status(message& msg) const { return msg.send_value(mac_.std_status()); }
 
     void device_setup_request(message& msg);
     void endpoint_setup_request(message& msg);
@@ -274,7 +276,7 @@ class device_instance : public device
         return set_config_for_speed(config, SPEEDS.min);
     }
 
-    config::view_list configs_by_speed(usb::speed speed) override
+    [[nodiscard]] config::view_list configs_by_speed(usb::speed speed) const override
     {
         auto configs = get_extension().configs_by_speed(*this, speed);
         if (not configs.empty())
@@ -288,7 +290,7 @@ class device_instance : public device
     /// @brief Provides descriptors necessary for high-speed operation, on top of the standards
     /// ones.
     /// @param msg: the control message to reply to
-    void get_descriptor(message& msg) override
+    void get_descriptor(message& msg) const override
     {
         return get_descriptor_by_speed_support<(
             SPEEDS.includes(usb::speeds(speed::FULL, speed::HIGH)))>(msg);

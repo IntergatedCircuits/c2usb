@@ -27,6 +27,7 @@ class function : public polymorphic
     void free_string_index() { istr_base_ = 0; }
     void allocate_string_index(istring* pindex)
     {
+        // protect agains repeated calls, as the function may be used in multiple interfaces
         if ((istr_base_ == 0) and (istr_count_ > 0))
         {
             istr_base_ = *pindex;

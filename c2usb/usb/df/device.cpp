@@ -168,7 +168,7 @@ void device::set_configuration(message& msg)
     return msg.confirm();
 }
 
-void device::get_configuration(message& msg)
+void device::get_configuration(message& msg) const
 {
     if (configured())
     {
@@ -248,7 +248,7 @@ void device::device_setup_request(message& msg)
     }
 }
 
-void device::get_string_descriptor(message& msg)
+void device::get_string_descriptor(message& msg) const
 {
     istring index = msg.request().wValue.low_byte();
     if (index == 0)
@@ -317,7 +317,7 @@ void device::assign_function_istrings()
     assert(index < istr_config_base());
 }
 
-void device::get_function_string(istring index, string_message& smsg)
+void device::get_function_string(istring index, string_message& smsg) const
 {
     for (speed sp : speeds())
     {
@@ -329,7 +329,7 @@ void device::get_function_string(istring index, string_message& smsg)
     return smsg.reject();
 }
 
-void device::get_config_string(istring index, string_message& smsg)
+void device::get_config_string(istring index, string_message& smsg) const
 {
     const auto ss = speeds();
     index -= istr_config_base();
@@ -342,7 +342,7 @@ void device::get_config_string(istring index, string_message& smsg)
     return smsg.reject();
 }
 
-usb::istring device::get_config_istring(uint8_t config_index, usb::speed speed)
+usb::istring device::get_config_istring(uint8_t config_index, usb::speed speed) const
 {
     const auto ss = speeds();
     istring istr_config = config_index;
@@ -351,7 +351,7 @@ usb::istring device::get_config_istring(uint8_t config_index, usb::speed speed)
     return istr_config;
 }
 
-void device::get_config_descriptor(message& msg, usb::speed speed)
+void device::get_config_descriptor(message& msg, usb::speed speed) const
 {
     uint8_t config_index = msg.request().wValue.low_byte();
 
@@ -388,7 +388,7 @@ void device::get_config_descriptor(message& msg, usb::speed speed)
     return msg.send_buffer();
 }
 
-void device::get_device_descriptor(message& msg)
+void device::get_device_descriptor(message& msg) const
 {
     auto* dev_desc = msg.buffer().allocate<standard::descriptor::device>();
 
@@ -413,7 +413,7 @@ void device::get_device_descriptor(message& msg)
     return msg.send_buffer();
 }
 
-void device::get_device_qualifier_descriptor(message& msg, usb::speed speed)
+void device::get_device_qualifier_descriptor(message& msg, usb::speed speed) const
 {
     auto* dq_desc = msg.buffer().allocate<standard::descriptor::device_qualifier>();
 
@@ -424,7 +424,7 @@ void device::get_device_qualifier_descriptor(message& msg, usb::speed speed)
     return msg.send_buffer();
 }
 
-void device::get_bos_descriptor(message& msg)
+void device::get_bos_descriptor(message& msg) const
 {
     using namespace standard::descriptor;
 
@@ -440,7 +440,7 @@ void device::get_bos_descriptor(message& msg)
     return msg.send_buffer();
 }
 
-void device::get_descriptor(message& msg)
+void device::get_descriptor(message& msg) const
 {
     using namespace standard::descriptor;
 
@@ -465,7 +465,7 @@ void device::get_descriptor(message& msg)
     return msg.reject();
 }
 
-void device::get_descriptor_dual_speed(message& msg)
+void device::get_descriptor_dual_speed(message& msg) const
 {
     using namespace standard::descriptor;
     auto alternative_speed = bus_speed() == speed::HIGH ? speed::FULL : speed::HIGH;

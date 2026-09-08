@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <cassert>
+#include "enum_iterator.hpp"
 #include "usb/base.hpp"
 
 namespace usb
@@ -10,36 +12,7 @@ class speeds
     using numeric_t = std::underlying_type_t<speed>;
 
   public:
-    class iterator
-    {
-      public:
-        using iterator_category = std::random_access_iterator_tag;
-        using difference_type = numeric_t;
-        using value_type = speed;
-        using pointer = value_type*;
-        using reference = value_type&;
-
-        constexpr iterator(value_type v)
-            : value_(v)
-        {}
-        constexpr iterator& operator++()
-        {
-            value_ = static_cast<speed>(static_cast<difference_type>(value_) + 1);
-            return *this;
-        }
-        constexpr iterator operator++(int)
-        {
-            iterator retval = *this;
-            ++(*this);
-            return retval;
-        }
-        constexpr reference operator*() { return (value_); }
-        constexpr pointer operator->() { return &(value_); }
-        constexpr bool operator==(const iterator& rhs) const = default;
-
-      private:
-        value_type value_;
-    };
+    using iterator = enum_iterator<speed>;
 
     constexpr speeds(speed mini, speed maxi)
         : min(mini), max(maxi)
@@ -52,8 +25,8 @@ class speeds
     {
         assert(speed::NONE < min);
     }
-    const speed min;
-    const speed max;
+    speed min;
+    speed max;
     [[nodiscard]] constexpr iterator begin() const { return min; }
     [[nodiscard]] constexpr iterator end() const
     {
@@ -66,15 +39,15 @@ class speeds
     }
     [[nodiscard]] constexpr size_t count() const
     {
-        return 1U + static_cast<numeric_t>(max) - static_cast<numeric_t>(min);
+        return size_t(1 + static_cast<numeric_t>(max) - static_cast<numeric_t>(min));
     }
     [[nodiscard]] constexpr size_t offset(speed s) const
     {
-        return static_cast<numeric_t>(s) - static_cast<numeric_t>(min);
+        return size_t(static_cast<numeric_t>(s) - static_cast<numeric_t>(min));
     }
     [[nodiscard]] constexpr speed at(size_t index) const
     {
-        return static_cast<speed>(static_cast<numeric_t>(min) + index);
+        return static_cast<speed>(static_cast<numeric_t>(min) + numeric_t(index));
     }
 };
 } // namespace usb

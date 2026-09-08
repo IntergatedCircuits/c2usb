@@ -8,6 +8,7 @@ target_sources(${PROJECT_NAME}-test
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/raw_to_hex_string.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/reference_array_view.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/usb/df/config.test.cpp
+        ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/usb/speeds.test.cpp
         ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/usb/version.test.cpp
 )
 target_include_directories(${PROJECT_NAME}-test

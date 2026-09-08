@@ -11,15 +11,26 @@
 #include "usb/df/config_factory.hpp"
 #include "usb/df/vendor/microsoft/xinput.hpp"
 
-using namespace usb::df;
-using namespace usb::df::config;
-
+namespace usb::df::config
+{
 static_assert(std::input_iterator<interface_view::iterator>);
 static_assert(std::default_initializable<interface_view::iterator>);
 static_assert(std::same_as<interface_view::sentinel, interface_view::iterator>);
 static_assert(std::input_iterator<interface_view::reverse_view::iterator>);
 static_assert(std::input_iterator<endpoint_view::iterator>);
 static_assert(std::input_iterator<active_endpoint_view::iterator>);
+
+std::ostream& operator<<(std::ostream& os, const interface& iface)
+{
+    os << std::hex << std::bit_cast<std::uintptr_t>(&iface) << std::dec << "\n";
+    return os;
+}
+std::ostream& operator<<(std::ostream& os, const view& cfg)
+{
+    os << std::hex << std::bit_cast<std::uintptr_t>(cfg) << std::dec << "\n";
+    return os;
+}
+} // namespace usb::df::config
 
 namespace
 {
@@ -42,8 +53,11 @@ constexpr auto bulk_ep(uint8_t addr, uint16_t mps = 64)
 
 } // namespace
 
-SUITE(config_)
+SUITE(usb_df_config)
 {
+    using namespace usb::df;
+    using namespace usb::df::config;
+
     TEST_CASE("stl range contract")
     {
         static dummy_function f0{};

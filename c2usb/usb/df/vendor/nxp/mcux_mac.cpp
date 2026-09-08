@@ -382,24 +382,44 @@ void mcux_mac::process_notification(const _usb_device_callback_message_struct& m
         bus_reset();
         control_ep_open();
         break;
+
+#if (defined(USB_DEVICE_CONFIG_LOW_POWER_MODE) && (USB_DEVICE_CONFIG_LOW_POWER_MODE > 0U))
     case kUSB_DeviceNotifySuspend:
         set_power_state(power::state::L2_SUSPEND);
         break;
     case kUSB_DeviceNotifyResume:
         set_power_state(power::state::L0_ON);
         break;
+#if (defined(USB_DEVICE_CONFIG_LPM_L1) && (USB_DEVICE_CONFIG_LPM_L1 > 0U))
     case kUSB_DeviceNotifyLPMSleep:
         set_power_state(power::state::L1_SLEEP);
         break;
+#endif
+#endif
 
+#if (defined(USB_DEVICE_CONFIG_SOF_NOTIFICATIONS) && (USB_DEVICE_CONFIG_SOF_NOTIFICATIONS > 0U))
+    case kUSB_DeviceNotifySOF:
+        sof_trigger();
+        break;
+#endif
+
+#if USB_DEVICE_CONFIG_DETACH_ENABLE
     case kUSB_DeviceNotifyDetach:
         set_power_state(power::state::L3_OFF);
         break;
     case kUSB_DeviceNotifyAttach:
         set_power_state(power::state::L2_SUSPEND);
         break;
-        // case kUSB_DeviceNotifyDcdDetectFinished:
+#endif
+#if (defined(USB_DEVICE_CONFIG_CHARGER_DETECT) && (USB_DEVICE_CONFIG_CHARGER_DETECT > 0U))
+    case kUSB_DeviceNotifyDcdDetectFinished:
+        break;
+#endif
+#if (defined(USB_DEVICE_CONFIG_ERROR_HANDLING) && (USB_DEVICE_CONFIG_ERROR_HANDLING > 0U))
     case kUSB_DeviceNotifyError:
+        break;
+#endif
+    case kUSB_DeviceNotifyNoop:
         break;
     default:
         process_ep_notification(message);

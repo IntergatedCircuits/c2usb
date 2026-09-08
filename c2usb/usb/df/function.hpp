@@ -41,6 +41,7 @@ class function : public polymorphic
     [[nodiscard]] virtual std::string_view ms_compatible_id() const { return {}; }
 
     virtual void ep_callback([[maybe_unused]] const transfer& t) {}
+    virtual void sof_callback([[maybe_unused]] const config::interface& iface) {}
 
   protected:
     ep_handle open_ep(const config::endpoint& ep);

@@ -96,6 +96,12 @@ SUITE(config_)
         const bool rev_copy_advanced = (rev_copy != rev_begin) && (rev_copy != rev_end);
         CHECK(rev_copy_eq);
         CHECK(rev_copy_advanced);
+
+        const bool find_sof_ok =
+            (std::find_if(cfg_view.interfaces().begin(), cfg_view.interfaces().end(),
+                          [](const interface& iface)
+                          { return iface.sof_notify(); }) != cfg_view.interfaces().end());
+        CHECK(find_sof_ok);
     };
 
     TEST_CASE("empty config view")
@@ -316,7 +322,6 @@ SUITE(config_)
         CHECK(iface0.primary());
         CHECK(iface0.function_index() == 0);
         CHECK(iface0.alt_setting_count() == 2);
-        CHECK(iface0.variant() == 7);
 
         const auto& iface1_view = cfg_view.interfaces()[1];
         CHECK(iface1_view.valid());
@@ -324,7 +329,6 @@ SUITE(config_)
         CHECK(!iface1_view.primary());
         CHECK(iface1_view.function_index() == 1);
         CHECK(iface1_view.alt_setting_count() == 1);
-        CHECK(iface1_view.variant() == 3);
 
         CHECK(iface0.endpoints().count() == 2);
         CHECK(iface0.endpoints()[0].address() == usb::endpoint::address(0x81));

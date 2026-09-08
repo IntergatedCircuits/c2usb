@@ -22,11 +22,7 @@ class mac : public polymorphic
     [[nodiscard]] const config::view& active_config() const { return active_config_; }
     [[nodiscard]] bool configured() const { return active_config().valid(); }
 
-    void set_config(config::view config)
-    {
-        allocate_endpoints(config);
-        active_config_ = config;
-    }
+    void set_config(config::view config);
 
     /// @brief  Sets the buffer used for control transfers to the passed span.
     /// @note   The buffer must be aligned with @ref C2USB_USB_TRANSFER_ALIGN()
@@ -110,7 +106,14 @@ class mac : public polymorphic
     [[nodiscard]] control::request& request() { return ctrl_msg_.request_; }
     [[nodiscard]] const control::request& request() const { return ctrl_msg_.request_; }
 
-    virtual void allocate_endpoints([[maybe_unused]] config::view config = {}) {}
+    /// @brief  Subclass must allocate endpoint resources for the given configuration.
+    /// @param  config: the active endpoints for which endpoints must be allocated
+    ///         if empty, only the control endpoints must be allocated
+    /// @param  notify_sof: if true, the subclass must enable SOF notifications and call
+    ///         sof_trigger() on each SOF event
+    virtual void allocate_endpoints([[maybe_unused]] config::active_endpoint_view config = {},
+                                    [[maybe_unused]] bool notify_sof = false)
+    {}
 
     [[nodiscard]] auto control_stage() const { return ctrl_msg_.stage(); }
     [[nodiscard]] transfer control_ep_setup();
@@ -127,6 +130,8 @@ class mac : public polymorphic
     [[nodiscard]] static auto create_ep_handle(uint8_t raw) { return ep_handle(raw); }
 
     void bus_reset();
+
+    void sof_trigger() const;
 
     void set_power_state(power::state new_state);
 

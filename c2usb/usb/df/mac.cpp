@@ -79,6 +79,14 @@ uint32_t mac::granted_bus_current_uA() const
     }
 }
 
+void mac::set_config(config::view config)
+{
+    const bool notify_sof = std::ranges::any_of(
+        config.interfaces(), [](const config::interface& iface) { return iface.sof_notify(); });
+    allocate_endpoints(config.active_endpoints(), notify_sof);
+    active_config_ = config;
+}
+
 usb::result mac::remote_wakeup()
 {
     if (!std_status().remote_wakeup)
@@ -124,6 +132,20 @@ void mac::ep_transfer_complete(endpoint::address addr, const transfer& t) const
 {
     assert(configured());
     ep_address_to_config(addr).interface().function().ep_callback(t);
+}
+
+void mac::sof_trigger() const
+{
+    // it is only correct to deliver SOF notifications if the device is configured and the function
+    // has requested them, however this call is no-op if not configured
+    // assert(configured());
+    for (const auto& iface : active_config().interfaces())
+    {
+        if (iface.sof_notify())
+        {
+            iface.function().sof_callback(iface);
+        }
+    }
 }
 
 bool mac::is_set_address_message() const

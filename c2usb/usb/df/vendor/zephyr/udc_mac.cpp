@@ -577,6 +577,8 @@ int udc_mac::process_event(const udc_event& event)
         set_power_state(power::state::L3_OFF);
         break;
     case UDC_EVT_SOF:
+        sof_trigger();
+        break;
     case UDC_EVT_ERROR:
     default:
         break;
@@ -758,8 +760,14 @@ void udc_mac::process_ep_event(net_buf* buf)
     }
 }
 
-void udc_mac::allocate_endpoints(config::view config)
+void udc_mac::allocate_endpoints(config::active_endpoint_view config,
+                                 [[maybe_unused]] bool notify_sof)
 {
+    // UDC driver uses build-time SOF notification configuration
+    if (not IS_ENABLED(CONFIG_UDC_ENABLE_SOF) and notify_sof)
+    {
+        LOG_WRN("SOF notification is requested, but CONFIG_UDC_ENABLE_SOF is not enabled");
+    }
     // first clean up the previous allocation
     for (auto it = ep_bufs_.rbegin(); it != ep_bufs_.rend(); ++it)
     {
@@ -776,7 +784,7 @@ void udc_mac::allocate_endpoints(config::view config)
     ep_bufs_ = {};
 
     // allocate new buffers
-    auto ep_bufs_count = config.active_endpoints().count();
+    auto ep_bufs_count = config.count();
     if (ep_bufs_count == 0)
     {
         return;
@@ -788,7 +796,7 @@ void udc_mac::allocate_endpoints(config::view config)
     // on the first buffer
     size_t alloc_size = ep_bufs_count * sizeof(void*);
     uint8_t i = 0;
-    for (auto& ep : config.active_endpoints())
+    for (auto& ep : config)
     {
         auto* buf = udc_ep_buf_alloc(dev_, ep.address(), alloc_size);
         assert(buf != nullptr);

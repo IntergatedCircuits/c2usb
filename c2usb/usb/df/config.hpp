@@ -79,6 +79,9 @@ static_assert((sizeof(std::uintptr_t) == 4) or (sizeof(std::uintptr_t) == 8));
 class alignas(std::uintptr_t) header : public power
 {
   public:
+    /// @brief  Constructs the header for a configuration.
+    /// @param  p: the power settings for the given configuration
+    /// @param  name: an optional name that will be used as the iConfiguration string descriptor
     constexpr header(const power& p, const char_t* name = {})
         : power(p), name_(name)
     {}
@@ -107,12 +110,17 @@ class interface_endpoint_view;
 class alignas(std::uintptr_t) interface
 {
   public:
+    /// @brief  Construct an interface config element.
+    /// @param  func: reference to the associated function
+    /// @param  function_index: relative index of this interface in the function's interface set
+    /// @param  alt_settings: the number of alternate settings supported by this interface
+    /// @param  sof_notify: whether the function requires start-of-frame notifications
     constexpr interface(df::function& func, uint8_t function_index = 0, uint8_t alt_settings = 0,
-                        uint8_t variant = 0)
+                        bool sof_notify = false)
         : alt_settings_(alt_settings), function_index_(function_index), function_(func)
     {
         // only first byte is guaranteed to exist on all platforms
-        reserved_[0] = variant;
+        reserved_[0] = uint8_t(sof_notify);
     }
     [[nodiscard]] constexpr bool valid() const
     {
@@ -123,7 +131,7 @@ class alignas(std::uintptr_t) interface
     [[nodiscard]] constexpr uint8_t function_index() const { return function_index_; }
     [[nodiscard]] constexpr bool primary() const { return function_index() == 0; }
     [[nodiscard]] constexpr uint8_t alt_setting_count() const { return alt_settings_ + 1; }
-    [[nodiscard]] constexpr uint8_t variant() const { return reserved_[0]; }
+    [[nodiscard]] constexpr bool sof_notify() const { return reserved_[0] != 0; }
     // only works if the interface is used through the make_config() created object
     [[nodiscard]] interface_endpoint_view endpoints() const;
 
@@ -154,6 +162,10 @@ class alignas(std::uintptr_t) endpoint : public standard::descriptor::endpoint
   public:
     using index = uint8_t;
 
+    /// @brief  Construct an endpoint config element.
+    /// @param  desc: the endpoint descriptor to use for this endpoint
+    /// @param  unused: set to true if this endpoint doesn't transfer data,
+    ///         but is required to be present in the configuration descriptor
     constexpr endpoint(const standard::descriptor::endpoint& desc, bool unused = false)
         : standard::descriptor::endpoint(desc)
     {
@@ -518,6 +530,10 @@ class endpoint_view_base : public view_base<endpoint, valid_test, true>
     using base::begin;
     using base::end;
     using base::size;
+
+    constexpr endpoint_view_base()
+        : base(nullptr)
+    {}
 
     [[nodiscard]] endpoint::index indexof(reference& ep) const
     {

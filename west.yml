@@ -12,12 +12,12 @@ manifest:
 
   projects:
     - name: hid-rp
-      revision: 894bd1f49c44bfbd20b44e6fd22ccf961a2f46db
+      revision: 08f367bf5335633ae80e694f296e224fdc518fe8
       import:
         path-prefix: modules/lib
 
     - name: etl
       url: https://github.com/ETLCPP/etl
-      revision: 20.48.1
+      revision: 20.49.0
       clone-depth: 1
       path: modules/lib/etl

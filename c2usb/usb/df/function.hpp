@@ -44,6 +44,15 @@ class function : public polymorphic
     virtual void ep_callback([[maybe_unused]] const transfer& t) {}
     virtual void sof_callback([[maybe_unused]] const config::interface& iface) {}
 
+    /// @brief  Get the MS OS 2.0 subset descriptor for this function.
+    /// @param  iface: the function's primary interface as stored in the config.
+    /// @param  iface_index: the index of the interface
+    /// @param  buffer: the control buffer to append the descriptor to
+    virtual void get_msos2_subset([[maybe_unused]] const config::interface& iface,
+                                  [[maybe_unused]] uint8_t iface_index,
+                                  [[maybe_unused]] df::buffer& buffer) const
+    {}
+
   protected:
     ep_handle open_ep(const config::endpoint& ep);
     template <size_t T>

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "usb/df/class/dfu.hpp"
 #include "usb/df/message.hpp"
+#include "usb/df/vendor/microsoft/os_extension.hpp"
 #include "usb/standard/descriptors.hpp"
 
 using namespace usb::dfu;
@@ -23,6 +24,12 @@ void runtime_function::describe_config([[maybe_unused]] const config::interface&
     dfu_desc->bmAttributes.will_detach = detach_timeout_.count() == 0;
     dfu_desc->wDetachTimeOut = detach_timeout_.count();
     // dfu_desc->wTransferSize = 0;
+}
+
+void runtime_function::get_msos2_subset([[maybe_unused]] const config::interface& iface,
+                                        uint8_t iface_index, df::buffer& buffer) const
+{
+    usb::df::microsoft::descriptors::msos2_function_compatible_id("WINUSB", iface_index, buffer);
 }
 
 void runtime_function::control_setup_request(message& msg,

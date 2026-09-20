@@ -18,6 +18,9 @@ class descriptors : public device::extension
     }
 
     [[nodiscard]] bool msos2_support() const { return (status_ & MSOS2_SUPPORT_FLAG) != 0; }
+    static usb::microsoft::function_subset_header*
+    msos2_function_compatible_id(const std::string_view& compat_id, uint8_t iface_index,
+                                 df::buffer& buffer);
 
   protected:
     void control_setup_request(device& dev, message& msg) override;
@@ -27,8 +30,6 @@ class descriptors : public device::extension
     static void get_msos2_descriptor(const device& dev, df::buffer& buffer);
     static void get_msos2_config_subset(const config::view& config, uint8_t config_index,
                                         df::buffer& buffer);
-    static void get_msos2_function_subset(const config::interface& iface, uint8_t iface_index,
-                                          df::buffer& buffer);
     [[nodiscard]] static usb::microsoft::platform_descriptor*
     get_platform_descriptor(const device& dev, df::buffer& buffer);
 

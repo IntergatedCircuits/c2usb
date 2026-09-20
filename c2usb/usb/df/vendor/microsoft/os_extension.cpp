@@ -11,15 +11,10 @@ static auto desc_set_length(T* start, uint8_t* end)
 
 namespace usb::df::microsoft
 {
-void descriptors::get_msos2_function_subset(const config::interface& iface, uint8_t iface_index,
-                                            df::buffer& buffer)
+usb::microsoft::function_subset_header*
+descriptors::msos2_function_compatible_id(const std::string_view& compat_id, uint8_t iface_index,
+                                          df::buffer& buffer)
 {
-    // the only interesting thing is the compatible ID
-    auto compat_id = iface.function().ms_compatible_id();
-    if (compat_id.empty())
-    {
-        return;
-    }
     auto* func_header = buffer.allocate<usb::microsoft::function_subset_header>();
     func_header->bFirstInterface = iface_index;
 
@@ -28,13 +23,7 @@ void descriptors::get_msos2_function_subset(const config::interface& iface, uint
 
     // When finished with the contents, save the total size of the subset
     func_header->wSubsetLength = desc_set_length(func_header, buffer.end());
-#if 0
-    if (func_header->wSubsetLength <= func_header->size())
-    {
-        // If no features are added, roll back this subset
-        return buffer.free(func_header->wSubsetLength);
-    }
-#endif
+    return func_header;
 }
 
 void descriptors::get_msos2_config_subset(const config::view& config, uint8_t config_index,
@@ -48,7 +37,7 @@ void descriptors::get_msos2_config_subset(const config::view& config, uint8_t co
     {
         if (iface.primary())
         {
-            get_msos2_function_subset(iface, iface_count, buffer);
+            iface.function().get_msos2_subset(iface, iface_count, buffer);
         }
         iface_count++;
     }

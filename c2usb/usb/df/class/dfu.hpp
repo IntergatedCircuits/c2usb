@@ -34,6 +34,9 @@ class runtime_function : public df::named_function
         : df::named_function(name), detach_cbk_(detach_cbk)
     {}
 
+    void get_msos2_subset(const config::interface& iface, uint8_t iface_index,
+                          df::buffer& buffer) const override;
+
   private:
     void (*detach_cbk_)(std::chrono::milliseconds);
     std::chrono::duration<uint16_t, std::milli> detach_timeout_{};
@@ -48,8 +51,6 @@ class runtime_function : public df::named_function
         state_ = usb::dfu::state::APP_IDLE;
     }
     void control_setup_request(message& msg, const config::interface& iface) override;
-
-    [[nodiscard]] std::string_view ms_compatible_id() const override { return {"WINUSB"}; }
 };
 
 } // namespace usb::df::dfu

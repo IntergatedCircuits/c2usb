@@ -32,6 +32,29 @@ enum class line_event : uint8_t
 class function : public cdc::function
 {
   public:
+    [[nodiscard]] df::config::elements<5> config_entry(const config::endpoint& out_ep,
+                                                       const config::endpoint& in_ep,
+                                                       const config::endpoint& notify_in_ep)
+    {
+        return cdc::function::config_entry(out_ep, in_ep, notify_in_ep, 0);
+    }
+
+    // unused notification endpoint
+    [[nodiscard]] df::config::elements<5> config_entry(usb::speed speed,
+                                                       endpoint::address out_ep_addr,
+                                                       endpoint::address in_ep_addr,
+                                                       endpoint::address notify_in_ep_addr)
+    {
+        return config_entry(
+            config::endpoint::bulk(out_ep_addr, speed, true),
+            config::endpoint::bulk(in_ep_addr, speed),
+            config::endpoint(
+                config::endpoint::interrupt(
+                    notify_in_ep_addr, sizeof(usb::cdc::notification::header),
+                    endpoint::interval::from_rate(speed, std::chrono::milliseconds(128))),
+                true));
+    }
+
     using line_config = acm::line_config;
     using line_event = acm::line_event;
 
@@ -54,7 +77,6 @@ class function : public cdc::function
     }
     using cdc::function::receive_data;
     virtual void data_received([[maybe_unused]] const std::span<uint8_t>& rx) {}
-    [[nodiscard]] auto in_ep_mps() const { return in_ep_mps_; }
 
   private:
     using capabilities = usb::cdc::descriptor::abstract_control_management::capabilities;
@@ -77,8 +99,6 @@ class function : public cdc::function
     }
 
     C2USB_USB_TRANSFER_ALIGN(line_config, line_config_) {};
-    uint16_t in_ep_mps_{};
-    uint16_t tx_len_{};
 };
 
 } // namespace usb::df::cdc::acm

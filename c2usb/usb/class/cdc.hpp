@@ -108,7 +108,12 @@ enum class request : uint8_t
     SET_MAX_DATAGRAM_SIZE =
         0x88,            /// Sets the maximum datagram size to a value other than the default
     GET_CRC_MODE = 0x89, /// Requests the current CRC mode
-    SET_CRC_MODE = 0x90, /// Sets the current CRC mode
+    SET_CRC_MODE = 0x8A, /// Sets the current CRC mode
+    GET_EXTENDED_CAPABILITY_MODE = 0x8B,
+    SET_EXTENDED_CAPABILITY_MODE = 0x8C,
+    GET_EXTENDED_CAPABILITIES = 0x8D,
+    GET_EXTENDED_FEATURE = 0x8E,
+    SET_EXTENDED_FEATURE = 0x8F,
 };
 
 namespace control
@@ -218,18 +223,14 @@ enum class code : uint8_t
     CALL_STATE_CHANGE = 0x28,
     LINE_STATE_CHANGE = 0x29,
     CONNECTION_SPEED_CHANGE = 0x2A,
+    UNIFIED_MEDIUM_STATE = 0x2B,
 };
 
-struct header : protected usb::control::request
+struct header : public usb::control::request
 {
     constexpr header(notification::code c, uint16_t value = 0, uint16_t len = 0)
         : request(direction::IN, type::CLASS, recipient::INTERFACE, c, value, len)
     {}
-
-    // adding the interface index doesn't make sense in a composite, per-function design
-    // using request::wIndex;
-    using request::wLength;
-    using request::wValue;
 };
 
 struct network_connection : public header
@@ -300,33 +301,138 @@ enum class protocol_code : uint8_t
 
 namespace ncm
 {
+constexpr size_t DATAGRAM_MIN_LENGTH = 14;
+
 constexpr version SPEC_VERSION{"1.0"};
+
+enum class formatting : char
+{
+    IEEE802_3 = '0',
+    IEEE802_3_CRC32 = '1',
+};
+
+class signature : public le_uint32_t
+{
+  public:
+    constexpr explicit signature(const char (&sig_str)[5]) // NOLINT(modernize-avoid-c-arrays)
+    {
+        std::copy_n(sig_str, storage.size(), storage.data());
+    }
+    constexpr signature(size_t bit_size, formatting fmt)
+    {
+        const char* label = (bit_size == 16) ? "NCM" : "ncm";
+        std::copy_n(label, storage.size(), storage.data());
+        storage[3] = static_cast<uint8_t>(fmt);
+    }
+};
+
+// TODO: using packed integers isn't necessary (as all transfers are 32-bit aligned),
+// but kept to explicitly specify endianness - this costs packing overhead
 
 namespace ntb
 {
+enum struct format : uint8_t
+{
+    NTB16 = 0,
+    NTB32 = 1,
+};
+
 struct parameters
 {
-    le_uint16_t Length{sizeof(parameters)}; /// Size in bytes of this NTBT structure
-    le_uint16_t NtbFormatsSupported{1};     /// 1 if only 16bit, 3 if 32bit is supported as well
-    le_uint32_t NtbInMaxSize;               /// IN NTB Maximum Size in bytes
-    le_uint16_t NdpInDivisor;               /// Divisor used for IN NTB Datagram payload alignment
+    le_uint16_t wLength{sizeof(parameters)}; /// Size in bytes of this NTBT structure
+    struct ntb_formats_support : le_uint16_t
+    {
+        BF_COPY_SUPERCLASS(ntb_formats_support)
+        BF_BITS(bool, 0) ntb16;
+        BF_BITS(bool, 1) ntb32;
+    } bmNtbFormatsSupported{1}; /// 1 if only 16bit, 3 if 32bit is supported as well
+    le_uint32_t dwNtbInMaxSize; /// IN NTB Maximum Size in bytes
+    le_uint16_t wNdpInDivisor;  /// Divisor used for IN NTB Datagram payload alignment
     le_uint16_t
-        NdpInPayloadRemainder;  /// Remainder used to align input datagram payload within the NTB
-    le_uint16_t NdpInAlignment; /// Datagram alignment
-    const le_uint16_t reserved;
-    le_uint32_t NtbOutMaxSize;
-    le_uint16_t NdpOutDivisor;
-    le_uint16_t NdpOutPayloadRemainder;
-    le_uint16_t NdpOutAlignment;
-    le_uint16_t NtbOutMaxDatagrams; /// Maximum number of datagrams in a single OUT NTB
+        wNdpInPayloadRemainder;  /// Remainder used to align input datagram payload within the NTB
+    le_uint16_t wNdpInAlignment; /// Datagram alignment
+    reserved_t<2> reserved;
+    le_uint32_t dwNtbOutMaxSize;
+    le_uint16_t wNdpOutDivisor;
+    le_uint16_t wNdpOutPayloadRemainder;
+    le_uint16_t wNdpOutAlignment;
+    le_uint16_t wNtbOutMaxDatagrams; /// Maximum number of datagrams in a single OUT NTB
 };
 
 struct input_size
 {
     le_uint32_t dwNtbInMaxSize;
     le_uint16_t wNtbInMaxDatagrams;
-    const le_uint16_t reserved;
+    reserved_t<2> reserved;
 };
+
+template <size_t BIT_SIZE>
+struct header
+{
+    static_assert((BIT_SIZE == 16) or (BIT_SIZE == 32),
+                  "Only 16 and 32 bit NTB formats are defined");
+
+    signature Signature{valid_signature()};   /* (BIT_SIZE == 16) ?"NCMH": "ncmh" */
+    le_uint16_t HeaderLength{sizeof(header)}; /* Size in bytes of this NTH16 structure */
+    le_uint16_t Sequence;                     /* Sequence number (for debugging) */
+    le_uint_t<BIT_SIZE> BlockLength;          /* Size of this NTB in bytes */
+    le_uint_t<BIT_SIZE> NdpIndex; /* Offset of the first NDP16 from byte zero of the NTB */
+
+    [[nodiscard]] static constexpr signature valid_signature()
+    {
+        return signature((BIT_SIZE == 16) ? "NCMH" : "ncmh");
+    }
+    [[nodiscard]] constexpr bool is_signature_valid() const
+    {
+        return Signature == valid_signature();
+    }
+};
+static_assert(sizeof(header<16>) == 12);
+static_assert(sizeof(header<32>) == 16);
+
+template <size_t BIT_SIZE>
+struct datagram_ptr
+{
+    static_assert((BIT_SIZE == 16) or (BIT_SIZE == 32),
+                  "Only 16 and 32 bit NTB formats are defined");
+
+    le_uint_t<BIT_SIZE> DatagramIndex;  /* Offset of the datagram from byte zero of the NTB */
+    le_uint_t<BIT_SIZE> DatagramLength; /* Length of the datagram in bytes */
+};
+
+template <size_t BIT_SIZE>
+struct datagram_pointer_table
+{
+    static_assert((BIT_SIZE == 16) or (BIT_SIZE == 32),
+                  "Only 16 and 32 bit NTB formats are defined");
+
+    signature Signature{valid_signature(formatting::IEEE802_3)};
+    le_uint16_t Length; // Size in bytes of this NDP16 structure
+    [[no_unique_address]] c2usb::reserved_t<(BIT_SIZE / 8) - 2> Reserved6;
+    le_uint_t<BIT_SIZE> NextNdpIndex; // Offset of the next NDP16 from byte zero of the NTB
+    [[no_unique_address]] c2usb::reserved_t<((BIT_SIZE / 8) - 2) * 2> Reserved12;
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    datagram_ptr<BIT_SIZE> Datagram[1]; // The last datagram index + header is always 0
+
+    [[nodiscard]] static constexpr signature valid_signature(formatting fmt = formatting::IEEE802_3)
+    {
+        return {BIT_SIZE, fmt};
+    }
+    [[nodiscard]] constexpr bool is_signature_valid(formatting fmt = formatting::IEEE802_3) const
+    {
+        return Signature == valid_signature(fmt);
+    }
+};
+static_assert(sizeof(datagram_pointer_table<16>) == 12);
+static_assert(sizeof(datagram_pointer_table<32>) == 24);
+
+template <size_t BIT_SIZE>
+constexpr size_t min_size()
+{
+    return sizeof(header<BIT_SIZE>) + sizeof(datagram_pointer_table<BIT_SIZE>) +
+           sizeof(datagram_ptr<BIT_SIZE>) + DATAGRAM_MIN_LENGTH;
+}
+
 } // namespace ntb
 } // namespace ncm
 
@@ -372,6 +478,10 @@ enum class type : uint8_t
     TELEPHONE_CONTROL_MODEL = 0x18,
     OBEX_SERVICE_IDENTIFIER = 0x19,
     NCM = 0x1A,
+    MBIM_FUNCTIONAL = 0x1B,
+    MBIM_EXTENDED_FUNCTIONAL = 0x1C,
+    NCM_EXTENDED_CAPABILITY = 0x1D,
+    NCM_EXTENDED_FEATURE = 0x1E
 };
 }
 namespace data

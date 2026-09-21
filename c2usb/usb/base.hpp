@@ -33,6 +33,21 @@ constexpr auto operator<=>(speed a, speed b)
     return static_cast<uint8_t>(a) <=> static_cast<uint8_t>(b);
 }
 
+constexpr uint32_t speed_to_bitrate(speed s)
+{
+    switch (s)
+    {
+    case speed::LOW:
+        return 1500000;
+    case speed::FULL:
+        return 12000000;
+    case speed::HIGH:
+        return 480000000;
+    default:
+        return 0;
+    }
+}
+
 struct descriptor_header
 {
     uint8_t bLength{};

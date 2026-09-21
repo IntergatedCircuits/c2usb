@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <chrono>
+#include "c2usb.hpp"
 #if __has_include("zephyr/bluetooth/bluetooth.h")
 #include <zephyr/bluetooth/addr.h>
 #include <zephyr/bluetooth/bluetooth.h>
@@ -7,7 +9,6 @@
 #else
 #error "Unsupported platform"
 #endif
-#include "c2usb.hpp"
 
 namespace bluetooth
 {
@@ -27,4 +28,13 @@ struct le_address_str : public std::array<char, BT_ADDR_LE_STR_LEN>
         bt_addr_le_to_str(bt_conn_get_dst(conn), data(), size());
     }
 };
+
+// aka scan window, 0.625 ms per count
+template <typename T = uint16_t>
+using baseband_slot = std::chrono::duration<T, std::ratio<625, 1'000'000>>;
+
+// 1.25 ms per count
+template <typename T = uint16_t>
+using connection_interval = std::chrono::duration<T, std::ratio<1250, 1'000'000>>;
+
 } // namespace bluetooth

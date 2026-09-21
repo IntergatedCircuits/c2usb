@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
 #include <array>
-#include <chrono>
 #include <span>
 #include <string_view>
 #include <type_traits>
@@ -10,19 +9,12 @@
 #else
 #error "Unsupported platform"
 #endif
+#include "bluetooth/base.hpp"
 #include "bluetooth/uuid.hpp"
 #include "c2usb.hpp"
 
 namespace bluetooth
 {
-
-// aka scan window, 0.625 ms per count
-template <typename T = uint16_t>
-using baseband_slot = std::chrono::duration<T, std::ratio<625, 1'000'000>>;
-
-// 1.25 ms per count
-template <typename T = uint16_t>
-using connection_interval = std::chrono::duration<T, std::ratio<1250, 1'000'000>>;
 
 template <uint8_t TYPE, typename T = std::nullptr_t>
 struct ad_struct : public ::bt_data

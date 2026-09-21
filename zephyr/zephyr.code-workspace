@@ -10,6 +10,9 @@
 			"path": "examples/usb-keyboard"
 		},
 		{
+			"path": "examples/usb-ncm-zperf"
+		},
+		{
 			"path": "examples/usb-shell"
 		},
 		{
@@ -69,7 +72,8 @@
 		"C_Cpp.inlayHints.parameterNames.enabled": true,
 		"C_Cpp.inlayHints.autoDeclarationTypes.showOnLeft": true,
 		"C_Cpp.inlayHints.referenceOperator.enabled": true,
-		"C_Cpp.formatting": "clangFormat"
+		"C_Cpp.formatting": "clangFormat",
+		"terminal.integrated.stickyScroll.enabled": false
 	},
 	"extensions": {
 		"recommendations": [

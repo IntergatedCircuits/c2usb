@@ -6,12 +6,30 @@ endif()
 add_library(c2usb)
 
 set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
+include(get_cpm)
 
 # ports
 if(ZEPHYR_BASE)
+    # compile-time string support
+    CPMAddPackage("gh:intel/cpp-std-extensions#9767ab7dae3924531fcf629983377d9f35dff08b")
+    if(CMAKE_CXX_COMPILER_FORCED)
+        # CMake skipped compile-feature detection for this toolchain (for example, Zephyr's
+        # cross-compiler sets CMAKE_CXX_COMPILER_FORCED and leaves the feature list empty), so any
+        # target-level feature requirements need to be cleared after dependency creation instead.
+        # This keeps the actual dialect selection to the toolchain/Kconfig choice while avoiding
+        # stale or empty upstream feature metadata from nested project() calls.
+        foreach(target stdx boost_mp11 concurrency)
+            if(TARGET ${target})
+                set_target_properties(${target} PROPERTIES INTERFACE_COMPILE_FEATURES "")
+            endif()
+        endforeach()
+    endif()
+
     target_link_libraries(app PRIVATE c2usb)
     target_link_libraries(c2usb
         PUBLIC      zephyr_interface
+                    stdx
         INTERFACE   kernel
     )
     # prevent build errors from late generated zephyr/heap_constants.h
@@ -29,28 +47,24 @@ elseif(MCUX_SDK_PROJECT_NAME)
     add_subdirectory(usb/df/vendor/nxp)
 endif()
 
+CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
+
 if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/bitfilled/CMakeLists.txt")
     set(CPM_bitfilled_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/bitfilled")
 endif()
-if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/hid-rp/CMakeLists.txt")
-    set(CPM_hid-rp_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/hid-rp")
-endif()
-if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/etl/CMakeLists.txt")
-    set(CPM_etl_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/etl")
-endif()
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
-include(get_cpm)
-CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
-
-include(../cmake/get_cpm.cmake)
 if(ZEPHYR_HID_RP_MODULE_DIR OR MCUX_HID_RP_MODULE_DIR)
 else()
+    if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/hid-rp/CMakeLists.txt")
+        set(CPM_hid-rp_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/hid-rp")
+    endif()
     CPMAddPackage("gh:IntergatedCircuits/hid-rp#894bd1f49c44bfbd20b44e6fd22ccf961a2f46db")
 endif()
 
 if(ZEPHYR_ETL_MODULE_DIR OR MCUX_ETL_MODULE_DIR)
 else()
+    if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/etl/CMakeLists.txt")
+        set(CPM_etl_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/etl")
+    endif()
     CPMAddPackage("gh:ETLCPP/etl#20.48.1")
 endif()
 

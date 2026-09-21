@@ -1,0 +1,7 @@
+/ {
+    cdc_ncm_eth0: cdc-ncm-eth0 {
+        compatible = "c2usb,cdc-ncm-ethernet";
+        local-mac-address = [00 00 5e 00 53 00];
+        remote-mac-address = [00 00 5e 00 53 01];
+    };
+};

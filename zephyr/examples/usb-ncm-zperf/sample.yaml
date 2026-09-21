@@ -1,0 +1,28 @@
+sample:
+  description: c2usb CDC NCM virtual Ethernet performance measurement
+  name: c2usb USB NCM zperf
+tests:
+  c2usb.usb-ncm-zperf:
+    sysbuild: true
+    integration_platforms:
+      - nrf52840dk/nrf52840
+      - nrf54lm20dk/nrf54lm20a/cpuapp
+    platform_allow:
+      - nrf52dk/nrf52832
+      - nrf52840dk/nrf52840
+      - nrf5340dk/nrf5340/cpuapp
+      - nrf5340dk/nrf5340/cpuapp/ns
+      - nrf54l15dk/nrf54l05/cpuapp
+      - nrf54l15dk/nrf54l10/cpuapp
+      - nrf54l15dk/nrf54l15/cpuapp
+      - nrf54lm20dk/nrf54lm20a/cpuapp
+      - nrf54lm20dk/nrf54lm20b/cpuapp
+      - nrf54ls05dk/nrf54ls05b/cpuapp
+      - nrf54lv10dk/nrf54lv10a/cpuapp
+      - nrf54lv10dk/nrf54lv10a/cpuapp/ns
+      - nrf54h20dk/nrf54h20/cpuapp
+    tags:
+      - usb
+      - net
+      - zperf
+    harness: build

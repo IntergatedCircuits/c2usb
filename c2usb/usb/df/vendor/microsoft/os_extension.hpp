@@ -11,11 +11,7 @@ namespace usb::df::microsoft
 class descriptors : public device::extension
 {
   public:
-    static descriptors& instance()
-    {
-        static descriptors descs;
-        return descs;
-    }
+    constexpr descriptors() = default;
 
     [[nodiscard]] bool msos2_support() const { return (status_ & MSOS2_SUPPORT_FLAG) != 0; }
     static usb::microsoft::function_subset_header*
@@ -32,8 +28,6 @@ class descriptors : public device::extension
                                         df::buffer& buffer);
     [[nodiscard]] static usb::microsoft::platform_descriptor*
     get_platform_descriptor(const device& dev, df::buffer& buffer);
-
-    constexpr descriptors() = default;
 
     static constexpr uint8_t MSOS2_SUPPORT_FLAG = 0x01;
     uint8_t status_{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)

@@ -1,0 +1,11 @@
+description: c2usb CDC NCM virtual Ethernet controller
+
+compatible: "c2usb,cdc-ncm-ethernet"
+
+include: base.yaml
+
+properties:
+  function-name:
+    type: string
+    required: false
+    description: Name of the CDC NCM function associated with this virtual Ethernet controller.

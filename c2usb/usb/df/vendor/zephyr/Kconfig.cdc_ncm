@@ -1,0 +1,18 @@
+
+menuconfig C2USB_CDC_NCM_ETHERNET
+    bool "c2usb CDC NCM Ethernet adapter"
+    depends on NET_L2_ETHERNET
+    select C2USB_DF
+    help
+        Build the Zephyr Ethernet adapter for c2usb CDC NCM functions.
+
+if C2USB_CDC_NCM_ETHERNET
+
+config C2USB_CDC_NCM_ETHERNET_PROMISC_MODE
+    bool "c2usb CDC NCM Ethernet promiscuous mode"
+
+module = C2USB_CDC_NCM_ETHERNET
+module-str = c2usb CDC NCM Ethernet adapter
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # C2USB_CDC_NCM_ETHERNET

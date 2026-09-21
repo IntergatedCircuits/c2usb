@@ -1,0 +1,6 @@
+/ {
+    cdc_ncm_eth0: cdc-ncm-eth0 {
+        compatible = "c2usb,cdc-ncm-ethernet";
+        function-name = "c2usb-ncm-eth";
+    };
+};

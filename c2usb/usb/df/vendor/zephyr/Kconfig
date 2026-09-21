@@ -20,4 +20,5 @@ config C2USB_UDC_MAC_THREAD_STACK_SIZE
 
 endif # C2USB_UDC_MAC
 
+rsource "Kconfig.cdc_ncm"
 rsource "Kconfig.shell"

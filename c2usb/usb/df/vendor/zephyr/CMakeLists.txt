@@ -9,3 +9,8 @@ target_sources_ifdef(CONFIG_SHELL_BACKEND_C2USB c2usb
         shell.c
         shell.cpp
 )
+target_sources_ifdef(CONFIG_C2USB_CDC_NCM_ETHERNET c2usb
+    PRIVATE
+        cdc_ncm_ethernet.c
+        cdc_ncm_ethernet.cpp
+)

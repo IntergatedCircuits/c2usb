@@ -10,6 +10,9 @@
 			"path": "examples/usb-keyboard"
 		},
 		{
+			"path": "examples/usb-ncm-zperf"
+		},
+		{
 			"path": "examples/usb-shell"
 		},
 		{
@@ -17,6 +20,10 @@
 		},
 		{
 			"path": "../../zephyr"
+		},
+		{
+			"name": "workspace",
+			"path": "../.."
 		}
 	],
 	"settings": {
@@ -69,11 +76,17 @@
 		"C_Cpp.inlayHints.parameterNames.enabled": true,
 		"C_Cpp.inlayHints.autoDeclarationTypes.showOnLeft": true,
 		"C_Cpp.inlayHints.referenceOperator.enabled": true,
-		"C_Cpp.formatting": "clangFormat"
+		"C_Cpp.formatting": "clangFormat",
+		"terminal.integrated.stickyScroll.enabled": false,
+		"clangd.arguments": [
+			"--header-insertion=never",
+			"--completion-style=detailed",
+			"--query-driver=/opt/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/*"
+		]
 	},
 	"extensions": {
 		"recommendations": [
-			"nordic-semiconductor.nrf-connect-extension-pack",
+			"ac6.zephyr-workbench",
 			"ms-vscode.cpptools-extension-pack",
 			"ms-vscode.vscode-embedded-tools",
 			"mcu-debug.peripheral-viewer",

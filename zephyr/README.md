@@ -55,6 +55,12 @@ and observe as the host changes the caps lock state on the board's LED.
 A straightforward USB HID keyboard to illustrate a minimal project integration.
 Use the button on the board to trigger a caps lock press, and observe as the host changes the caps lock state on the board's LED.
 
+### usb-ncm-zperf
+
+A USB NCM networking device with zperf functionality enabled. Refer to the [zperf documentation]
+(https://docs.zephyrproject.org/latest/services/connectivity/networking/api/zperf.html)
+on its usage.
+
 ### usb-shell
 
 Demonstrating USB serial port functionality with shell access to the zephyr OS. Supports full and high-speed device targets.

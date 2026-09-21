@@ -606,6 +606,10 @@ class view : protected view_base<header, &element::is_header, true>
 #pragma GCC diagnostic pop
 #endif
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 /// @brief  Creates a reference array out of the input list of configuration views.
 /// @tparam Args: deduced
 /// @param  args: configuration views

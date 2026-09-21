@@ -12,56 +12,6 @@ namespace usb::df::cdc
 {
 class function : public df::named_function
 {
-  public:
-    // no notification endpoint
-    [[nodiscard]] df::config::elements<4> config_entry(const config::endpoint& out_ep,
-                                                       const config::endpoint& in_ep)
-    {
-        assert((out_ep.address().direction() == direction::OUT) and
-               (in_ep.address().direction() == direction::IN));
-        return config::to_elements(
-            {config::interface(*this, 0), config::interface(*this, 1), out_ep, in_ep});
-    }
-
-    // active notification endpoint
-    [[nodiscard]] df::config::elements<5> config_entry(const config::endpoint& out_ep,
-                                                       const config::endpoint& in_ep,
-                                                       const config::endpoint& notify_in_ep)
-    {
-        assert((out_ep.address().direction() == direction::OUT) and
-               (in_ep.address().direction() == direction::IN) and
-               (notify_in_ep.address().direction() == direction::IN));
-        return config::to_elements({config::interface(*this, 0), notify_in_ep,
-                                    config::interface(*this, 1), out_ep, in_ep});
-    }
-
-    [[nodiscard]] df::config::elements<5>
-    config_entry(usb::speed speed, endpoint::address out_ep_addr, endpoint::address in_ep_addr,
-                 endpoint::address notify_in_ep_addr, uint8_t notify_in_ep_interval)
-    {
-        return config_entry(config::endpoint::bulk(out_ep_addr, speed, true),
-                            config::endpoint::bulk(in_ep_addr, speed),
-                            config::endpoint::interrupt(notify_in_ep_addr,
-                                                        sizeof(usb::cdc::notification::header),
-                                                        notify_in_ep_interval));
-    }
-
-    // unused notification endpoint
-    [[nodiscard]] df::config::elements<5> config_entry(usb::speed speed,
-                                                       endpoint::address out_ep_addr,
-                                                       endpoint::address in_ep_addr,
-                                                       endpoint::address notify_in_ep_addr)
-    {
-        return config_entry(
-            config::endpoint::bulk(out_ep_addr, speed, true),
-            config::endpoint::bulk(in_ep_addr, speed),
-            config::endpoint(
-                config::endpoint::interrupt(
-                    notify_in_ep_addr, sizeof(usb::cdc::notification::header),
-                    endpoint::interval::from_rate(speed, std::chrono::milliseconds(128))),
-                true));
-    }
-
   protected:
     using df::named_function::named_function;
 
@@ -81,6 +31,7 @@ class function : public df::named_function
     {
         assert(!iface.primary());
         assert(iface.endpoints().size() == 2);
+        in_ep_mps_ = iface.endpoints()[0].wMaxPacketSize;
         open_eps(iface.endpoints(), data_ephs_);
     }
 
@@ -116,7 +67,18 @@ class function : public df::named_function
         }
     }
 
+    [[nodiscard]] auto in_ep_mps() const { return in_ep_mps_; }
+    result send_trailing_zlp_if_needed(const transfer& xfer)
+    {
+        if (not xfer.empty() and ((xfer.size() % in_ep_mps_) == 0))
+        {
+            return send_data({});
+        }
+        return std::errc::message_size;
+    }
+
   private:
+    uint16_t in_ep_mps_{};
     std::array<ep_handle, 2> data_ephs_{};
     ep_handle notify_eph_;
 };

@@ -76,6 +76,7 @@ if(CONFIG_C2USB_DF)
             usb/class/dfu.cpp
             usb/df/class/cdc.cpp
             usb/df/class/cdc_acm.cpp
+            usb/df/class/cdc_ncm.cpp
             usb/df/class/dfu.cpp
             usb/df/class/hid.cpp
             usb/df/vendor/microsoft/os_extension.cpp

@@ -482,6 +482,11 @@ class view_base
     const element* ptr_;
 };
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
+#endif
+
 /// @brief  Allows iterating through a configuration's all interfaces.
 class interface_view : public view_base<interface, &element::is_interface, true>
 {
@@ -597,6 +602,10 @@ class view : protected view_base<header, &element::is_header, true>
         return make_reference_array<const element>((*view(args).ptr_)...);
     }
 };
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 /// @brief  Creates a reference array out of the input list of configuration views.
 /// @tparam Args: deduced

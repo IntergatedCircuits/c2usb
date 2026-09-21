@@ -67,21 +67,20 @@ int main(void)
 
     using namespace usb::df::config;
 
-    // provide just enough buffer space for the configuration arrays
-    monotonic_storage<usb::df::zephyr::udc_mac::supported_speeds(), 7> config_buffer{};
+    constexpr auto speeds = usb::df::zephyr::udc_mac::supported_speeds();
+    static std::array<std::array<element, 7>, speeds.count()> config_store{};
 
     // define configurations and start device
-    for (auto speed : device().speeds())
+    for (const auto speed : speeds)
     {
-        const auto config_header = header(power::bus(200), magic_enum::enum_name(speed).data());
-
-        auto cfg = make_config(
-            config_buffer.resource(), config_header,
+        config_store[speeds.offset(speed)] = make_config(
+            header(power::bus(200), magic_enum::enum_name(speed).data()),
             usb::df::zephyr::shell::handle().config_entry(
                 speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
                 usb::endpoint::address(0x8f) // note that notification endpoint is unused here
                 ));
-        device().set_config_for_speed(cfg, speed);
+
+        device().set_config_for_speed(config_store[speeds.offset(speed)], speed);
     }
     device().open();
 

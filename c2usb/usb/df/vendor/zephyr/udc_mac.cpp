@@ -752,8 +752,11 @@ void udc_mac::process_ep_event(net_buf* buf)
         {
             if (ep_bufs_[i] == buf)
             {
+                auto eph = create_ep_handle(i + 1);
                 return ep_transfer_complete(
-                    addr, transfer(buf->data, buf->len, info.err == 0, create_ep_handle(i + 1)));
+                    addr, addr.direction() == direction::OUT
+                              ? transfer(buf->data, buf->len, info.err == 0, eph)
+                              : transfer(buf->__buf, buf->size, info.err == 0, eph));
             }
         }
         assert(ep_bufs_.size() == 0); // a net_buf was issued out of c2usb scope

@@ -35,6 +35,7 @@ class serial_rx_buffer : public double_buffer<uint8_t>
 {
     using base = double_buffer<uint8_t>;
 
+  protected:
     using base::buffer;
     using base::buffer_of;
     using base::size;

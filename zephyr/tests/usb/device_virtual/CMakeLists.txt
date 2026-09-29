@@ -6,6 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 
 target_include_directories(app PRIVATE
     ${ZEPHYR_BASE}/subsys/usb/host
+    ${ZEPHYR_BASE}/subsys/mgmt/mcumgr/transport/include
     ../include
 )
 target_sources(app PRIVATE
@@ -15,4 +16,8 @@ target_sources(app PRIVATE
 
 if(CONFIG_C2USB_SHELL_BACKEND)
     target_sources(app PRIVATE src/shell_tests.cpp)
+endif()
+
+if(CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT)
+    target_sources(app PRIVATE src/smp_tests.cpp)
 endif()

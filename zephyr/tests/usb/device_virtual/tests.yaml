@@ -15,6 +15,33 @@ tests:
       - usb
       - c2usb
 
+  c2usb.usb.device_virtual.smp_shell:
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+      - qemu_cortex_m3
+    integration_platforms:
+      - native_sim/native/64
+    extra_configs:
+      - CONFIG_COMPILER_WARNINGS_AS_ERRORS=n
+      - CONFIG_NET_BUF=y
+      - CONFIG_BASE64=y
+      - CONFIG_CRC=y
+      - CONFIG_ZCBOR=y
+      - CONFIG_MCUMGR=y
+      - CONFIG_MCUMGR_GRP_OS=y
+      - CONFIG_MCUMGR_GRP_OS_ECHO=y
+      - CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT=y
+      - CONFIG_C2USB_SHELL_BACKEND_TX_BUFFER_SIZE=128
+      - CONFIG_C2USB_SHELL_BACKEND_RX_BUFFER_SIZE=1024
+      - CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
+    extra_args:
+      - EXTRA_CXXFLAGS=-Wno-error
+    tags:
+      - usb
+      - c2usb
+      - mcumgr
+
 #  c2usb.usb.device_virtual.fs:
 #    platform_allow:
 #      - native_sim

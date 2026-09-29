@@ -4,6 +4,8 @@
 #include <zephyr/ztest.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <ranges>
 #include <string_view>
 
@@ -21,15 +23,6 @@
 #include <usb/standard/requests.hpp>
 #include <usb_host.hpp>
 #include <zephyr/thread.hpp>
-
-extern "C"
-{
-#define class class_
-#include <usbh_ch9.h>
-#include <usbh_device.h>
-#include <zephyr/usb/usbh.h>
-#undef class
-}
 
 LOG_MODULE_REGISTER(c2usb_usb_device_virtual, LOG_LEVEL_DBG);
 

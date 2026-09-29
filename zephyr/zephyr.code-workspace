@@ -91,7 +91,8 @@
 			"ms-vscode.vscode-embedded-tools",
 			"mcu-debug.peripheral-viewer",
 			"mcu-debug.memory-view",
-			"mcu-debug.rtos-views"
+			"mcu-debug.rtos-views",
+			"nordic-semiconductor.nrf-kconfig"
 		]
 	}
 }

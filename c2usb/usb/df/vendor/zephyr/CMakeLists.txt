@@ -9,6 +9,11 @@ target_sources_ifdef(CONFIG_C2USB_SHELL_BACKEND c2usb
         shell.c
         shell.cpp
 )
+if(CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT)
+    target_include_directories(c2usb PRIVATE
+        ${ZEPHYR_BASE}/subsys/mgmt/mcumgr/transport/include
+    )
+endif()
 target_sources_ifdef(CONFIG_C2USB_CDC_NCM_ETHERNET c2usb
     PRIVATE
         cdc_ncm_ethernet.c

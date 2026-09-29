@@ -165,9 +165,18 @@ SUITE(usb_df_config)
         static dfu::runtime_function dfu_runtime{"dfu", [](std::chrono::milliseconds) {}};
 
         constexpr auto config_header = header(power::bus(500, remote_wakeup));
-        const auto shared_config_elems = join_elements(
-            serial.config_entry(speed, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
-                                usb::endpoint::address(0x8f)));
+        const auto shared_config_elems = join_elements(serial.config_entry(
+            config::endpoint::bulk(
+                usb::endpoint::address(0x01),
+                usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed)),
+            config::endpoint::bulk(
+                usb::endpoint::address(0x81),
+                usb::endpoint::packet_size_limit(usb::endpoint::type::BULK, speed)),
+            config::endpoint(
+                config::endpoint::interrupt(
+                    usb::endpoint::address(0x8f), sizeof(usb::cdc::notification::header),
+                    usb::endpoint::interval::from_rate(speed, std::chrono::milliseconds(128))),
+                true)));
 
         static const auto hid_config =
             make_config(config_header, shared_config_elems,

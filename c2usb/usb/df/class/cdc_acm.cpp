@@ -55,7 +55,7 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     switch (msg.request())
     {
     case SET_LINE_CODING:
-        return msg.receive(line_coding());
+        return msg.receive_to_buffer();
 
     case GET_LINE_CODING:
         return msg.send(line_coding());
@@ -63,8 +63,9 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     case SET_CONTROL_LINE_STATE:
         if (line_config_.bControlLineState != msg.request().wValue.low_byte())
         {
+            const auto old_cfg = line_config_;
             line_config_.bControlLineState = msg.request().wValue.low_byte();
-            set_line(line_config_, line_event::STATE_CHANGE);
+            set_line(old_cfg, line_config_);
         }
         return msg.confirm();
 
@@ -83,13 +84,15 @@ void function::control_data_complete(message& msg, [[maybe_unused]] const config
     switch (msg.request())
     {
     case SET_LINE_CODING:
-        if (msg.data().size() != sizeof(line_coding()))
+        if (msg.data().size() == sizeof(line_coding()))
         {
-            return msg.reject();
+            auto* recv = std_layout_cast<usb::cdc::serial::line_coding*>(msg.data().data());
+            line_config old_cfg = line_config_;
+            static_cast<usb::cdc::serial::line_coding&>(line_config_) = *recv;
+            set_line(old_cfg, line_config_);
+            break;
         }
-        assert(msg.data().size() == sizeof(line_coding()));
-        set_line(line_config_, line_event::CODING_CHANGE);
-        break;
+        return msg.reject();
     default:
         break;
     }

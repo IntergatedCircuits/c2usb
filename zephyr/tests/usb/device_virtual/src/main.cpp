@@ -281,15 +281,6 @@ static void* test_setup()
     int err = usb::test::host::start();
     zassert_equal(err, 0, "Failed to start USB host");
 
-    err = usb::test::host::bus_reset();
-    zassert_equal(err, 0, "Failed to issue bus reset");
-
-    err = usb::test::host::bus_resume();
-    zassert_equal(err, 0, "Failed to issue bus resume");
-
-    err = usb::test::host::sof_enable();
-    zassert_equal(err, 0, "Failed to enable SOF generation");
-
     auto& dev = loop_device().emplace(mac(), product_info);
 
     dev.set_config_for_speed(loop_config<usb::speed::FULL>("fs-cfg"), usb::speed::FULL);
@@ -315,7 +306,16 @@ static void* test_setup()
         });
     dev.open();
 
-    this_thread::sleep_for(200ms);
+    err = usb::test::host::bus_resume();
+    zassert_equal(err, 0, "Failed to issue bus resume");
+
+    err = usb::test::host::bus_reset();
+    zassert_equal(err, 0, "Failed to issue bus reset");
+
+    err = usb::test::host::sof_enable();
+    zassert_equal(err, 0, "Failed to enable SOF generation");
+
+    this_thread::sleep_for(10ms);
 
     return nullptr;
 }

@@ -11,11 +11,11 @@ namespace usb::df::zephyr
 shell& shell::handle()
 {
     // the buffers and their midpoints have to be USB transfer aligned
-    static_assert(((CONFIG_SHELL_BACKEND_C2USB_TX_BUFFER_SIZE / 2) % alignof(std::uintptr_t)) == 0);
-    static_assert(((CONFIG_SHELL_BACKEND_C2USB_RX_BUFFER_SIZE / 2) % alignof(std::uintptr_t)) == 0);
-    static std::array<uint8_t, CONFIG_SHELL_BACKEND_C2USB_TX_BUFFER_SIZE> tx alignas(
+    static_assert(((CONFIG_C2USB_SHELL_BACKEND_TX_BUFFER_SIZE / 2) % alignof(std::uintptr_t)) == 0);
+    static_assert(((CONFIG_C2USB_SHELL_BACKEND_RX_BUFFER_SIZE / 2) % alignof(std::uintptr_t)) == 0);
+    static std::array<uint8_t, CONFIG_C2USB_SHELL_BACKEND_TX_BUFFER_SIZE> tx alignas(
         std::uintptr_t);
-    static std::array<uint8_t, CONFIG_SHELL_BACKEND_C2USB_RX_BUFFER_SIZE> rx alignas(
+    static std::array<uint8_t, CONFIG_C2USB_SHELL_BACKEND_RX_BUFFER_SIZE> rx alignas(
         std::uintptr_t);
     static shell sh(tx, rx);
     return sh;
@@ -35,16 +35,15 @@ const ::shell_transport_api& shell::shell_tp_api()
 
 void shell::change_active(bool active)
 {
-    if (active == ::shell_ready(c2usb_shell_handle()))
-    {
-        return;
-    }
     if (active)
     {
         receive_buffer_data();
-        ::shell_start(c2usb_shell_handle());
+        if (!::shell_ready(c2usb_shell_handle()))
+        {
+            ::shell_start(c2usb_shell_handle());
+        }
     }
-    else
+    else if (::shell_ready(c2usb_shell_handle()))
     {
         ::k_sem_take(&c2usb_shell_handle()->ctx->lock_sem, K_FOREVER);
         tx_buffer_.reset();
@@ -54,11 +53,11 @@ void shell::change_active(bool active)
     }
 }
 
-void shell::set_line(const line_config& cfg, line_event ev)
+void shell::set_line(const line_config& old_cfg, const line_config& new_cfg)
 {
-    if (ev == line_event::STATE_CHANGE)
+    if (old_cfg.data_terminal_ready() != new_cfg.data_terminal_ready())
     {
-        change_active(cfg.data_terminal_ready());
+        change_active(new_cfg.data_terminal_ready());
     }
 }
 
@@ -79,10 +78,10 @@ shell::shell(const std::span<uint8_t>& tx_buffer, const std::span<uint8_t>& rx_b
     c2usb_shell_transport.api = &shell::shell_tp_api();
 
     // CONFIG_SHELL_LOG_BACKEND
-    bool log_backend = CONFIG_SHELL_BACKEND_C2USB_LOG_LEVEL > 0;
-    uint32_t level = (CONFIG_SHELL_BACKEND_C2USB_LOG_LEVEL > LOG_LEVEL_DBG)
+    bool log_backend = CONFIG_C2USB_SHELL_BACKEND_LOG_LEVEL > 0;
+    uint32_t level = (CONFIG_C2USB_SHELL_BACKEND_LOG_LEVEL > LOG_LEVEL_DBG)
                          ? CONFIG_LOG_MAX_LEVEL
-                         : CONFIG_SHELL_BACKEND_C2USB_LOG_LEVEL;
+                         : CONFIG_C2USB_SHELL_BACKEND_LOG_LEVEL;
 
     const struct ::shell_backend_config_flags cfg_flags = SHELL_DEFAULT_BACKEND_CONFIG_FLAGS;
     ::shell_init(c2usb_shell_handle(), this, cfg_flags, log_backend, level);
@@ -96,9 +95,9 @@ shell::~shell()
 int shell::shell_tp_init(const ::shell_transport* transport, const void* config,
                          ::shell_transport_handler_t evt_handler, void* context)
 {
-    auto* this_ = static_cast<shell*>(const_cast<void*>(config));
-    this_->tp_handler_ = evt_handler;
-    this_->shell_context_ = context;
+    auto* self = static_cast<shell*>(const_cast<void*>(config));
+    self->tp_handler_ = evt_handler;
+    self->shell_context_ = context;
     return 0;
 }
 
@@ -120,132 +119,43 @@ int shell::shell_tp_enable(const ::shell_transport* transport, bool blocking_tx)
     return 0;
 }
 
-std::optional<std::span<const uint8_t>> acm_tx_buffer::write(const uint8_t* data, size_t* length)
-{
-    size_type idx{};
-    size_type pos{pos_[idx].load()};
-    size_type new_pos;
-    size_type writable;
-    do
-    {
-        // swap the side if this side is consuming
-        while (pos & consuming_flag)
-        {
-            idx ^= 1;
-            pos = pos_[idx].load();
-        }
-        new_pos = pos;
-
-        writable = std::min(size() - pos, *length);
-        if (writable == 0)
-        {
-            // return with 0 written bytes to trigger pend on txdone
-            break;
-        }
-        // append new data to buffer
-        std::copy(data, data + writable, &buffer_of(idx)[new_pos]);
-        new_pos += writable;
-
-        // try to update position, retry if consuming started or even finished
-    } while (!pos_[idx].compare_exchange_weak(pos, new_pos));
-
-    // data placement success, update written length
-    *length = writable;
-
-    // if new data is available, and the other buffer transfer is complete
-    if ((writable > 0) and (pos_[1 - idx].load() == 0))
-    {
-        // try to acquire consuming flag to start sending a packet now
-        if (pos_[idx].compare_exchange_strong(new_pos, new_pos | consuming_flag))
-        {
-            return std::span<const uint8_t>{buffer_of(idx), new_pos};
-        }
-    }
-    return std::nullopt;
-}
-
 int shell::shell_tp_write(const ::shell_transport* transport, const void* data, size_t length,
                           size_t* cnt)
 {
-    auto* this_ = static_cast<shell*>(transport->ctx);
+    auto* self = static_cast<shell*>(transport->ctx);
     assert(length);
     *cnt = length;
 
-    if (not this_->get_line_config().data_terminal_ready())
+    if (not self->get_line_config().data_terminal_ready())
     {
         // drop data while the pipe is not ready
-        this_->tx_done_handler();
+        self->tx_done_handler();
     }
-    else if (auto to_consume = this_->tx_buffer_.write(static_cast<const uint8_t*>(data), cnt);
+    else if (auto to_consume = self->tx_buffer_.write(static_cast<const uint8_t*>(data), cnt);
              to_consume)
     {
-        auto result = this_->send_data(to_consume.value());
+        auto result = self->send_data(to_consume.value());
         if (result != usb::result::ok)
         {
-            this_->tx_buffer_.cancel_consume(to_consume.value());
+            self->tx_buffer_.cancel_consume(to_consume.value());
         }
     }
     return 0;
 }
 
-void acm_tx_buffer::cancel_consume(const std::span<const uint8_t>& data)
-{
-    bool idx = data.data() + data.size() > buffer_of(1);
-    size_type pos = data.data() + data.size() - buffer_of(idx);
-    pos |= consuming_flag;
-    if (!pos_[idx].compare_exchange_strong(pos, pos & ~consuming_flag))
-    {
-        assert(false);
-    }
-}
-
-std::optional<std::span<const uint8_t>> acm_tx_buffer::advance(const std::span<const uint8_t>& data,
-                                                               bool needs_zlp)
-{
-    bool idx = data.data() + data.size() > buffer_of(1);
-    size_type pos = data.data() + data.size() - buffer_of(idx);
-
-    size_type new_pos = pos_[1 - idx].load();
-    if (needs_zlp and (new_pos == 0))
-    {
-        // ZLP, conserving the buffer position
-        return std::span<const uint8_t>{data.data() + data.size(), 0};
-    }
-
-    // clear the current buffer's position
-    pos |= consuming_flag;
-    [[maybe_unused]] bool success = pos_[idx].compare_exchange_strong(pos, 0);
-    assert(success);
-
-    // data available in other buffer
-    if (new_pos > 0)
-    {
-        assert((new_pos & consuming_flag) == 0);
-        // try to mark the next buffer for consuming
-        if (pos_[1 - idx].compare_exchange_strong(new_pos, new_pos | consuming_flag))
-        {
-            return std::span<const uint8_t>{buffer_of(1 - idx), new_pos};
-        }
-        assert(false);
-    }
-
-    return std::nullopt;
-}
-
 void shell::data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
 {
-    if (!tx.empty())
+    auto next = tx_buffer_.advance(tx, needs_zlp);
+    if (not next.has_value() or not next->empty())
     {
-        // data sent
+        tx_done_handler();
     }
     else
     {
-        // zlp or cancelled
+        // next is ZLP, no buffer space freed
     }
-    tx_done_handler();
 
-    // TODO: how to advance if last transfer was cancelled?
-    if (auto next = tx_buffer_.advance(tx, needs_zlp); next)
+    if (next.has_value())
     {
         auto result = send_data(next.value());
         if (result != usb::result::ok)
@@ -255,59 +165,14 @@ void shell::data_sent(const std::span<const uint8_t>& tx, bool needs_zlp)
     }
 }
 
-acm_rx_buffer::size_type acm_rx_buffer::read(uint8_t* data, size_type length)
-{
-    auto consume_pos = consume_pos_.load();
-    auto consume_idx = consume_pos >= size();
-    auto produce_pos = produce_pos_[consume_idx].load();
-
-    // current side is empty
-    if (produce_pos == 0)
-    {
-        consume_idx = 1 - consume_idx;
-        produce_pos = produce_pos_[consume_idx].load();
-        // other side as well
-        if (produce_pos == 0)
-        {
-            return 0;
-        }
-        consume_pos = consume_idx * size();
-    }
-
-    size_type readable = std::min(produce_pos - consume_pos, length);
-    std::copy(buffer_ + consume_pos, buffer_ + consume_pos + readable, data);
-    consume_pos += readable;
-
-    if (consume_pos == produce_pos)
-    {
-        // this side is now empty, flip
-        consume_pos = (1 - consume_idx) * size();
-        produce_pos_[consume_idx].store(0);
-    }
-    consume_pos_.store(consume_pos);
-    return readable;
-}
-
 int shell::shell_tp_read(const struct shell_transport* transport, void* data, size_t length,
                          size_t* cnt)
 {
     // read some data from the buffer (character-by-character)
-    auto* this_ = static_cast<shell*>(transport->ctx);
-    *cnt = this_->rx_buffer_.read(static_cast<uint8_t*>(data), length);
-    this_->receive_buffer_data();
+    auto* self = static_cast<shell*>(transport->ctx);
+    *cnt = self->rx_buffer_.read(static_cast<uint8_t*>(data), length);
+    self->receive_buffer_data();
     return 0;
-}
-
-std::span<uint8_t> acm_rx_buffer::empty_side()
-{
-    for (size_type i = 0; i < 2; ++i)
-    {
-        if (produce_pos_[i].load() == 0)
-        {
-            return {buffer_of(i), size()};
-        }
-    }
-    return {};
 }
 
 void shell::receive_buffer_data()
@@ -319,17 +184,10 @@ void shell::receive_buffer_data()
     }
 }
 
-bool acm_rx_buffer::set_produced(const std::span<uint8_t>& data)
-{
-    auto produce_idx = (data.data() - buffer_) >= static_cast<std::intptr_t>(size());
-    produce_pos_[produce_idx].store(data.data() - buffer_ + data.size());
-    // return true if the other side is free
-    return produce_pos_[1 - produce_idx].load() == 0;
-}
-
 void shell::data_received(const std::span<uint8_t>& rx)
 {
-    if (rx_buffer_.set_produced(rx))
+    bool ready_to_rx = rx_buffer_.set_produced(rx);
+    if (ready_to_rx)
     {
         receive_buffer_data();
     }

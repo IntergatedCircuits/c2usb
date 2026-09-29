@@ -102,6 +102,7 @@ if(CONFIG_C2USB_DF)
             usb/df/mac.cpp
             usb/df/message.cpp
             usb/standard/descriptors.cpp
+            usb/serial_buffer.cpp
     )
 endif()
 if(CONFIG_C2USB_I2C_HID)

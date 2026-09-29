@@ -1,13 +1,13 @@
 
-menuconfig SHELL_BACKEND_C2USB
+menuconfig C2USB_SHELL_BACKEND
     bool "c2usb shell backend"
     depends on SHELL
     help
       Build c2usb shell backend.
 
-if SHELL_BACKEND_C2USB
+if C2USB_SHELL_BACKEND
 
-config SHELL_PROMPT_C2USB
+config C2USB_SHELL_PROMPT
     string "Displayed prompt name"
     default "c2usb:~$ "
     help
@@ -20,18 +20,19 @@ config SHELL_C2USB_FUNCTION_NAME
     help
       Name of the USB CDC function to use for the shell.
 
-config SHELL_BACKEND_C2USB_TX_BUFFER_SIZE
+config C2USB_SHELL_BACKEND_TX_BUFFER_SIZE
     int "c2usb shell TX double buffer overall size"
     range 128 1024
     default 1024 if UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
     default 128
 
-config SHELL_BACKEND_C2USB_RX_BUFFER_SIZE
+config C2USB_SHELL_BACKEND_RX_BUFFER_SIZE
     int "c2usb shell RX double buffer overall size"
     range 32 1024
+    default 1024 if UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
     default 128
 
-module = SHELL_BACKEND_C2USB
+module = C2USB_SHELL_BACKEND
 default-timeout = 100
 source "subsys/shell/Kconfig.template.shell_log_queue_timeout"
 
@@ -41,4 +42,4 @@ source "subsys/shell/Kconfig.template.shell_log_queue_size"
 module-str = c2usb shell backend
 source "subsys/logging/Kconfig.template.log_config"
 
-endif # SHELL_BACKEND_C2USB
+endif # C2USB_SHELL_BACKEND

@@ -23,12 +23,6 @@ struct line_config : public usb::cdc::serial::line_coding
     [[nodiscard]] bool request_to_send() const { return (bControlLineState & 2) != 0; }
 };
 
-enum class line_event : uint8_t
-{
-    STATE_CHANGE = 0,
-    CODING_CHANGE = 1,
-};
-
 class function : public cdc::function
 {
   public:
@@ -61,13 +55,13 @@ class function : public cdc::function
     }
 
     using line_config = acm::line_config;
-    using line_event = acm::line_event;
 
     constexpr function(const char_t* name = {})
         : cdc::function(name)
     {}
 
-    virtual void set_line([[maybe_unused]] const line_config& cfg, [[maybe_unused]] line_event ev)
+    virtual void set_line([[maybe_unused]] const line_config& old_cfg,
+                          [[maybe_unused]] const line_config& new_cfg)
     {}
     virtual void reset_line() {}
     [[nodiscard]] auto& get_line_config() const { return (line_config_); }

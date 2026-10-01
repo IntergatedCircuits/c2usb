@@ -14,10 +14,10 @@ target_sources(app PRIVATE
     src/cdc_helpers.cpp
 )
 
-if(CONFIG_C2USB_SHELL_BACKEND)
+if(CONFIG_C2USB_SHELL_BACKEND AND NOT CONFIG_C2USB_MCUMGR_SMP_CONSOLE)
     target_sources(app PRIVATE src/shell_tests.cpp)
 endif()
 
-if(CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT)
+if(CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT OR CONFIG_C2USB_MCUMGR_SMP_CONSOLE)
     target_sources(app PRIVATE src/smp_tests.cpp)
 endif()

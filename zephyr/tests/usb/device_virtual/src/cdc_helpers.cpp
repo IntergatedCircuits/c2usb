@@ -76,6 +76,11 @@ int bulk_transfer(usb::test::device* dev, uint8_t endpoint, uint8_t* data, size_
 
 bool configure_cdc_shell(usb::test::device* dev)
 {
+    return configure_cdc_interface(dev, 0);
+}
+
+bool configure_cdc_interface(usb::test::device* dev, uint8_t interface_index)
+{
     auto configuration = dev->get_configuration();
     if (!configuration)
     {
@@ -86,11 +91,14 @@ bool configure_cdc_shell(usb::test::device* dev)
         return false;
     }
 
-    constexpr auto set_line_request =
-        usb::control::request{usb::cdc::control::SET_CONTROL_LINE_STATE, 1,
-                              // CDC interface index:
-                              0};
-    return dev->control_out(set_line_request);
+    return set_cdc_line_state(dev, interface_index, true);
+}
+
+bool set_cdc_line_state(usb::test::device* dev, uint8_t interface_index, bool dtr)
+{
+    const auto request = usb::control::request{usb::cdc::control::SET_CONTROL_LINE_STATE,
+                                               static_cast<uint16_t>(dtr), interface_index};
+    return dev->control_out(request);
 }
 
 int send_bulk(usb::test::device* dev, std::span<const uint8_t> data)
@@ -144,13 +152,14 @@ size_t count_text(std::span<const uint8_t> bytes, std::string_view text)
 }
 
 bool read_until(usb::test::device* dev, std::span<uint8_t> output, size_t& output_size,
-                std::span<const uint8_t> expected, size_t marker_count, std::string_view marker)
+                std::span<const uint8_t> expected, size_t marker_count, std::string_view marker,
+                uint8_t endpoint)
 {
     std::array<uint8_t, 64> packet{};
     for (size_t attempt = 0; attempt < 256; ++attempt)
     {
         size_t received{};
-        int err = bulk_transfer(dev, 0x81, packet.data(), packet.size(), received);
+        int err = bulk_transfer(dev, endpoint, packet.data(), packet.size(), received);
         if (err != 0)
         {
             return false;

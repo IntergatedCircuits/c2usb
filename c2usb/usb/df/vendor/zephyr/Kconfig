@@ -22,3 +22,4 @@ endif # C2USB_UDC_MAC
 
 rsource "Kconfig.cdc_ncm"
 rsource "Kconfig.shell"
+rsource "Kconfig.smp_console"

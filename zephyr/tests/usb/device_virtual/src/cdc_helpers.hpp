@@ -11,9 +11,12 @@
 namespace c2usb::device_virtual
 {
 bool configure_cdc_shell(usb::test::device* dev);
+bool configure_cdc_interface(usb::test::device* dev, uint8_t interface_index);
+bool set_cdc_line_state(usb::test::device* dev, uint8_t interface_index, bool dtr);
 int send_bulk(usb::test::device* dev, std::span<const uint8_t> data);
 int send_text(usb::test::device* dev, std::string_view text);
 size_t count_text(std::span<const uint8_t> bytes, std::string_view text);
 bool read_until(usb::test::device* dev, std::span<uint8_t> output, size_t& output_size,
-                std::span<const uint8_t> expected, size_t marker_count, std::string_view marker);
+                std::span<const uint8_t> expected, size_t marker_count, std::string_view marker,
+                uint8_t endpoint = 0x81);
 } // namespace c2usb::device_virtual

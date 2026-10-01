@@ -1,0 +1,35 @@
+menuconfig C2USB_MCUMGR_SMP_CONSOLE
+    bool "c2usb MCUmgr SMP over CDC ACM console transport"
+    depends on MCUMGR
+    depends on BASE64
+    depends on CRC
+    select MCUMGR_TRANSPORT_SERIAL_HAS_SMP_OVER_CONSOLE
+    help
+      Enables a dedicated CDC ACM function for MCUmgr SMP serial transport.
+
+if C2USB_MCUMGR_SMP_CONSOLE
+
+config C2USB_MCUMGR_SMP_CONSOLE_FUNCTION_NAME
+    string "SMP console function name"
+    default "MCUmgr SMP"
+
+config C2USB_MCUMGR_SMP_CONSOLE_TX_BUFFER_SIZE
+    int "SMP console TX double buffer overall size"
+    range 128 1024
+    default 512 if UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+    default 128
+
+config C2USB_MCUMGR_SMP_CONSOLE_RX_BUFFER_SIZE
+    int "SMP console RX buffer size"
+    range 64 512
+    default 512 if UDC_DRIVER_HIGH_SPEED_SUPPORT_ENABLED
+    default 64
+
+config C2USB_MCUMGR_SMP_CONSOLE_MTU
+    int "SMP console MTU"
+    default 256
+    help
+      Maximum size of SMP frames sent and received over CDC ACM. This value must satisfy the
+      following relation: C2USB_MCUMGR_SMP_CONSOLE_MTU <= MCUMGR_TRANSPORT_NETBUF_SIZE + 2.
+
+endif # C2USB_MCUMGR_SMP_CONSOLE

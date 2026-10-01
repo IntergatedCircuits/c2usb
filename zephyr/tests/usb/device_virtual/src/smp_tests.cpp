@@ -15,6 +15,9 @@
 #include <zephyr/ztest.h>
 
 #include <usb/df/vendor/zephyr/shell.hpp>
+#if CONFIG_C2USB_MCUMGR_SMP_CONSOLE
+#include <usb/df/vendor/zephyr/smp_console.hpp>
+#endif
 
 using namespace std::chrono_literals;
 using namespace zephyr;
@@ -87,6 +90,7 @@ static serial_bytes make_echo_packet(std::string_view value, uint8_t op, uint8_t
     return result;
 }
 
+#if CONFIG_C2USB_SHELL_MCUMGR_TRANSPORT
 ZTEST(c2usb_usb_device_virtual, test_smp_demux_boundaries_and_recovery)
 {
     auto* dev = usb::test::host::wait_for_device();
@@ -245,3 +249,151 @@ ZTEST(c2usb_usb_device_virtual, test_smp_tx_backpressure_serializes_shell_writer
     zassert_true(frame_match.begin() < shell_match.begin(),
                  "Shell output interleaved before the complete SMP serial response");
 }
+#endif
+
+#if CONFIG_C2USB_MCUMGR_SMP_CONSOLE
+ZTEST(c2usb_usb_device_virtual, test_smp_dedicated_cdc_echo)
+{
+    auto* dev = usb::test::host::wait_for_device();
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+    zassert_true(c2usb::device_virtual::configure_cdc_interface(dev, 0),
+                 "Failed to configure the dedicated SMP CDC function");
+    zassert_true(usb::df::zephyr::smp_console::handle().get_line_config().data_terminal_ready(),
+                 "Dedicated SMP CDC DTR was not enabled");
+    zassert_not_null(smp_client_transport_get(SMP_SERIAL_TRANSPORT),
+                     "Dedicated CDC transport was not registered for SMP client use");
+
+    std::array<char, 100> payload{};
+    payload.fill('C');
+    const std::string_view echo{payload.data(), payload.size()};
+    constexpr uint8_t sequence = 41;
+    auto request = make_echo_packet(echo, MGMT_OP_WRITE, sequence, 'd');
+    auto response = make_echo_packet(echo, MGMT_OP_WRITE_RSP, sequence, 'r', true);
+    zassert_true(request.size > 128 and response.size > 128,
+                 "SMP echo frames must exceed the configured CDC TX double buffer");
+    zassert_equal(c2usb::device_virtual::send_bulk(dev, {request.bytes.data(), request.size}), 0,
+                  "Failed to send SMP request over dedicated CDC");
+
+    std::array<uint8_t, 512> output{};
+    size_t output_size{};
+    zassert_true(c2usb::device_virtual::read_until(dev, output, output_size,
+                                                   {response.bytes.data(), response.size}, 0,
+                                                   "not-present"),
+                 "Dedicated CDC did not return the SMP echo response");
+}
+
+ZTEST(c2usb_usb_device_virtual, test_smp_console_split_and_coalesced_frames)
+{
+    auto* dev = usb::test::host::wait_for_device();
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+    zassert_true(c2usb::device_virtual::configure_cdc_interface(dev, 0),
+                 "Failed to configure the SMP console CDC function");
+
+    static auto split_request = make_echo_packet("split", MGMT_OP_WRITE, 51, 'd');
+    static auto split_response = make_echo_packet("split", MGMT_OP_WRITE_RSP, 51, 'r', true);
+    zassert_true(split_request.size > 1 and split_response.size > 0,
+                 "Failed to build split SMP echo frames");
+    zassert_equal(
+        c2usb::device_virtual::send_bulk(dev, {split_request.bytes.data(), split_request.size - 1}),
+        0, "Failed to send SMP frame prefix");
+    zassert_equal(c2usb::device_virtual::send_bulk(
+                      dev, {split_request.bytes.data() + split_request.size - 1, 1}),
+                  0, "Failed to send SMP frame delimiter separately");
+
+    static std::array<uint8_t, 512> output{};
+    size_t output_size{};
+    zassert_true(c2usb::device_virtual::read_until(
+                     dev, output, output_size, {split_response.bytes.data(), split_response.size},
+                     0, "not-present"),
+                 "SMP frame split before newline was not reassembled");
+
+    static auto request_a = make_echo_packet("a", MGMT_OP_WRITE, 52, 'd');
+    static auto response_a = make_echo_packet("a", MGMT_OP_WRITE_RSP, 52, 'r', true);
+    static auto request_b = make_echo_packet("b", MGMT_OP_WRITE, 53, 'd');
+    static auto response_b = make_echo_packet("b", MGMT_OP_WRITE_RSP, 53, 'r', true);
+    zassert_true(request_a.size > 0 and request_b.size > 0 and response_a.size > 0 and
+                     response_b.size > 0,
+                 "Failed to build coalesced SMP echo frames");
+
+    static std::array<uint8_t, 128> requests{};
+    const size_t requests_size = request_a.size + request_b.size;
+    zassert_true(requests_size <= requests.size(), "Coalesced SMP requests exceed test buffer");
+    std::copy_n(request_a.bytes.begin(), request_a.size, requests.begin());
+    std::copy_n(request_b.bytes.begin(), request_b.size, requests.begin() + request_a.size);
+    zassert_equal(c2usb::device_virtual::send_bulk(dev, {requests.data(), requests_size}), 0,
+                  "Failed to send coalesced SMP frames");
+
+    static std::array<uint8_t, 128> responses{};
+    const size_t responses_size = response_a.size + response_b.size;
+    zassert_true(responses_size <= responses.size(), "Expected SMP responses exceed test buffer");
+    std::copy_n(response_a.bytes.begin(), response_a.size, responses.begin());
+    std::copy_n(response_b.bytes.begin(), response_b.size, responses.begin() + response_a.size);
+    output_size = 0;
+    zassert_true(c2usb::device_virtual::read_until(dev, output, output_size,
+                                                   {responses.data(), responses_size}, 0,
+                                                   "not-present"),
+                 "Multiple SMP frames in one USB transfer were not processed");
+}
+
+ZTEST(c2usb_usb_device_virtual, test_smp_console_oversized_frame_recovery)
+{
+    auto* dev = usb::test::host::wait_for_device();
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+    zassert_true(c2usb::device_virtual::configure_cdc_interface(dev, 0),
+                 "Failed to configure the SMP console CDC function");
+
+    auto request = make_echo_packet("recovered", MGMT_OP_WRITE, 54, 'd');
+    auto response = make_echo_packet("recovered", MGMT_OP_WRITE_RSP, 54, 'r', true);
+    zassert_true(request.size > 0 and response.size > 0, "Failed to build recovery SMP frames");
+
+    constexpr size_t oversized_size = MCUMGR_SERIAL_MAX_FRAME + 16;
+    std::array<uint8_t, oversized_size + 128> input{};
+    input[0] = MCUMGR_SERIAL_HDR_PKT_1;
+    input[1] = MCUMGR_SERIAL_HDR_PKT_2;
+    std::fill(input.begin() + 2, input.begin() + oversized_size - 1, 'x');
+    input[oversized_size - 1] = '\n';
+    std::copy_n(request.bytes.begin(), request.size, input.begin() + oversized_size);
+
+    zassert_equal(
+        c2usb::device_virtual::send_bulk(dev, {input.data(), oversized_size + request.size}), 0,
+        "Failed to send oversized fragment and recovery request");
+
+    std::array<uint8_t, 512> output{};
+    size_t output_size{};
+    zassert_true(c2usb::device_virtual::read_until(dev, output, output_size,
+                                                   {response.bytes.data(), response.size}, 0,
+                                                   "not-present"),
+                 "SMP console did not recover after an oversized fragment");
+}
+
+ZTEST(c2usb_usb_device_virtual, test_smp_console_dtr_resets_partial_frame)
+{
+    auto* dev = usb::test::host::wait_for_device();
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+    zassert_true(c2usb::device_virtual::configure_cdc_interface(dev, 0),
+                 "Failed to configure the SMP console CDC function");
+
+    auto partial_request = make_echo_packet("partial", MGMT_OP_WRITE, 55, 'd');
+    zassert_true(partial_request.size > 1, "Failed to build partial SMP request");
+    zassert_equal(c2usb::device_virtual::send_bulk(
+                      dev, {partial_request.bytes.data(), partial_request.size - 1}),
+                  0, "Failed to send partial SMP request");
+    zassert_true(c2usb::device_virtual::set_cdc_line_state(dev, 0, false),
+                 "Failed to lower CDC DTR");
+    zassert_true(c2usb::device_virtual::set_cdc_line_state(dev, 0, true),
+                 "Failed to raise CDC DTR");
+
+    auto request = make_echo_packet("after-dtr", MGMT_OP_WRITE, 56, 'd');
+    auto response = make_echo_packet("after-dtr", MGMT_OP_WRITE_RSP, 56, 'r', true);
+    zassert_true(request.size > 0 and response.size > 0, "Failed to build post-DTR SMP frames");
+    zassert_equal(c2usb::device_virtual::send_bulk(dev, {request.bytes.data(), request.size}), 0,
+                  "Failed to send SMP request after DTR reconnect");
+
+    std::array<uint8_t, 512> output{};
+    size_t output_size{};
+    zassert_true(c2usb::device_virtual::read_until(dev, output, output_size,
+                                                   {response.bytes.data(), response.size}, 0,
+                                                   "not-present"),
+                 "SMP console did not recover after DTR reset a partial frame");
+}
+#endif

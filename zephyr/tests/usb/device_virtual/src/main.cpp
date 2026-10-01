@@ -16,7 +16,11 @@
 #include <usb/df/class/hid.hpp>
 #include <usb/df/config_factory.hpp>
 #include <usb/df/device.hpp>
+#if !CONFIG_C2USB_MCUMGR_SMP_CONSOLE
 #include <usb/df/vendor/zephyr/shell.hpp>
+#else
+#include <usb/df/vendor/zephyr/smp_console.hpp>
+#endif
 #include <usb/df/vendor/zephyr/udc_mac.hpp>
 #include <usb/product_info.hpp>
 #include <usb/standard/descriptors.hpp>
@@ -48,6 +52,9 @@ auto& dfu_runtime_fn()
     return fn;
 }
 
+constexpr uint8_t DFU_INTERFACE_INDEX = 2;
+constexpr size_t USB_INTERFACE_COUNT = 3;
+
 template <usb::speed SPEED>
 const auto& loop_config(const char* name)
 {
@@ -55,9 +62,13 @@ const auto& loop_config(const char* name)
 
     static const auto cfg = usb::df::config::make_config(
         config_header,
-        usb::df::zephyr::shell::handle().config_entry(SPEED, usb::endpoint::address(0x01),
-                                                      usb::endpoint::address(0x81),
-                                                      usb::endpoint::address(0x8f)),
+#if CONFIG_C2USB_MCUMGR_SMP_CONSOLE
+        usb::df::zephyr::smp_console::handle()
+#else
+        usb::df::zephyr::shell::handle()
+#endif
+            .config_entry(SPEED, usb::endpoint::address(0x01), usb::endpoint::address(0x81),
+                          usb::endpoint::address(0x8f)),
         dfu_runtime_fn().config_entry());
 
     return cfg;
@@ -166,12 +177,23 @@ ZTEST(c2usb_usb_device_virtual, test_get_config_info)
                           uint8_t(usb::cdc::protocol_code::ITU_T_Vp250),
                           "Unexpected IAD descriptor function protocol");
 
-#ifdef CONFIG_SHELL_C2USB_FUNCTION_NAME
+#if CONFIG_C2USB_MCUMGR_SMP_CONSOLE
+            if (sizeof(CONFIG_C2USB_MCUMGR_SMP_CONSOLE_FUNCTION_NAME) > 1)
+            {
+                test_device_string(dev, iad_desc->iFunction,
+                                   CONFIG_C2USB_MCUMGR_SMP_CONSOLE_FUNCTION_NAME);
+            }
+            else
+            {
+                zassert_equal(iad_desc->iFunction, 0,
+                              "Unexpected IAD descriptor function string index");
+            }
+#else
             if (sizeof(CONFIG_SHELL_C2USB_FUNCTION_NAME) > 1)
             {
                 test_device_string(dev, iad_desc->iFunction, CONFIG_SHELL_C2USB_FUNCTION_NAME);
             }
-#else
+            else
             {
                 zassert_equal(iad_desc->iFunction, 0,
                               "Unexpected IAD descriptor function string index");
@@ -194,7 +216,7 @@ ZTEST(c2usb_usb_device_virtual, test_get_config_info)
                     zassert_equal(if_desc->bNumEndpoints, 2,
                                   "CDC ACM data interface has unexpected endpoints");
                     break;
-                case 2: // DFU runtime interface
+                case DFU_INTERFACE_INDEX:
                     zassert_equal(if_desc->bNumEndpoints, 0,
                                   "DFU runtime interface has unexpected endpoints");
 
@@ -224,7 +246,7 @@ ZTEST(c2usb_usb_device_virtual, test_get_config_info)
         }
         else if (auto* dfu_func_desc = it.as<usb::dfu::descriptor::functional>())
         {
-            zassert_equal(interface_count, 3,
+            zassert_equal(interface_count, USB_INTERFACE_COUNT,
                           " DFU function descriptor found before DFU interface descriptor");
             zassert_equal(dfu_func_desc->bmAttributes.will_detach, true,
                           "Unexpected DFU function descriptor will_detach attribute");
@@ -234,7 +256,7 @@ ZTEST(c2usb_usb_device_virtual, test_get_config_info)
         desc_count++;
     }
 
-    zassert_equal(interface_count, 3,
+    zassert_equal(interface_count, USB_INTERFACE_COUNT,
                   "Unexpected number of interfaces found in configuration descriptor");
     zassert_equal(endpoint_count, endpoints.size(),
                   "Unexpected number of endpoints found in configuration descriptor");
@@ -246,9 +268,8 @@ ZTEST(c2usb_usb_device_virtual, test_dfu_detach_request)
 
     zassert_not_null(dev, "No USB device enumerated on virtual host");
 
-    constexpr auto detach_request = usb::control::request{usb::dfu::control::DETACH, 0,
-                                                          // DFU interface index:
-                                                          2};
+    constexpr auto detach_request =
+        usb::control::request{usb::dfu::control::DETACH, 0, DFU_INTERFACE_INDEX};
 
     auto conf = dev->get_configuration();
     zassert_true(conf.has_value(), "Failed to get device configuration");

@@ -27,11 +27,6 @@
 		}
 	],
 	"settings": {
-		"nrf-connect.applications": [
-			"${workspaceFolder:ble-keyboard}",
-			"${workspaceFolder:usb-keyboard}",
-			"${workspaceFolder:usb-shell}"
-		],
 		"files.associations": {
 			"*.h": "c",
 			"*.c": "c",

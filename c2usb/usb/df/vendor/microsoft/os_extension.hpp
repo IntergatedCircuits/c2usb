@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
-#include "usb/df/device.hpp"
+#include "usb/df/vendor/extension.hpp"
+#include "usb/speeds.hpp"
 #include "usb/vendor/microsoft_os.hpp"
 
 namespace usb::df::microsoft
@@ -8,7 +9,7 @@ namespace usb::df::microsoft
 /// @brief This device extension implements Microsoft OS 2.0 descriptors provision,
 ///        specifically the Compatible ID string for USB functions
 ///        which otherwise don't get correct  driver assigned by Windows.
-class descriptors : public device::extension
+class descriptors : public vendor::extension
 {
   public:
     constexpr descriptors() = default;
@@ -19,7 +20,7 @@ class descriptors : public device::extension
                                  df::buffer& buffer);
 
   protected:
-    void control_setup_request(device& dev, message& msg) override;
+    bool control_setup_request(device& dev, message& msg) override;
     [[nodiscard]] unsigned bos_capabilities(const device& dev, df::buffer& buffer) const override;
     void bus_reset([[maybe_unused]] device& dev) override { status_ = 0; }
 
@@ -47,7 +48,7 @@ class alternate_enumeration_base : public descriptors
     void assign_istrings(device& dev, istring* index) override;
     [[nodiscard]] bool send_owned_string(const device& dev, istring index,
                                          string_message& smsg) const override;
-    void control_setup_request(device& dev, message& msg) override;
+    bool control_setup_request(device& dev, message& msg) override;
     [[nodiscard]] unsigned bos_capabilities(const device& dev, df::buffer& buffer) const override;
 
     [[nodiscard]] constexpr usb::speeds speeds() const { return speeds_; }

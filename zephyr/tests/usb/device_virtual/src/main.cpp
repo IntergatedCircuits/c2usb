@@ -10,12 +10,14 @@
 #include <string_view>
 
 #include <hid/example/simple_keyboard.hpp>
-#include <usb/descriptor_set.hpp>
 #include <usb/df/class/cdc_acm.hpp>
 #include <usb/df/class/dfu.hpp>
 #include <usb/df/class/hid.hpp>
 #include <usb/df/config_factory.hpp>
 #include <usb/df/device.hpp>
+#include <usb/df/vendor/microsoft/os_extension.hpp>
+#include <usb/df/vendor/webusb.hpp>
+#include <usb/standard/descriptor_set.hpp>
 #if !CONFIG_C2USB_MCUMGR_SMP_CONSOLE
 #include <usb/df/vendor/zephyr/shell.hpp>
 #else
@@ -36,6 +38,8 @@ using namespace std::chrono_literals;
 constexpr uint16_t TEST_VID = 0x2fe3;
 constexpr uint16_t TEST_PID = 0x1201;
 constexpr uint16_t TEST_LANG_ID = 0x0409;
+static constexpr char8_t WEBUSB_URL[]{u8"example.com/device"};
+static constexpr char WEBUSB_LANDING_PAGE[] = "https://example.com/landing_page";
 
 static constexpr usb::product_info product_info{TEST_VID, "C2USB", TEST_PID, "C2USB Loop Test",
                                                 usb::version("1.0")};
@@ -89,6 +93,17 @@ auto& loop_device()
     return dev_opt;
 }
 
+auto& device_extensions()
+{
+    static usb::df::webusb webusb_ext{WEBUSB_URL, usb::webusb::url_scheme::HTTPS,
+                                      WEBUSB_LANDING_PAGE};
+    static constinit usb::df::microsoft::descriptors ms_ext;
+    static constexpr auto extension_array =
+        c2usb::make_reference_array<usb::df::vendor::extension>(webusb_ext, ms_ext);
+    static usb::df::vendor::extension_set extension_set{extension_array};
+    return extension_set;
+}
+
 static void test_device_string(usb::test::device* dev, uint8_t index, std::string_view expected)
 {
     auto string_desc = dev->control_in<usb::standard::descriptor::string>(
@@ -104,6 +119,110 @@ static void test_device_string(usb::test::device* dev, uint8_t index, std::strin
     zassert_true(match, "String descriptor does not match expected value %s", expected.data());
 
     LOG_DBG("String descriptor %d: %s", index, expected.data());
+}
+
+struct bos_extension_info
+{
+    usb::istring webusb_landing_page{};
+    uint16_t msos_descriptor_set_length{};
+};
+
+static bos_extension_info test_bos_extensions(usb::test::device* dev)
+{
+    auto bos_header = dev->control_in<usb::standard::descriptor::binary_object_store>(
+        {usb::standard::device::GET_DESCRIPTOR, uint8_t(usb::standard::descriptor::type::BOS) << 8,
+         0, sizeof(usb::standard::descriptor::binary_object_store)});
+
+    zassert_true(bos_header.has_data(), "Failed to read BOS descriptor header");
+    zassert_true(bos_header.exact_size(), "BOS descriptor header size mismatch");
+    zassert_true(bos_header->wTotalLength >= sizeof(*bos_header),
+                 "BOS total length is smaller than its header");
+
+    auto bos_desc = dev->control_in<usb::standard::descriptor::binary_object_store>(
+        {usb::standard::device::GET_DESCRIPTOR, uint8_t(usb::standard::descriptor::type::BOS) << 8,
+         0, uint16_t(bos_header->wTotalLength + 1)});
+
+    zassert_true(bos_desc.has_data(), "Failed to read complete BOS descriptor");
+    zassert_equal(bos_desc->wTotalLength, bos_desc.as_span().size(),
+                  "BOS total length does not match returned data");
+
+    usb::standard::bos_capability_set capabilities{bos_desc.as_span()};
+    zassert_true(capabilities.valid(), "BOS capability set is malformed");
+    zassert_equal(capabilities.size(), bos_desc->bNumDeviceCaps,
+                  "BOS capability iterator count mismatch");
+    zassert_equal(capabilities.size(), 3,
+                  "BOS must contain USB 2.0, WebUSB, and Microsoft OS capabilities");
+
+    bos_extension_info info{};
+    bool found_webusb = false;
+    bool found_msos = false;
+    bool found_usb2_extension = false;
+
+    for (auto it = capabilities.begin(); it != capabilities.end(); ++it)
+    {
+        zassert_true(it.valid(), "Invalid BOS capability descriptor");
+
+        if (auto* usb2_cap =
+                it.as<usb::standard::descriptor::device_capability::usb_2p0_extension>();
+            usb2_cap != nullptr and
+            usb2_cap->bDevCapabilityType ==
+                uint8_t(usb::standard::descriptor::device_capability::type::USB_2p0_EXTENSION))
+        {
+            zassert_equal(usb2_cap->bLength,
+                          sizeof(usb::standard::descriptor::device_capability::usb_2p0_extension),
+                          "Unexpected USB 2.0 Extension capability size");
+            found_usb2_extension = true;
+        }
+        else if (auto* webusb_cap = it.as<usb::webusb::platform_descriptor>();
+                 webusb_cap != nullptr and
+                 webusb_cap->PlatformCapabilityUUID == usb::webusb::platform_descriptor::UUID)
+        {
+            zassert_equal(webusb_cap->bDevCapabilityType,
+                          uint8_t(usb::standard::descriptor::device_capability::type::PLATFORM),
+                          "Unexpected WebUSB capability type");
+            zassert_equal(webusb_cap->bLength, sizeof(*webusb_cap),
+                          "Unexpected WebUSB capability size");
+            zassert_equal(uint16_t(webusb_cap->CapabilityData.bcdVersion),
+                          uint16_t(usb::webusb::PROTOCOL_VERSION), "Unexpected WebUSB version");
+            zassert_equal(webusb_cap->CapabilityData.bVendorCode, usb::webusb::VENDOR_CODE,
+                          "Unexpected WebUSB vendor request code");
+            zassert_not_equal(webusb_cap->CapabilityData.iLandingPage, 0,
+                              "WebUSB landing page string index must not be zero");
+            info.webusb_landing_page = webusb_cap->CapabilityData.iLandingPage;
+            found_webusb = true;
+        }
+        else if (auto* msos_cap = it.as<usb::microsoft::platform_descriptor>();
+                 msos_cap != nullptr and
+                 msos_cap->PlatformCapabilityUUID == usb::microsoft::platform_descriptor::UUID)
+        {
+            zassert_equal(msos_cap->bDevCapabilityType,
+                          uint8_t(usb::standard::descriptor::device_capability::type::PLATFORM),
+                          "Unexpected Microsoft OS capability type");
+            zassert_equal(msos_cap->bLength, sizeof(*msos_cap),
+                          "Unexpected Microsoft OS capability size");
+            zassert_equal(msos_cap->CapabilityData.dwWindowsVersion,
+                          usb::microsoft::MIN_WINDOWS_VERSION,
+                          "Unexpected MS OS capability Windows version");
+            zassert_equal(msos_cap->CapabilityData.bMS_VendorCode, usb::microsoft::VENDOR_CODE,
+                          "Unexpected MS OS capability vendor request code");
+            zassert_equal(msos_cap->CapabilityData.bAltEnumCode, 0,
+                          "Unexpected MS OS alternate enumeration code");
+            info.msos_descriptor_set_length =
+                msos_cap->CapabilityData.wMSOSDescriptorSetTotalLength;
+            zassert_true(info.msos_descriptor_set_length >= sizeof(usb::microsoft::set_header),
+                         "MS OS capability advertises an invalid descriptor set length");
+            found_msos = true;
+        }
+        else
+        {
+            zassert_true(false, "Unexpected BOS capability descriptor");
+        }
+    }
+
+    zassert_true(found_webusb, "WebUSB platform capability was not found");
+    zassert_true(found_msos, "Microsoft OS platform capability was not found");
+    zassert_true(found_usb2_extension, "Required USB 2.0 Extension capability was not found");
+    return info;
 }
 
 ZTEST(c2usb_usb_device_virtual, test_get_device_info)
@@ -131,6 +250,113 @@ ZTEST(c2usb_usb_device_virtual, test_get_device_info)
     test_device_string(dev, device_desc->iProduct, product_info.product_name);
 }
 
+ZTEST(c2usb_usb_device_virtual, test_get_webusb_descriptors)
+{
+    auto* dev = usb::test::host::wait_for_device();
+
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+    auto bos_info = test_bos_extensions(dev);
+    test_device_string(dev, bos_info.webusb_landing_page, WEBUSB_LANDING_PAGE);
+
+    constexpr usb::control::request get_url{usb::webusb::control::WEBUSB, 1,
+                                            uint16_t(usb::webusb::request_code::GET_URL), 255};
+    auto url_desc = dev->control_in<usb::webusb::url_descriptor>(get_url);
+
+    zassert_true(url_desc.has_data(), "Failed to read WebUSB URL descriptor");
+    zassert_equal(url_desc->bDescriptorType, uint8_t(usb::webusb::descriptor_type::URL),
+                  "WebUSB URL descriptor has invalid type");
+    zassert_equal(url_desc->bLength, url_desc.as_span().size(),
+                  "WebUSB URL descriptor length mismatch: descriptor=%u transfer=%u",
+                  url_desc->bLength, unsigned(url_desc.as_span().size()));
+    zassert_equal(url_desc->bScheme, usb::webusb::url_scheme::HTTPS,
+                  "Unexpected WebUSB URL scheme");
+    zassert_true(url_desc->url() == WEBUSB_URL, "WebUSB URL does not match configured URL");
+}
+
+ZTEST(c2usb_usb_device_virtual, test_get_msos2_descriptors)
+{
+    auto* dev = usb::test::host::wait_for_device();
+
+    zassert_not_null(dev, "No USB device enumerated on virtual host");
+
+    auto bos_info = test_bos_extensions(dev);
+
+    const usb::control::request get_msos2_descriptor{
+        usb::microsoft::control::GET_DESCRIPTOR, 0,
+        uint16_t(usb::microsoft::descriptor_type::MS_OS_20_SET_HEADER_DESCRIPTOR),
+        bos_info.msos_descriptor_set_length};
+    auto msos_desc = dev->control_in<usb::microsoft::set_header>(get_msos2_descriptor);
+
+    zassert_true(msos_desc.has_data(), "Failed to read Microsoft OS 2.0 descriptor set");
+    const auto msos_bytes = msos_desc.as_span();
+    usb::microsoft::set_header set_header{};
+    std::memcpy(&set_header, msos_bytes.data(), sizeof(set_header));
+    zassert_equal(set_header.wLength, sizeof(set_header), "Invalid MS OS 2.0 set header length");
+    zassert_equal(set_header.wDescriptorType,
+                  uint16_t(usb::microsoft::descriptor_type::MS_OS_20_SET_HEADER_DESCRIPTOR),
+                  "Invalid MS OS 2.0 set header type");
+    zassert_equal(set_header.dwWindowsVersion, usb::microsoft::MIN_WINDOWS_VERSION,
+                  "Unexpected MS OS 2.0 minimum Windows version");
+    zassert_equal(set_header.wTotalLength, msos_bytes.size(),
+                  "MS OS 2.0 set total length does not match returned data");
+    zassert_equal(set_header.wTotalLength, bos_info.msos_descriptor_set_length,
+                  "MS OS 2.0 set length does not match BOS capability");
+
+    constexpr size_t config_offset = sizeof(usb::microsoft::set_header);
+    zassert_true(msos_bytes.size() >= config_offset + sizeof(usb::microsoft::config_subset_header),
+                 "Missing MS OS 2.0 configuration subset");
+    usb::microsoft::config_subset_header config_header{};
+    std::memcpy(&config_header, msos_bytes.data() + config_offset, sizeof(config_header));
+    zassert_equal(config_header.wLength, sizeof(config_header),
+                  "Invalid MS OS 2.0 configuration subset header length");
+    zassert_equal(config_header.wDescriptorType,
+                  uint16_t(usb::microsoft::descriptor_type::MS_OS_20_SUBSET_HEADER_CONFIGURATION),
+                  "Invalid MS OS 2.0 configuration subset header type");
+    zassert_equal(config_header.bConfigurationValue, 0, "Unexpected MS OS 2.0 configuration index");
+    zassert_equal(config_header.bReserved, 0, "MS OS 2.0 configuration reserved field is not zero");
+
+    constexpr size_t function_offset = config_offset + sizeof(config_header);
+    zassert_true(msos_bytes.size() >=
+                     function_offset + sizeof(usb::microsoft::function_subset_header),
+                 "Missing MS OS 2.0 function subset");
+    usb::microsoft::function_subset_header function_header{};
+    std::memcpy(&function_header, msos_bytes.data() + function_offset, sizeof(function_header));
+    zassert_equal(function_header.wLength, sizeof(function_header),
+                  "Invalid MS OS 2.0 function subset header length");
+    zassert_equal(function_header.wDescriptorType,
+                  uint16_t(usb::microsoft::descriptor_type::MS_OS_20_SUBSET_HEADER_FUNCTION),
+                  "Invalid MS OS 2.0 function subset header type");
+    zassert_equal(function_header.bFirstInterface, DFU_INTERFACE_INDEX,
+                  "WINUSB function subset does not identify the DFU interface");
+    zassert_equal(function_header.bReserved, 0, "MS OS 2.0 function reserved field is not zero");
+
+    constexpr size_t compatible_id_offset = function_offset + sizeof(function_header);
+    zassert_true(msos_bytes.size() >= compatible_id_offset + sizeof(usb::microsoft::compatible_id),
+                 "Missing MS OS 2.0 compatible ID descriptor");
+    usb::microsoft::compatible_id compatible_id{};
+    std::memcpy(&compatible_id, msos_bytes.data() + compatible_id_offset, sizeof(compatible_id));
+    zassert_equal(compatible_id.wLength, sizeof(compatible_id),
+                  "Invalid MS OS 2.0 compatible ID descriptor length");
+    zassert_equal(compatible_id.wDescriptorType,
+                  uint16_t(usb::microsoft::descriptor_type::MS_OS_20_FEATURE_COMPATBLE_ID),
+                  "Invalid MS OS 2.0 compatible ID descriptor type");
+    constexpr std::array<char, 8> WINUSB_ID{'W', 'I', 'N', 'U', 'S', 'B', 0, 0};
+    constexpr std::array<char, 8> EMPTY_SUBCOMPATIBLE_ID{};
+    zassert_true(compatible_id.CompatibleID == WINUSB_ID,
+                 "DFU compatible ID does not match WINUSB");
+    zassert_true(compatible_id.SubCompatibleID == EMPTY_SUBCOMPATIBLE_ID,
+                 "Unexpected DFU sub-compatible ID");
+
+    constexpr size_t expected_config_length =
+        sizeof(config_header) + sizeof(function_header) + sizeof(compatible_id);
+    zassert_equal(config_header.wTotalLength, expected_config_length,
+                  "MS OS 2.0 configuration subset length mismatch");
+    zassert_equal(function_header.wSubsetLength, sizeof(function_header) + sizeof(compatible_id),
+                  "MS OS 2.0 function subset length mismatch");
+    zassert_equal(compatible_id_offset + sizeof(compatible_id), msos_bytes.size(),
+                  "MS OS 2.0 descriptor set has trailing or unaccounted bytes");
+}
+
 ZTEST(c2usb_usb_device_virtual, test_get_config_info)
 {
     auto* dev = usb::test::host::wait_for_device();
@@ -153,7 +379,7 @@ ZTEST(c2usb_usb_device_virtual, test_get_config_info)
     static constexpr auto endpoints = std::to_array<usb::endpoint::address>(
         {usb::endpoint::address(0x8f), usb::endpoint::address(0x01), usb::endpoint::address(0x81)});
 
-    auto desc_set = usb::descriptor_set(config_desc.as_span());
+    auto desc_set = usb::standard::descriptor_set(config_desc.as_span());
     for (auto it = desc_set.begin(); it != desc_set.end(); ++it)
     {
         zassert_true(it.valid(), "Invalid descriptor found in configuration descriptor set");
@@ -295,7 +521,7 @@ static void* test_setup()
     int err = usb::test::host::start();
     zassert_equal(err, 0, "Failed to start USB host");
 
-    auto& dev = loop_device().emplace(mac(), product_info);
+    auto& dev = loop_device().emplace(mac(), product_info, device_extensions());
 
     dev.set_config_for_speed(loop_config<usb::speed::FULL>("fs-cfg"), usb::speed::FULL);
     if constexpr (usb::df::zephyr::udc_mac::supported_speeds().includes(usb::speed::HIGH))

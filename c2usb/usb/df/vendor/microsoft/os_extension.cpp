@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "usb/df/vendor/microsoft/os_extension.hpp"
+#include "usb/df/device.hpp"
 #include "usb/df/function.hpp"
 
 template <typename T>
@@ -71,7 +72,7 @@ void descriptors::get_msos2_descriptor(const device& dev, df::buffer& buffer)
     }
 }
 
-void descriptors::control_setup_request(device& dev, message& msg)
+bool descriptors::control_setup_request(device& dev, message& msg)
 {
     using namespace usb::microsoft::control;
 
@@ -83,13 +84,14 @@ void descriptors::control_setup_request(device& dev, message& msg)
         get_msos2_descriptor(dev, msg.buffer());
         if (msg.buffer().used_length() > 0)
         {
-            return msg.send_buffer();
+            msg.send_buffer();
+            return true;
         }
         break;
     default:
         break;
     }
-    return msg.reject();
+    return false;
 }
 
 usb::microsoft::platform_descriptor* descriptors::get_platform_descriptor(const device& dev,
@@ -112,7 +114,7 @@ unsigned descriptors::bos_capabilities(const device& dev, df::buffer& buffer) co
     return 1;
 }
 
-void alternate_enumeration_base::control_setup_request(device& dev, message& msg)
+bool alternate_enumeration_base::control_setup_request(device& dev, message& msg)
 {
     using namespace usb::microsoft::control;
 
@@ -129,7 +131,8 @@ void alternate_enumeration_base::control_setup_request(device& dev, message& msg
         {
             status_ &= uint8_t(~ALT_ENUM_FLAG);
         }
-        return msg.confirm();
+        msg.confirm();
+        return true;
 
     default:
         return descriptors::control_setup_request(dev, msg);

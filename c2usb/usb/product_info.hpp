@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <variant>
 #include "usb/version.hpp"
 #include <string_view>
 

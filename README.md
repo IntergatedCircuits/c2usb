@@ -60,6 +60,13 @@ It can operate without custom drivers when used with Microsoft OS descriptors.
 
 ### Vendor extensions
 
+#### 🌐 WebUSB
+
+The [WebUSB specification][WebUSB] allows a supporting web browser to interact with a USB device
+that advertises protocol support. USB devices can implement custom interfaces that are tailored
+to a specific application scenario, and the browser can interact with the device
+directly on USB request block level.
+
 #### 🪟 Microsoft OS descriptors and alternate enumeration
 
 Microsoft OS descriptors version 2.0 is supported.
@@ -86,3 +93,4 @@ towards the host computer, depending on its OS.
 [project-structure]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p1204r0.html
 [hid-rp]: https://github.com/IntergatedCircuits/hid-rp
 [WCID]: https://github.com/pbatard/libwdi/wiki/WCID-Devices
+[WebUSB]: https://usb.spec.whatwg.org/

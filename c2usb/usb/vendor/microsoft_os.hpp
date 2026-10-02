@@ -51,6 +51,7 @@ struct descriptor_set_info
 struct platform_descriptor
     : public standard::descriptor::device_capability::platform<descriptor_set_info>
 {
+    // D8DD60DF-4589-4CC7-9CD2-659D9E648A9F
     constexpr static uuid UUID = {0xDF, 0x60, 0xDD, 0xD8, 0x89, 0x45, 0xC7, 0x4C,
                                   0x9C, 0xD2, 0x65, 0x9D, 0x9E, 0x64, 0x8A, 0x9F};
 

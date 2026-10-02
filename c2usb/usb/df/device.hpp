@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
-#include <variant>
+#include "usb/df/mac.hpp"
+#include "usb/df/vendor/extension.hpp"
+#include "usb/product_info.hpp"
 #include <etl/delegate.h>
 #include <magic_enum.hpp>
-
-#include "usb/df/mac.hpp"
-#include "usb/product_info.hpp"
 
 namespace usb::df
 {
@@ -30,49 +29,6 @@ struct language_id_provider
 class device : public polymorphic
 {
   public:
-    /// @brief  The extension is the interface for vendor specific device extensions.
-    class extension : public interface
-    {
-      public:
-        static extension& instance()
-        {
-            static extension ext;
-            return ext;
-        }
-
-        virtual void bus_reset([[maybe_unused]] device& dev) {}
-        virtual void assign_istrings([[maybe_unused]] device& dev, [[maybe_unused]] istring* index)
-        {}
-        virtual bool send_owned_string([[maybe_unused]] const device& dev,
-                                       [[maybe_unused]] istring index,
-                                       [[maybe_unused]] string_message& smsg) const
-        {
-            return false;
-        }
-        [[nodiscard]] virtual config::view_list
-        configs_by_speed([[maybe_unused]] const device& dev,
-                         [[maybe_unused]] usb::speed speed) const
-        {
-            return {};
-        }
-        virtual void control_setup_request([[maybe_unused]] device& dev, message& msg)
-        {
-            return msg.reject();
-        }
-        virtual void control_data_status([[maybe_unused]] device& dev, message& msg)
-        {
-            return msg.confirm();
-        }
-        virtual unsigned bos_capabilities([[maybe_unused]] const device& dev,
-                                          [[maybe_unused]] df::buffer& buffer) const
-        {
-            return 0;
-        }
-
-      protected:
-        constexpr extension() = default;
-    };
-
     [[nodiscard]] bool configured() const { return mac_.configured(); }
     [[nodiscard]] usb::speed bus_speed() const { return mac_.speed(); }
 
@@ -136,7 +92,7 @@ class device : public polymorphic
     bool set_hs_feature(message& msg);
 
     device(usb::df::mac& mac, const product_info& prodinfo, usb::speeds speeds,
-           uint8_t max_configs_count, extension& ext)
+           uint8_t max_configs_count, vendor::extension& ext)
         : mac_(mac),
           product_info_(prodinfo),
           extension_(ext),
@@ -196,7 +152,7 @@ class device : public polymorphic
 
     usb::df::mac& mac_;
     const product_info& product_info_;
-    extension& extension_;
+    vendor::extension& extension_;
     power_event_delegate power_event_delegate_;
 
     static constexpr istring ISTR_VENDOR_NAME = 0xFF;
@@ -231,7 +187,7 @@ class device_instance : public device
 
   public:
     device_instance(usb::df::mac& mac, const product_info& prodinfo,
-                    extension& ext = extension::instance())
+                    vendor::extension& ext = vendor::extension::instance())
         : device(mac, prodinfo, SPEEDS, MAX_CONFIG_LIST_SIZE, ext)
     {}
 

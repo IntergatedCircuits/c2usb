@@ -68,10 +68,11 @@ void device::on_control_data(message& msg)
         {
             return msg.confirm();
         }
-        else
+        else if (extension_.control_data(*this, msg))
         {
-            return extension_.control_data_status(*this, msg);
+            return;
         }
+        return msg.reject();
 
     case request::recipient::INTERFACE:
         return interface_control(msg, &function::handle_control_data);
@@ -242,10 +243,11 @@ void device::device_setup_request(message& msg)
             return msg.reject();
         }
     }
-    else
+    if (extension_.control_setup_request(*this, msg))
     {
-        return extension_.control_setup_request(*this, msg);
+        return;
     }
+    return msg.reject();
 }
 
 void device::get_string_descriptor(message& msg) const

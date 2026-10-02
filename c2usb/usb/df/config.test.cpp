@@ -3,13 +3,14 @@
 #include "hid/example/high_resolution_mouse.hpp"
 #include "hid/example/simple_keyboard.hpp"
 #include "test_framework.hpp"
-#include "usb/descriptor_set.hpp"
 #include "usb/df/class/cdc.hpp"
 #include "usb/df/class/cdc_acm.hpp"
 #include "usb/df/class/dfu.hpp"
 #include "usb/df/class/hid.hpp"
 #include "usb/df/config_factory.hpp"
 #include "usb/df/vendor/microsoft/xinput.hpp"
+#include "usb/df/vendor/webusb.hpp"
+#include "usb/standard/descriptor_set.hpp"
 
 namespace usb::df::config
 {

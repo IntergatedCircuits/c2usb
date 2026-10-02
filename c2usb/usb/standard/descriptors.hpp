@@ -123,7 +123,7 @@ struct string : public usb::descriptor<string>
     constexpr static auto TYPE_CODE = standard::descriptor::type::STRING;
 
     // TODO: https://people.kernel.org/kees/bounded-flexible-arrays-in-c
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    // NOLINTNEXTLINE(*-avoid-c-arrays)
     alignas(char16_t) le_uint16_t Data[0];
 
     constexpr string() = default;
@@ -133,6 +133,10 @@ struct string : public usb::descriptor<string>
     [[nodiscard]] std::enable_if_t<std::endian::native == std::endian::little, std::u16string_view>
     u16string() const
     {
+        if (bLength <= sizeof(usb::descriptor_header))
+        {
+            return {};
+        }
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-align"
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)

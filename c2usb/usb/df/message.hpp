@@ -80,6 +80,7 @@ class string_message
     [[nodiscard]] uint16_t language_id() const { return request().wIndex; }
 
     [[nodiscard]] control::stage stage() const { return stage_; }
+    [[nodiscard]] bool pending() const { return pending_; }
 
     void reject();
 
@@ -124,6 +125,7 @@ class message : protected string_message
     using string_message::string_message;
     string_message& to_string_message() { return *(this); }
 
+    using string_message::pending;
     using string_message::request;
     using string_message::stage;
 

@@ -281,6 +281,51 @@ SUITE(usb_df_config)
         CHECK(!view.info().config_size());
     };
 
+    TEST_CASE("mutating configuration")
+    {
+        constexpr auto config_header = header(power::bus(500, remote_wakeup));
+        static cdc::acm::function serial{};
+        static usb::df::hid::function hid_kb{simple_keyboard::instance(),
+                                             usb::hid::boot_protocol_mode::KEYBOARD};
+        static microsoft::xfunction xpad_kb{high_resolution_mouse::instance()};
+        static dfu::runtime_function dfu_runtime{"dfu", [](std::chrono::milliseconds) {}};
+
+        builder<> cfg{config_header, usb::speed::HIGH};
+
+        CHECK(cfg.empty());
+        CHECK(cfg.speed() == usb::speed::HIGH);
+
+        cfg.append(serial.config_entry(cfg.speed(), usb::endpoint::address(0x01),
+                                       usb::endpoint::address(0x81), usb::endpoint::address(0x8f)));
+        CHECK(!cfg.empty());
+        CHECK(cfg.view().interfaces().count() == 2);
+        CHECK(cfg.view().endpoints().count() == 3);
+
+        cfg.append(hid_kb.config_entry(cfg.speed(), usb::endpoint::address(0x82), 1,
+                                       usb::endpoint::address(0x02), 1));
+        CHECK(!cfg.empty());
+        CHECK(cfg.view().interfaces().count() == 3);
+        CHECK(cfg.view().endpoints().count() == 5);
+
+        cfg.append(dfu_runtime.config_entry());
+        CHECK(!cfg.empty());
+        CHECK(cfg.view().interfaces().count() == 4);
+        CHECK(cfg.view().endpoints().count() == 5);
+
+        cfg.remove(hid_kb);
+        CHECK(!cfg.empty());
+        CHECK(cfg.view().interfaces().count() == 3);
+        CHECK(cfg.view().endpoints().count() == 3);
+
+        cfg.remove(serial);
+        CHECK(!cfg.empty());
+        CHECK(cfg.view().interfaces().count() == 1);
+        CHECK(cfg.view().endpoints().count() == 0);
+
+        cfg.clear();
+        CHECK(cfg.empty());
+    };
+
     TEST_CASE("power and descriptor mapping")
     {
         constexpr auto p_bus = power::bus(500, remote_wakeup);
@@ -389,26 +434,5 @@ SUITE(usb_df_config)
         const std::array<view, 3> view_arr = {view(cfg), view(cfg2), view()};
         const auto list_from_views = view_list(view_arr);
         CHECK(list_from_views.size() == 2);
-    };
-
-    TEST_CASE("resource-backed configuration")
-    {
-        static dummy_function function{};
-        const auto chunk = to_elements({element(interface(function)),
-                                        element(endpoint(bulk_ep(usb::endpoint::address(0x81))))});
-        constexpr auto cfg_header = header(power::shared(250, remote_wakeup), "resource");
-
-        alignas(elements<4>) std::array<std::byte, sizeof(elements<4>)> storage{};
-        std::pmr::monotonic_buffer_resource resource(storage.data(), storage.size(),
-                                                     std::pmr::null_memory_resource());
-        const auto cfg_view = make_config(&resource, cfg_header, chunk);
-
-        CHECK(cfg_view.valid());
-        CHECK(cfg_view.info().config_size() == 3);
-        CHECK(cfg_view.interfaces().count() == 1);
-        CHECK(cfg_view.endpoints().count() == 1);
-        CHECK(cfg_view.active_endpoints().count() == 1);
-        CHECK(&cfg_view.interfaces()[0].function() == &function);
-        CHECK(cfg_view.endpoints().at(usb::endpoint::address(0x81)).valid());
     };
 };

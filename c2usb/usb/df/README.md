@@ -1,133 +1,106 @@
 # USB Device Framework (usb::df)
 
-`usb::df` is a high-level USB device framework that separates:
+`usb::df` namespace hosts the c2 USB Device Framework implementation,
+while other `usb` namespaces are for shared device-host definitions.
+Its architecture is separated along object class boundaries,
+so let's look at each.
 
-1. Device policy and configuration modeling
-2. USB class/function logic (HID, CDC-ACM, vendor functions)
-3. Hardware/RTOS USB controller integration (MAC implementations)
+## MAC: Medium Access Control
 
-The key design idea is that a USB configuration is defined manually at a high level
-as a static composition of:
+The `usb::df::mac` class implements access to the USB bus, providing bus state and data flow management.
+Its subclasses are responsible for directly interacting with the hardware itself.
+If you want to port this library to run on your hardware platform,
+this is where you start.
 
-1. Power properties
-2. Interfaces bound to function objects
-3. Endpoints bound to those interfaces
+## Functions
 
-The framework then uses those definitions to build descriptors and route control/data
-transfers without requiring descriptor blobs handwritten by the application.
-This manual definition allows for a device framework with multiple number of configurations
-for each bus speed (and even alternative configurations for MS Windows OS),
-that can be easily modified at runtime as well.
+In USB terms, a function is what provides a meaningful device service to the host,
+that is often abstracted away from the USB transfer medium itself
+(such as an audio stream, a storage medium, etc).
+A `usb::df::function` is the base class for USB functions.
+Subclasses most often implement various USB class specification based functions,
+so in most other USB stacks they are referred to as classes themselves.
 
-## Design goals
+USB functions are loosely coupled to their endpoints: while their operation
+requires the presence and order of specific types of endpoints,
+the endpoint properties such as address, max packet size or interval
+are specified in the configuration. Functions access this information
+to generate their configuration descriptor set, and to open the endpoints.
+Opened endpoints are manipulated through their opaque handles instead of their address.
 
-- Portable high-level USB function logic across platforms
-- Explicit, static configuration composition (no hidden dynamic behavior)
-- No dynamic memory requirement in the framework core
-- Runtime selection of configuration sets (including per-speed lists)
-- Support for vendor/device extensions without forking core device logic
+## Configurations
 
-## Core concepts
+The `usb::df::config` namespace contains the functionality necessary for creating
+and viewing USB device configurations. A configuration is a contiguous array of
+`element` slots. Each slot stores one configuration item: a `header`, an `interface`,
+an `endpoint`, or a `footer`. The header is always first and stores configuration
+power properties and an optional name; the footer is always last and marks the end.
 
-### 1) Function objects
+For example, a configuration with two interfaces can be pictured like this:
 
-A `usb::df::function` is the base class for USB functions. Subclasses implement class
-behavior and descriptor contribution.
+```text
++--------------+
+| header       |
++--------------+
+| interface    |
++--------------+
+|  \_ endpoint |
++--------------+
+|  \_ endpoint |
++--------------+
+| interface    |
++--------------+
+| footer       |
++--------------+
+```
 
-Responsibilities of a function:
+The diagram is schematic: an interface may have zero or more endpoints, and each
+endpoint is associated with the interface that precedes it. Functions use one or
+more interfaces and their endpoints. Conventionally, each function provides its
+own `config_entry()` helper to create the required sequence of elements.
 
-- Contribute to configuration descriptor via `describe_config(...)`
-- Handle control requests routed to its interfaces/endpoints
-- Manage its assigned endpoints while it is active
-- Optionally own string descriptor indices
+To create a configuration statically, use `make_config`, while the `builder` class
+offers the possibility to dynamically rearrange a configuration.
 
-Examples in-tree:
+Each configuration must exist unchanged while it is assigned to an open `device`.
+Configurations are accessed through various `view`s to perform a wide range of operations:
+- The `device` dispatches configuration events and interface control messages through `interface_view`.
+- The `function`s use `interface_endpoint_view` to get the endpoints for each of their interfaces.
+- The `mac` uses `active_endpoint_view` to allocate the resources for the endpoints to be used in the selected configuration.
 
-- `usb::df::hid::function`
-- `usb::df::cdc::acm::function`
-- `usb::df::microsoft::xfunction`
+## Device
 
-### 2) Configuration model
+The `usb::df::device` class implements chapter 9 of the USB standard specification.
+Specifically, device is the root control `message` handler, either serving the requests
+itself, or dispatching them to the selected interface (`function`) or vendor extension.
+All USB descriptors are constructed in place in the fixed size control buffer
+owned by the `mac` - therefore it is important to size this buffer to fit the largest
+descriptor, be it configuration, string or BOS. Use a debug build with `assert()` enabled to verify.
 
-The `usb::df::config` configuration model is built around fixed-size elements:
+A `device` is instantiated through the `usb::df::device_instance<SPEEDS, MAX_CONFIG_LIST_SIZE>` template subclass.
+Constructing requires a `mac` instance, a `product_info` for constructing a device descriptor,
+and a set of configurations. Each supported bus speed needs its own configurations to be set in the device.
+This must be done while the device is closed (no communication with the host).
 
-- `power`: bus/self/shared power + remote wakeup + max current
-- `header`: configuration metadata (`power` + optional name + computed size)
-- `interface`: binds one interface entry to a function object
-- `endpoint`: endpoint descriptor plus internal flags
+Although most application use a single configuration per speed, the device supports
+using multiple alternative configurations at each speed. In this case use `make_config_list` to create
+a reference list of configurations, and use `device`'s `set_configs_for_speed()` instead of `set_config_for_speed()`.
 
-The tests in `test/usb/df/config.test.cpp` demonstrate intended behavior,
-including reverse iteration, endpoint lookup, interface endpoint views,
-active-vs-unused endpoint filtering, and list handling.
+Due to the highly flexible arrangement of device functionality, string descriptor indexing
+gets complicated. String owning components (`function`s, `vendor::extension`s) must indicate the number
+of owned strings, and the `device` assigns string indeces when a configuration is provided
+by allowing each to reserve their own indeces in this order: `function`, `vendor::extension`, configuration,
+`device` level strings.
 
-### 3) Device controller
+## Vendor extensions
 
-`usb::df::device` handles standard device-level control flow:
+The `usb::df::vendor::extension` subclasses allow extending the device level behavior
+(instead of providing `function` scope functionality):
 
-- standard requests (`GET_DESCRIPTOR`, `SET_CONFIGURATION`, etc.)
-- interface and endpoint recipient request routing
-- active configuration transitions
-- string descriptor ownership and dispatch
-- BOS descriptor assembly
-- power/state event signaling to application
-
-`usb::df::device_instance<SPEEDS, MAX_CONFIG_LIST_SIZE>` stores and serves
-configuration lists per speed and provides convenience APIs for single-config devices.
-
-### 4) MAC abstraction
-
-`usb::df::mac` is the hardware/driver abstraction used by `device` and `function` objects.
-It provides:
-
-- bus attach/detach and reset integration
-- control transfer staging
-- endpoint open/close/send/receive/stall operations
-- active endpoint mapping helpers
-
-Platform ports implement concrete behavior (for example Zephyr UDC and NXP MCUX).
-
-### 5) Extension mechanism
-
-`usb::df::device::extension` extensions can hook device behavior without modifying core classes:
-
-- bus reset reaction
+- device level vendor specific control message handling
+- extending device BOS (Binary Object Store) descriptor
 - extra string ownership
-- descriptor/control request augmentation
-- speed-specific config override
-- BOS capability contribution
+- providing alternate configuration(s)
 
-Microsoft OS 2.0 support is implemented through this extension model.
-
-## Architecture at a glance
-
-Typical flow:
-
-1. Application creates function objects
-2. Application builds one or more `config::view` definitions
-3. Application registers configs in `device_instance`
-4. Application opens device (`device.open()`)
-5. Host enumerates; `device` builds descriptors by asking each function
-6. Host selects configuration; functions are initialized and endpoints opened
-7. Class/data traffic is routed between `device`, `function`, and `mac`
-
-Layering:
-
-- Application: owns function instances and selected configuration sets
-- `usb::df` core: descriptor generation, control routing, lifecycle orchestration
-- Port MAC: interacts with USB controller driver/RTOS
-
-## Practical extension points
-
-For new class/vendor development:
-
-1. Derive from `usb::df::function` or `usb::df::named_function`
-2. Implement `describe_config(...)`
-3. Implement control request handlers as needed
-4. Implement enable/disable and transfer callbacks
-5. Provide a `config(...)` helper to simplify integration
-
-For device-wide customization:
-
-1. Derive from `usb::df::device::extension`
-2. Override only the hooks needed
-3. Inject extension instance into `device_instance` constructor
+Microsoft OS 2.0 descriptors (including alternate enumeration) and WebUSB support
+are implemented through this extension model.

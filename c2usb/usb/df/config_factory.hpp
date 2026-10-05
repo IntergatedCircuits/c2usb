@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <vector>
 #include "usb/df/config.hpp"
 #include "usb/speeds.hpp"
-#include <memory_resource>
 
 namespace usb::df::config
 {
@@ -88,47 +88,96 @@ constexpr auto make_config(const header& info, elements<SIZES>... chunks)
     return final_array;
 }
 
-/// @brief  Creates a configuration array in the supplied memory resource.
-/// @note   The memory resource and allocated storage must outlive the returned view.
-/// @tparam ...SIZES deduced template parameter
-/// @param  resource: memory resource to allocate the configuration array from
-/// @param  info: the configuration's base information
-/// @param  ...chunks element arrays to join
-/// @return The view to the allocated configuration array
-template <size_t... SIZES>
-[[nodiscard]] view make_config(std::pmr::memory_resource* resource, const header& info,
-                               elements<SIZES>... chunks)
-    requires((1 + (SIZES + ...) + 1) <= std::numeric_limits<uint8_t>::max())
-{
-    std::pmr::polymorphic_allocator<element> allocator(resource);
-    auto* final_array = allocator.allocate(1 + (SIZES + ...) + 1);
-    assert(final_array != nullptr);
-
-    constexpr uint8_t array_count = sizeof...(chunks);
-    constexpr std::array<uint8_t, array_count + 1> array_lengths = {chunks.size()..., 0};
-    std::array<const element*, array_count> arrays = {chunks.data()...};
-    detail::assign_element_array(info, array_lengths.data(), arrays.data(), final_array);
-
-    return view(final_array);
-}
-
-/// @brief  Storage for configuration arrays using std::pmr::monotonic_buffer_resource.
-/// @tparam SPEEDS: The speeds supported by the configuration set.
-/// @tparam MAX_SIZE: The maximum configuration size in the set.
-template <usb::speeds SPEEDS, size_t MAX_SIZE>
-class monotonic_storage
+/// @brief  Mutable configuration builder that allows dynamic modification of the
+//          configuration array. The configuration shall not be modified while
+//          it is assigned to a device.
+template <class Allocator = std::allocator<element>>
+class builder
 {
   public:
-    constexpr monotonic_storage() = default;
+    builder(const config::header& info, usb::speed speed, size_t reserve_size = 0,
+            const Allocator& alloc = Allocator())
+        : storage_(alloc), speed_(speed)
+    {
+        storage_.reserve(reserve_size);
+        storage_.push_back(info);
+        storage_.push_back(footer());
+        update_config_size();
+    }
 
-    [[nodiscard]] constexpr std::pmr::memory_resource* resource() { return &resource_; }
+    /// @brief  Returns the speed of the configuration, which shall be kept the same.
+    [[nodiscard]] usb::speed speed() const { return speed_; }
 
-    [[nodiscard]] static constexpr size_t max_size() { return MAX_SIZE; }
-    [[nodiscard]] constexpr static auto speeds() { return SPEEDS; }
+    [[nodiscard]] config::view view() const { return config::view(storage_.data()); }
+
+    [[nodiscard]] const config::header& info() const
+    {
+        return reinterpret_cast<const config::header&>(storage_.front());
+    }
+
+    /// @brief  An empty configuration has no interfaces or endpoints defined.
+    [[nodiscard]] bool empty() const { return storage_.size() <= 2; }
+
+    [[nodiscard]] config::power& power() { return static_cast<config::power&>(header()); }
+
+    /// @brief  Append a set of elements (representing a function, or a set of functions) to the
+    ///         configuration.
+    /// @param  elems: The span of elements to append to the configuration.
+    void append(const std::span<const element>& elems)
+    {
+        assert(!elems.empty());
+        storage_.insert(storage_.end() - 1, elems.begin(), elems.end());
+        update_config_size();
+    }
+
+    /// @brief  Remove a function from the configuration, including all its interfaces and
+    ///         endpoints.
+    /// @param  func  The function to remove
+    /// @return True if the function was successfully removed, false if not found.
+    bool remove(function& func)
+    {
+        auto view = config::view(storage_.data());
+        auto first = storage_.end();
+        auto last = storage_.end();
+        for (const auto& iface : view.interfaces())
+        {
+            if ((&iface.function() == &func) and (iface.primary()))
+            {
+                assert(first == storage_.end());
+                auto* element_ptr = reinterpret_cast<element*>(const_cast<interface*>(&iface));
+                first = storage_.begin() + (element_ptr - storage_.data());
+            }
+            auto* element_ptr = reinterpret_cast<element*>(const_cast<interface*>(&iface));
+            last = storage_.begin() + (element_ptr - storage_.data()) +
+                   static_cast<std::vector<element, Allocator>::difference_type>(
+                       iface.endpoints().count());
+        }
+        if (first != storage_.end())
+        {
+            assert(last != storage_.end());
+            storage_.erase(first, last);
+            update_config_size();
+            return true;
+        }
+        return false;
+    }
+
+    /// @brief  Clears all interfaces and endpoints from the configuration, making it empty.
+    void clear()
+    {
+        storage_.erase(storage_.begin() + 1, storage_.end() - 1);
+        update_config_size();
+    }
 
   private:
-    alignas(element) std::array<std::byte, sizeof(elements<MAX_SIZE>) * SPEEDS.count()> storage_{};
-    std::pmr::monotonic_buffer_resource resource_{storage_.data(), storage_.size()};
+    [[nodiscard]] config::header& header()
+    {
+        return reinterpret_cast<config::header&>(storage_.front());
+    }
+    void update_config_size() { header().set_size(static_cast<uint8_t>(storage_.size() - 1)); }
+
+    std::vector<element, Allocator> storage_;
+    usb::speed speed_;
 };
 
 } // namespace usb::df::config

@@ -259,6 +259,7 @@ void device::get_string_descriptor(message& msg) const
     }
 
     auto& smsg = msg.to_string_message();
+    // extensions might handle invalid language_id, first pass through them
     if (extension_.send_owned_string(*this, index, smsg))
     {
         // nothing more to do

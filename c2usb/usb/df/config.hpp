@@ -94,6 +94,8 @@ class alignas(std::uintptr_t) header : public power
 
   private:
     friend struct detail;
+    template <class Allocator>
+    friend class builder;
 
     constexpr void set_size(uint8_t size) { config_size_ = size; }
     constexpr header(const header&) = default;

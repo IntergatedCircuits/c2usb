@@ -5,6 +5,7 @@ menuconfig C2USB
 if C2USB
 
 rsource "../c2usb/Kconfig"
+rsource "../c2usb/usb/df/vendor/lwip/Kconfig"
 rsource "../c2usb/usb/df/vendor/nxp/Kconfig"
 
 endif

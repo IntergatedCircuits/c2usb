@@ -1,0 +1,1 @@
+../../../zephyr/examples/usb-ncm-zperf/setup-linux-network.sh

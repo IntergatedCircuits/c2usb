@@ -7,12 +7,14 @@
             "path": "examples/usb-keyboard"
         },
         {
+            "path": "examples/usb-ncm-lwip"
+        },
+        {
             "path": "../../mcuxsdk"
         },
         {
             "name": "libraries",
             "path": "../../modules/lib"
-        },
         }
     ],
     "settings": {

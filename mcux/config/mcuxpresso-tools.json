@@ -8,8 +8,8 @@
     "sdk": {
         "version": "26.06.00",
         "path": "${workspaceFolder}/../../../..",
-        "boardId": "frdmk22f",
-        "deviceId": "MK22FN512xxx12",
-        "coreId": "core0"
+        "boardId": "frdmmcxn236",
+        "deviceId": "MCXN236",
+        "coreId": "cm33_core0"
     }
 }

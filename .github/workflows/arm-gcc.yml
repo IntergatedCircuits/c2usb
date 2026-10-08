@@ -48,3 +48,11 @@ jobs:
             echo "=== Building for $BOARD ==="
             west build -d build_$BOARD -- -DBOARD=$BOARD --preset $PRESET
           done
+
+      - name: Build usb-ncm-lwip example for all boards
+        working-directory: mcux/examples/usb-ncm-lwip
+        run: |
+          for BOARD in $BOARDS; do
+            echo "=== Building for $BOARD ==="
+            west build -d build_$BOARD -- -DBOARD=$BOARD --preset $PRESET
+          done

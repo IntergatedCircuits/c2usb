@@ -51,6 +51,7 @@ The Network Control Model of Communications Device Class is the latest
 of a range of networking over USB protocols, achieving the highest throughput of all.
 It is widely supported on all major OSes, although Windows 10 support requires using it with Microsoft OS descriptors.
 This implementation uses alternating buffers, and allows multiple datagrams in a single block for maximum throughput.
+Network ports for **lwip** and **zephyr** are available, with flow control to avoid packet loss.
 
 #### 🔄 DFU - Firmware Update trigger
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 #include "../../iolib.hpp"
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/hci.h>

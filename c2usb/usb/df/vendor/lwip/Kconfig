@@ -1,0 +1,5 @@
+config C2USB_LWIP_NCM_NETIF
+    bool "lwIP CDC NCM netif"
+    select FREERTOS_MCPP_SHIM
+    # TODO: allow using the component outside of mcuxsdk
+    depends on MCUX_COMPONENT_middleware.lwip

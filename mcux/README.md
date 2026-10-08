@@ -27,5 +27,14 @@ west update && west patch
 A straightforward USB HID keyboard to illustrate a minimal project integration.
 Use the button on the board to trigger a caps lock press, and observe as the host changes the caps lock state on the board's LED.
 
+### usb-ncm-lwip
+
+This example exposes the board as a USB NCM network adapter and serves the MCUX SDK's shared lwIP HTTPSRV webpage.
+The HTTP server helpers and generated website files are included directly from `mcuxsdk/examples/lwip_examples/httpsrv_common`.
+
+The board uses `192.0.2.1/24`. Configure the host's USB NCM adapter with an address in that subnet, such as
+`192.0.2.2/24`, then open `http://192.0.2.1/index.html`.
+
+
 [mcuxpresso]: https://mcuxpresso.nxp.com/mcuxsdk/latest/html/index.html
 [west]: https://docs.zephyrproject.org/latest/develop/west/index.html

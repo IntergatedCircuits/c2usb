@@ -10,7 +10,7 @@
       "environment": {
         "ARMGCC_DIR": "$env{ARM_GCC_DIR}",
         "SdkRootDirPath": "${fileDir}/../../../..",
-        "BOARD": "frdmk22f",
+        "BOARD": "frdmmcxn236",
         "MCUX_VENV_PATH": "",
         "PATH": "$env{MCUX_VENV_PATH}${pathListSep}$penv{PATH}",
         "POSTPROCESS_UTILITY": "",

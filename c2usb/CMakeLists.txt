@@ -45,6 +45,7 @@ if(ZEPHYR_BASE)
     )
 elseif(MCUX_SDK_PROJECT_NAME)
     target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE c2usb)
+    add_subdirectory(usb/df/vendor/lwip)
     add_subdirectory(usb/df/vendor/nxp)
 endif()
 

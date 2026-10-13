@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #include "usb/df/vendor/zephyr/cdc_ncm_ethernet.hpp"
+#include <magic_enum.hpp>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_pkt.h>
@@ -71,24 +72,14 @@ void cdc_ncm_ethernet::driver_iface_init(::net_if* netif)
 void cdc_ncm_ethernet::state_change(cdc::ncm::function& function, cdc::ncm::state old_state,
                                     cdc::ncm::state new_state)
 {
+    LOG_DBG("USB interface %s", magic_enum::enum_name(new_state).data());
     events_handle().set(NEW_STATE_FLAG);
-    switch (new_state)
+    if (new_state == cdc::ncm::state::DISABLED)
     {
-    case cdc::ncm::state::CONNECTED:
-        ::net_if_carrier_on(netif_);
-        LOG_DBG("USB interface connected");
-        break;
-    case cdc::ncm::state::ENABLED:
-        LOG_DBG("USB interface enabled");
-        break;
-    case cdc::ncm::state::DISABLED:
         ::net_if_carrier_off(netif_);
         work_handle().cancel();
-        LOG_DBG("USB interface disabled");
-        return;
     }
-    if (bool is_up = ::net_if_is_admin_up(netif_);
-        is_up != (new_state == cdc::ncm::state::CONNECTED))
+    else if (::net_if_is_admin_up(netif_) != (new_state == cdc::ncm::state::CONNECTED))
     {
         work_handle().reschedule(10ms);
     }
@@ -123,9 +114,19 @@ void cdc_ncm_ethernet::perform_work()
         return;
     }
 
-    // synchronize connection state
+    // indicate connection state to network stack
     auto state = function_->get_state();
-    if (bool is_up = ::net_if_is_admin_up(netif_); is_up != (state == cdc::ncm::state::CONNECTED))
+    bool connected = state == cdc::ncm::state::CONNECTED;
+    if (connected)
+    {
+        ::net_if_carrier_on(netif_);
+    }
+    else
+    {
+        ::net_if_carrier_off(netif_);
+    }
+    // try to synchronize connection state to network
+    if (::net_if_is_admin_up(netif_) != connected)
     {
         c2usb::result result = c2usb::result::ok;
         switch (state)
@@ -147,6 +148,7 @@ void cdc_ncm_ethernet::perform_work()
         }
     }
 
+    // consume received datagrams:
     // the last attempted datagram is stored and reused
     auto& rx_dg = rx_datagram();
     if (rx_dg.empty())
@@ -157,7 +159,7 @@ void cdc_ncm_ethernet::perform_work()
     {
         // allocate packet, insert data and pass it to the network interface
         auto* packet = ::net_pkt_rx_alloc_with_buffer(netif_, rx_dg.size(), NET_AF_UNSPEC,
-                                                      NET_IPPROTO_IP, K_MSEC(1));
+                                                      NET_IPPROTO_IP, K_MSEC(10));
         if ((packet == nullptr) or (::net_pkt_write(packet, rx_dg.data(), rx_dg.size()) != 0) or
             (::net_recv_data(netif_, packet) < 0))
         {

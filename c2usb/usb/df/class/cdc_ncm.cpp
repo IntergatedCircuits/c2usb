@@ -188,6 +188,41 @@ void function::disable(const config::interface& iface)
     cdc::function::disable(iface);
 }
 
+void function::power_state_change(power::state power_state, [[maybe_unused]] bool remote_wake)
+{
+    if (power_state != power::state::L0_ON)
+    {
+        netif_.state_change(*this, state_.exchange(state::SUSPENDED), state::SUSPENDED);
+    }
+    else
+    {
+        state old_state = state::SUSPENDED;
+        state new_state = state::DISABLED;
+        // the data interface alt selector isn't stored explicitly,
+        // instead deducted by checking that the EP is open
+        if (not ep_out_handle().valid())
+        {
+            // new_state = state::DISABLED;
+        }
+        else if ((in_flags_.load() & ntb_connected_flag) != 0)
+        {
+            new_state = state::CONNECTED;
+        }
+        else
+        {
+            new_state = state::ENABLED;
+        }
+        if (state_.compare_exchange_strong(old_state, new_state))
+        {
+            netif_.state_change(*this, old_state, new_state);
+        }
+        if (get_state() == state::CONNECTED)
+        {
+            try_send();
+        }
+    }
+}
+
 c2usb::result function::connect()
 {
     uint32_t bitrate = in_ep_mps() > 64 // 64 is full speed maximum packet size
@@ -204,6 +239,8 @@ c2usb::result function::connect(uint32_t bitrate)
         return std::errc::connection_reset;
     case state::CONNECTED:
         return std::errc::connection_already_in_progress;
+    case state::SUSPENDED:
+        return std::errc::network_down;
     default:
         break;
     }
@@ -233,6 +270,8 @@ c2usb::result function::disconnect()
         return std::errc::connection_reset;
     case state::ENABLED:
         return std::errc::connection_already_in_progress;
+    case state::SUSPENDED:
+        return std::errc::network_down;
     default:
         break;
     }
@@ -256,8 +295,13 @@ c2usb::result function::allocate_datagram(size_t size, std::span<uint8_t>& dg)
     {
         return std::errc::invalid_argument;
     }
-    if (get_state() != state::CONNECTED)
+    switch (get_state())
     {
+    case state::CONNECTED:
+        break;
+    case state::SUSPENDED:
+        return std::errc::network_down;
+    default:
         return std::errc::not_connected;
     }
     if (int(size) > ntb_in_.max_datagram_size())
@@ -345,10 +389,10 @@ void function::notify_ep_callback(const transfer& xfer)
     }
     else
     {
-        [[maybe_unused]] auto flags = in_flags_.fetch_xor(ntb_notify_flag);
-        assert((flags & ntb_notify_flag) != 0);
-        // TODO: if this can occur any other time than at EP close,
-        // the netif should be called back to retry
+        [[maybe_unused]] auto flags = in_flags_.fetch_and(flag_type(~ntb_notify_flag));
+        // the state didn't change, but the netif needs to be updated that the change attempt failed
+        auto state = get_state();
+        netif_.state_change(*this, state, state);
     }
 }
 
@@ -369,13 +413,15 @@ void function::ep_in_callback(const transfer& xfer)
         }
     }
 
-    // when the conditions are right, send the next NTB IN
     auto flags = in_flags_.fetch_or(flags_to_set);
-    if (flags == (ntb_pending_flag | ntb_connected_flag))
+    if ((flags & ntb_connected_flag) == 0)
     {
-        bool new_ntb = ntb2send_.empty();
-        auto result = try_send();
-        if ((result == c2usb::result::ok) and new_ntb)
+        return;
+    }
+    // when the conditions are right, send the next NTB IN
+    if (bool pending = ((flags & ntb_pending_flag) != 0); not ntb2send_.empty() or pending)
+    {
+        if ((try_send() == c2usb::result::ok) and pending)
         {
             netif_.tx_buffer_available(*this);
         }
@@ -384,7 +430,7 @@ void function::ep_in_callback(const transfer& xfer)
     else if ((xfer.endpoint() == ep_in_handle()) and (xfer.size() < ntb_in_.max_size) and
              xfer.needs_zlp(in_ep_mps()))
     {
-        if (auto result = send_data({}); result == c2usb::result::ok)
+        if (send_data({}) == c2usb::result::ok)
         {
             in_flags_.fetch_and(flag_type(~ntb_clear_to_send_flag));
         }

@@ -19,6 +19,7 @@ enum struct state : uint8_t
 {
     DISABLED = 0,
     ENABLED = 1,
+    SUSPENDED = 2,
     CONNECTED = 3,
 };
 
@@ -140,6 +141,7 @@ class function : public cdc::function
     void control_data_complete(message& msg, const config::interface& iface) override;
     void enable(const config::interface& iface, uint8_t alt_sel) override;
     void disable(const config::interface& iface) override;
+    void power_state_change(usb::power::state power_state, bool remote_wake) override;
     void ep_out_callback(const transfer& xfer);
     void ep_in_callback(const transfer& xfer);
     void notify_ep_callback(const transfer& xfer);

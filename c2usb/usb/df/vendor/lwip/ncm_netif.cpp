@@ -145,6 +145,7 @@ void ncm_netif::worker()
                 }
                 break;
             case cdc::ncm::state::DISABLED:
+            default:
                 netifapi_netif_set_link_down(&netif_);
                 break;
             }

@@ -23,6 +23,9 @@ void function::describe_config(const config::interface& iface, uint8_t if_index,
         ncm_descs->enet.iMACAddress = to_istring(istring(is_named()));
         // ncm_descs->enet.wMaxSegmentSize = ethernet_networking::DEFAULT_MAX_SEGMENT_SIZE;
 
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+        ncm_descs->ncm.bmNetworkCapabilities.ntb_input_size_8byte = true;
+#endif
         iface_desc->bNumEndpoints = describe_endpoints(iface, buffer);
         assert((iface_desc->bNumEndpoints == 1) and
                (iface.endpoints()[0].address().direction() == direction::IN) and
@@ -109,7 +112,16 @@ void function::control_setup_request(message& msg, const config::interface& ifac
     }
 
     case GET_NTB_INPUT_SIZE:
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+    {
+        auto* ntb_input = msg.buffer().allocate<input_size>();
+        ntb_input->dwNtbInMaxSize = ntb_in_.max_size;
+        ntb_input->wNtbInMaxDatagrams = ntb_in_.dg_max_limit;
+        return msg.send_buffer();
+    }
+#else
         return msg.send_value(ntb_in_.max_size);
+#endif
 
     case SET_NTB_INPUT_SIZE:
         return msg.receive_to_buffer();

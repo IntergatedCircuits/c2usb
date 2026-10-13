@@ -175,7 +175,9 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
     size_type rem_size{};
     size_type index{};
     bitfilled::sized_unsigned_t<BIT_SIZE / 16> dg_count{};
+#if CONFIG_C2USB_NTB_IN_MAX_DG
     bitfilled::sized_unsigned_t<BIT_SIZE / 16> dg_max_limit{};
+#endif
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     [[nodiscard]] uint8_t* tail() const { return this->data(this->page) + this->index; }
@@ -204,8 +206,11 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         size_t word_size = c2usb::aligned_size<uint32_t>(static_cast<size_t>(sz));
         size_t add_size = word_size + sizeof(ntb::datagram_ptr<BIT_SIZE>);
 
-        if ((sz < static_cast<decltype(sz)>(DATAGRAM_MIN_LENGTH)) or (add_size > this->rem_size) or
-            (this->dg_max_limit and (this->dg_count >= this->dg_max_limit)))
+        if ((sz < static_cast<decltype(sz)>(DATAGRAM_MIN_LENGTH)) or (add_size > this->rem_size)
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+            or (this->dg_max_limit and (this->dg_count >= this->dg_max_limit))
+#endif
+        )
         {
             return false;
         }
@@ -228,8 +233,11 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         size_t word_size = c2usb::aligned_size<uint32_t>(sz);
         size_t add_size = word_size + sizeof(ntb::datagram_ptr<BIT_SIZE>);
 
-        if ((sz < DATAGRAM_MIN_LENGTH) or (add_size > size_t(this->rem_size)) or
-            (this->dg_max_limit and (this->dg_count >= this->dg_max_limit)))
+        if ((sz < DATAGRAM_MIN_LENGTH) or (add_size > size_t(this->rem_size))
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+            or (this->dg_max_limit and (this->dg_count >= this->dg_max_limit))
+#endif
+        )
         {
             return {};
         }
@@ -245,8 +253,11 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         size_t add_size = word_size + sizeof(ntb::datagram_ptr<BIT_SIZE>);
 
         assert((dg.size() >= DATAGRAM_MIN_LENGTH) and (dg.data() == tail()) and
-               (add_size <= this->rem_size) and
-               (not this->dg_max_limit or (this->dg_count < this->dg_max_limit)));
+               (add_size <= this->rem_size)
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+               and (not this->dg_max_limit or (this->dg_count < this->dg_max_limit))
+#endif
+        );
 
         this->index += static_cast<size_type>(word_size);
         this->rem_size -= static_cast<size_type>(add_size);
@@ -326,7 +337,11 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         auto ntb_size = *std_layout_cast<const ntb::input_size*>(msg.data());
 
         // request size check
-        if ((msg.size() != sizeof(ntb_size.dwNtbInMaxSize)) and (msg.size() != sizeof(ntb_size)))
+        if ((msg.size() != sizeof(ntb_size.dwNtbInMaxSize))
+#if CONFIG_C2USB_NTB_IN_MAX_DG
+            and (msg.size() != sizeof(ntb_size))
+#endif
+        )
         {
             return false;
         }
@@ -340,7 +355,7 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         }
 
         this->max_size = ntb_size.dwNtbInMaxSize;
-
+#if CONFIG_C2USB_NTB_IN_MAX_DG
         // if the request includes the wNtbInMaxDatagrams field, apply it
         if (msg.size() == sizeof(ntb_size))
         {
@@ -355,6 +370,7 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
                                        ntb_size.wNtbInMaxDatagrams);
             }
         }
+#endif
         return true;
     }
 };

@@ -42,7 +42,7 @@ void mac::bus_reset()
 {
     std_status_.remote_wakeup = false;
     bool power_change = power_state() != power::state::L0_ON;
-    power_state_ = power::state::L0_ON;
+    power_state_.store(power::state::L0_ON);
     assert(dev_if_ != nullptr);
     dev_if_->on_bus_reset(power_change ? device::event::POWER_STATE_CHANGE : device::event::NONE);
     allocate_endpoints();
@@ -54,7 +54,7 @@ void mac::set_power_state(power::state new_state)
     {
         return;
     }
-    power_state_ = new_state;
+    power_state_.store(new_state);
     assert(dev_if_ != nullptr);
     dev_if_->on_power_state_change(new_state);
 }

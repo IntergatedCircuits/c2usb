@@ -133,6 +133,12 @@ enum class feature : uint8_t
     FUNCTION_SUSPEND = 0x00,
 };
 
+struct suspend_options : bitfilled::host_integer<uint8_t>
+{
+    BF_BITS(bool, 0) suspend;
+    BF_BITS(bool, 1) remote_wake_enable;
+};
+
 struct status : le_uint16_t
 {
     BF_BITS(bool, 0) remote_wake_capable;

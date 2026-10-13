@@ -38,6 +38,9 @@ class function : public polymorphic
 
     void init(const config::interface& iface, mac* m);
     void deinit(const config::interface& iface);
+    virtual void power_state_change([[maybe_unused]] usb::power::state new_state,
+                                    [[maybe_unused]] bool remote_wake)
+    {}
 
     [[nodiscard]] virtual std::string_view ms_compatible_id() const { return {}; }
 
@@ -118,6 +121,8 @@ class function : public polymorphic
 
     [[nodiscard]] bool configured() const { return mac_ != nullptr; }
 
+    [[nodiscard]] bool suspended() const;
+
   private:
     void restart(const config::interface& iface, uint8_t alt_sel)
     {
@@ -128,7 +133,7 @@ class function : public polymorphic
     mac* mac_ = nullptr;
     const istring istr_count_{};
     istring istr_base_{};
-#if C2USB_FUNCTION_SUSPEND
+#if CONFIG_C2USB_FUNCTION_SUSPEND
     usb::standard::interface::status std_status_{};
 #endif
 };

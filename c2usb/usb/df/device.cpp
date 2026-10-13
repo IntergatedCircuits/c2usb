@@ -20,6 +20,13 @@ void device::on_power_state_change(usb::power::state new_state)
     }
     else
     {
+        for (const auto& iface : mac_.active_config().interfaces())
+        {
+            if (iface.primary())
+            {
+                iface.function().power_state_change(new_state, mac_.std_status().remote_wakeup);
+            }
+        }
         delegate_power_event(event::POWER_STATE_CHANGE);
     }
 }
@@ -89,7 +96,7 @@ void device::interface_control(message& msg,
                                void (function::*handler)(message&, const config::interface&))
 {
     auto ifaces = mac_.active_config().interfaces();
-    const auto& iface = ifaces[msg.request().wIndex];
+    const auto& iface = ifaces[msg.request().wIndex.low_byte()];
     if (iface.valid())
     {
         return (iface.function().*handler)(msg, iface);

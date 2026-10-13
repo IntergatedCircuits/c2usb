@@ -82,3 +82,5 @@ __pycache__/
 
 # zephyr
 twister-out*
+
+.clangd

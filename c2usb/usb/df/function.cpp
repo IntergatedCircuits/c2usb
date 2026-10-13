@@ -52,13 +52,18 @@ void function::handle_control_setup(message& msg, const config::interface& iface
         }
         return msg.reject();
 
-#if C2USB_FUNCTION_SUSPEND
+#if CONFIG_C2USB_FUNCTION_SUSPEND
     case SET_FEATURE:
     case CLEAR_FEATURE:
     {
         if ((iface.primary()) and (msg.request().wValue == feature::FUNCTION_SUSPEND))
         {
-            // TODO
+            suspend_options opts{msg.request().wIndex.high_byte()};
+            // TODO: track suspend state in member variable
+            std_status_.remote_wakeup = opts.remote_wake_enable;
+            power_state_change(opts.suspend ? usb::power::state::L2_SUSPEND
+                                            : usb::power::state::L0_ON,
+                               opts.remote_wake_enable);
             return msg.confirm();
         }
         else
@@ -120,7 +125,7 @@ void function::handle_control_data(message& msg, const config::interface& iface)
 void function::init(const config::interface& iface, mac* m)
 {
     mac_ = m;
-#if C2USB_FUNCTION_SUSPEND
+#if CONFIG_C2USB_FUNCTION_SUSPEND
     std_status_.remote_wakeup = false;
 #endif
     enable(iface, 0);
@@ -189,6 +194,15 @@ usb::result function::cancel_ep(ep_handle eph)
         return mac_->ep_cancel(eph);
     }
     return usb::result::connection_reset;
+}
+
+bool function::suspended() const
+{
+    if (mac_ != nullptr)
+    {
+        return mac_->power_state() == power::state::L2_SUSPEND;
+    }
+    return true;
 }
 
 message* function::pending_message()

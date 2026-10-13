@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <atomic>
 #include "usb/df/config.hpp"
 #include "usb/df/message.hpp"
 #include "usb/speeds.hpp"
@@ -73,7 +74,7 @@ class mac : public polymorphic
     // used as bmAttributes in USB 2p0 extension descriptor (LPM)
     [[nodiscard]] virtual lpm_support_flags lpm_support() { return {}; }
 
-    [[nodiscard]] power::state power_state() const { return power_state_; }
+    [[nodiscard]] power::state power_state() const { return power_state_.load(); }
     [[nodiscard]] uint32_t granted_bus_current_uA() const;
     result remote_wakeup();
 
@@ -141,7 +142,7 @@ class mac : public polymorphic
     }
 
     constexpr mac(power::state power_state = power::state::L3_OFF)
-        : power_state_(power_state)
+        : power_state_{power_state}
     {}
 
   private:
@@ -153,7 +154,7 @@ class mac : public polymorphic
     };
     message_control ctrl_msg_{};
     standard::device::status std_status_{};
-    power::state power_state_;
+    std::atomic<power::state> power_state_;
     bool active_{};
     config::view active_config_;
     device* dev_if_{};

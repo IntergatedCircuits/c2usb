@@ -1,79 +1,13 @@
 #include "cdc_helpers.hpp"
-
 #include <algorithm>
 #include <cstring>
-
 #include <zephyr/kernel.h>
-#include <zephyr/semaphore.hpp>
 
 using namespace std::chrono_literals;
 using namespace zephyr;
 
 namespace c2usb::device_virtual
 {
-struct bulk_completion
-{
-    int error{};
-    size_t length{};
-};
-
-zephyr::binary_semaphore bulk_transfer_done{0};
-bulk_completion last_bulk_completion;
-
-int bulk_transfer_callback(struct usb_device* dev, struct uhc_transfer* xfer)
-{
-    last_bulk_completion.error = xfer->err;
-    last_bulk_completion.length = xfer->buf->len;
-    bulk_transfer_done.release();
-    return 0;
-}
-
-int bulk_transfer(usb::test::device* dev, uint8_t endpoint, uint8_t* data, size_t length,
-                  size_t& transferred)
-{
-    auto* xfer = usbh_xfer_alloc(dev, endpoint, bulk_transfer_callback, nullptr);
-    if (xfer == nullptr)
-    {
-        return -ENOMEM;
-    }
-
-    auto* buf = usbh_xfer_buf_alloc(dev, length);
-    if (buf == nullptr)
-    {
-        usbh_xfer_free(dev, xfer);
-        return -ENOMEM;
-    }
-    xfer->buf = buf;
-
-    if ((endpoint & 0x80) == 0)
-    {
-        net_buf_add_mem(buf, data, length);
-    }
-
-    bulk_transfer_done.try_acquire();
-    int err = usbh_xfer_enqueue(dev, xfer);
-    if (err != 0)
-    {
-        usbh_xfer_buf_free(dev, buf);
-        usbh_xfer_free(dev, xfer);
-        return err;
-    }
-    if (!bulk_transfer_done.try_acquire_for(3s))
-    {
-        return -ETIMEDOUT;
-    }
-
-    transferred = (endpoint & 0x80) != 0 ? last_bulk_completion.length : length;
-    err = last_bulk_completion.error;
-    if (err == 0 and (endpoint & 0x80) != 0)
-    {
-        std::memcpy(data, buf->data, transferred);
-    }
-    usbh_xfer_buf_free(dev, buf);
-    usbh_xfer_free(dev, xfer);
-    return err;
-}
-
 bool configure_cdc_shell(usb::test::device* dev)
 {
     return configure_cdc_interface(dev, 0);
@@ -118,8 +52,8 @@ int send_bulk(usb::test::device* dev, std::span<const uint8_t> data)
     {
         const size_t chunk_size = std::min(max_transfer_size, data.size() - offset);
         size_t transferred{};
-        int err = bulk_transfer(dev, 0x01, const_cast<uint8_t*>(data.data() + offset), chunk_size,
-                                transferred);
+        int err =
+            usb::test::bulk_transfer(dev, 0x01, data.subspan(offset, chunk_size), transferred);
         if (err != 0 or transferred != chunk_size)
         {
             return err != 0 ? err : -EIO;
@@ -159,7 +93,7 @@ bool read_until(usb::test::device* dev, std::span<uint8_t> output, size_t& outpu
     for (size_t attempt = 0; attempt < 256; ++attempt)
     {
         size_t received{};
-        int err = bulk_transfer(dev, endpoint, packet.data(), packet.size(), received);
+        int err = usb::test::bulk_transfer(dev, endpoint, std::span<uint8_t>{packet}, received);
         if (err != 0)
         {
             return false;

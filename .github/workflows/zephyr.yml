@@ -47,7 +47,21 @@ jobs:
         working-directory: zephyr
         shell: bash
         run: |
-          west twister -T . \
+          west twister -T . -O build/twister-coverage \
             -p native_sim/native/64 -p qemu_cortex_m3 \
             -p nrf52840dk/nrf52840 -p nrf54lm20dk/nrf54lm20a/cpuapp \
+            --coverage --coverage-platform native_sim/native/64 \
+            --gcov-tool "$(gcc -print-prog-name=gcov)" \
+            --coverage-basedir ../c2usb \
             --inline-logs -v
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zephyr-coverage
+          path: |
+            zephyr/build/twister-coverage/coverage/
+            zephyr/build/twister-coverage/coverage.json
+            zephyr/build/twister-coverage/coverage_summary.json
+          if-no-files-found: warn

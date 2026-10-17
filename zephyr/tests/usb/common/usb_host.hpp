@@ -8,9 +8,12 @@ extern "C"
 #include <zephyr/usb/usbh.h>
 #undef class
 }
-#include <zephyr/ztest.h>
 
+#include <zephyr/ztest.h>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <span>
 #include <usb/control.hpp>
 #include <zephyr/thread.hpp>
 
@@ -150,6 +153,11 @@ struct device : ::usb_device
     }
 };
 
+int bulk_transfer(device* dev, uint8_t endpoint, std::span<const uint8_t> data, size_t& transferred,
+                  std::chrono::milliseconds timeout = std::chrono::milliseconds(3000));
+int bulk_transfer(device* dev, uint8_t endpoint, std::span<uint8_t> data, size_t& transferred,
+                  std::chrono::milliseconds timeout = std::chrono::milliseconds(3000));
+
 struct host : ::usbh_context
 {
     static int start()
@@ -169,6 +177,7 @@ struct host : ::usbh_context
         return usbh_shutdown(instance());
     }
     static int bus_reset() { return uhc_bus_reset(instance()->dev); }
+    static int bus_suspend() { return uhc_bus_suspend(instance()->dev); }
     static int bus_resume() { return uhc_bus_resume(instance()->dev); }
     static int sof_enable() { return uhc_sof_enable(instance()->dev); }
 

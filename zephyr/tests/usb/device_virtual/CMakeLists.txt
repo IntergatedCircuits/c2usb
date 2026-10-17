@@ -7,11 +7,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 target_include_directories(app PRIVATE
     ${ZEPHYR_BASE}/subsys/usb/host
     ${ZEPHYR_BASE}/subsys/mgmt/mcumgr/transport/include
-    ../include
+    ../common
 )
 target_sources(app PRIVATE
     src/main.cpp
     src/cdc_helpers.cpp
+    ../common/usb_host.cpp
 )
 
 if(CONFIG_C2USB_SHELL_BACKEND AND NOT CONFIG_C2USB_MCUMGR_SMP_CONSOLE)

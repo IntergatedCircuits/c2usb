@@ -1,0 +1,15 @@
+tests:
+  c2usb.usb.cdc_ncm_virtual:
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim/native/64
+    extra_configs:
+      - CONFIG_COMPILER_WARNINGS_AS_ERRORS=n
+    extra_args:
+      - EXTRA_CXXFLAGS=-Wno-error
+    tags:
+      - usb
+      - c2usb
+      - net

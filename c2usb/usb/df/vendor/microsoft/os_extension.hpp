@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include <variant>
 #include "usb/df/vendor/extension.hpp"
 #include "usb/speeds.hpp"
 #include "usb/vendor/microsoft_os.hpp"

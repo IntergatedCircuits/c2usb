@@ -176,6 +176,7 @@ class service : public hid::transport
                                     properties::READ | properties::NOTIFY};
         return info;
     }
+#if CONFIG_C2USB_HOGP_SCI
     static const gatt::char_decl& sci_information_info()
     {
         using namespace bluetooth::gatt;
@@ -190,6 +191,7 @@ class service : public hid::transport
                                     properties::READ | properties::NOTIFY};
         return info;
     }
+#endif
 
     std::span<const gatt::attribute> attributes() const
     {

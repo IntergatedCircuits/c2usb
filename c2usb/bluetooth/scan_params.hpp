@@ -45,7 +45,7 @@ class service
     static constexpr size_t attribute_count = 1 + 2;
 
     std::array<gatt::attribute, attribute_count> attributes_;
-    scan_interval_window params_;
+    scan_interval_window params_{};
 
   public:
     constexpr std::span<const gatt::attribute> attributes() const { return attributes_; }

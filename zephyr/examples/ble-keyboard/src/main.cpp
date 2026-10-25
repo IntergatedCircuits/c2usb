@@ -29,10 +29,13 @@ static auto advertise(void)
 {
     using namespace bluetooth;
 
+    static constexpr uint8_t adv_flags = BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR;
+    static constexpr std::array<uint16_t, 2> adv_service_uuids{BT_UUID_HIDS_VAL, BT_UUID_BAS_VAL};
+    static constexpr uint16_t adv_appearance = CONFIG_BT_DEVICE_APPEARANCE;
     const auto ad_data = to_adv_data({
-        ad_struct<BT_DATA_FLAGS, uint8_t>(BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR),
-        ad_struct<BT_DATA_UUID16_ALL, uint16_t>({BT_UUID_HIDS_VAL, BT_UUID_BAS_VAL}),
-        ad_struct<BT_DATA_GAP_APPEARANCE, uint16_t>(CONFIG_BT_DEVICE_APPEARANCE),
+        ad_struct<BT_DATA_FLAGS, uint8_t>(adv_flags),
+        ad_struct<BT_DATA_UUID16_ALL, uint16_t>(std::span<const uint16_t>{adv_service_uuids}),
+        ad_struct<BT_DATA_GAP_APPEARANCE, uint16_t>(adv_appearance),
     });
     const auto sd_data = to_adv_data({ad_struct<BT_DATA_NAME_COMPLETE>(CONFIG_BT_DEVICE_NAME)});
 

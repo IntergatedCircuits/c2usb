@@ -28,14 +28,18 @@ struct ad_struct : public ::bt_data
         this->data = c2usb::std_layout_cast<const uint8_t*>(&arg);
     }
 
-    explicit ad_struct(std::initializer_list<T> args)
+    explicit ad_struct(std::span<const T> args)
         requires(std::is_integral_v<T> and
                  ((std::endian::native == std::endian::little) or (std::is_same_v<T, uint8_t>)))
     {
         this->type = TYPE;
         this->data_len = sizeof(T) * args.size();
-        this->data = c2usb::std_layout_cast<const uint8_t*>(args.begin());
+        this->data = c2usb::std_layout_cast<const uint8_t*>(args.data());
     }
+
+    explicit ad_struct(T&&) = delete;
+
+    explicit ad_struct(uuid&&) = delete;
 
     explicit ad_struct(std::string_view str)
     {
@@ -50,6 +54,8 @@ struct ad_struct : public ::bt_data
                  (TYPE == BT_DATA_UUID128_SOME) or (TYPE == BT_DATA_UUID128_ALL))
     {
         this->type = TYPE;
+        this->data = nullptr;
+        this->data_len = 0;
         if constexpr ((TYPE == BT_DATA_UUID16_SOME) or (TYPE == BT_DATA_UUID16_ALL))
         {
             if (arg.type == BT_UUID_TYPE_16)
@@ -74,7 +80,6 @@ struct ad_struct : public ::bt_data
                 this->data_len = sizeof(BT_UUID_128(&arg)->val);
             }
         }
-        this->data_len = 0;
     }
 };
 

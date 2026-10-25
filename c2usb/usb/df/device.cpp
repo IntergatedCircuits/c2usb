@@ -133,22 +133,18 @@ void device::set_address(message& msg) const
 
 void device::set_configuration(config::view config, event ev)
 {
-    // effective change in configuration
-    if (config != mac_.active_config())
+    // reverse order to ensure consistency
+    for (const auto& iface : mac_.active_config().interfaces().reverse())
     {
-        // reverse order to ensure consistency
-        for (const auto& iface : mac_.active_config().interfaces().reverse())
-        {
-            iface.function().deinit(iface);
-        }
+        iface.function().deinit(iface);
+    }
 
-        mac_.set_config(config);
-        delegate_power_event(ev | event::CONFIGURATION_CHANGE);
+    mac_.set_config(config);
+    delegate_power_event(ev | event::CONFIGURATION_CHANGE);
 
-        for (const auto& iface : mac_.active_config().interfaces())
-        {
-            iface.function().init(iface, &mac_);
-        }
+    for (const auto& iface : mac_.active_config().interfaces())
+    {
+        iface.function().init(iface, &mac_);
     }
 }
 

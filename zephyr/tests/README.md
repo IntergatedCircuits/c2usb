@@ -2,14 +2,15 @@
 
 How to build and run:
 ```bash
-west twister -T usb/device_virtual -p native_sim/native/64 -v
-west twister -T usb/cdc_ncm_virtual -p native_sim/native/64 -v
+west twister -c -T usb/device_virtual -p native_sim/native/64 -v
+west twister -c -T usb/cdc_ncm_virtual -p native_sim/native/64 -v
+west twister -c -T bluetooth/battery_service -p native_sim/native/64 -v
 ```
 
 How to generate coverage:
 
 ```bash
-west twister -T usb/cdc_ncm_virtual -p native_sim/native/64 \
+west twister -c -T usb/cdc_ncm_virtual -p native_sim/native/64 \
 	-O build/coverage_ncm --coverage --coverage-basedir ../../../c2usb \
 	--gcov-tool "$(gcc -print-prog-name=gcov)"
 # run a HTTP server to view the output HTML

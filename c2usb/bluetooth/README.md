@@ -37,6 +37,17 @@ instead of Kconfig options. The security level is configurable - unlike zephyr's
 as the HOGP Device security requirements mandate a matching security level of all
 profile services to that of HID service (chapter 8.1 of HOGP v1.2).
 
+## Battery Service
+
+The Battery Service (BAS) is implemented, with partial support for v1.1:
+
+1. Battery Level CPF and CUD descriptors
+2. Battery Level Status characteristic
+3. Battery Critical Status characteristic
+
+Multiple BAS instances can be defined, each with different feature set.
+The security level is configurable per instance.
+
 ## Advertising
 
 BLE advertisement data construction and advertisement control are supported

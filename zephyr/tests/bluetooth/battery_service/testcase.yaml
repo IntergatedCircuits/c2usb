@@ -1,0 +1,10 @@
+tests:
+  c2usb.bluetooth.battery_service:
+    platform_allow:
+      - native_sim
+      - native_sim/native/64
+    integration_platforms:
+      - native_sim/native/64
+    tags:
+      - bluetooth
+      - c2usb

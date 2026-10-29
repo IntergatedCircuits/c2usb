@@ -49,8 +49,8 @@ ssize_t service::get_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, 
     auto it = std::ranges::find_if(self->sessions_, [&](const auto& s) { return s.conn == conn; });
     auto protocol = (it != self->sessions_.end()) ? it->session->protocol() : hid::protocol::REPORT;
     LOG_DBG("get protocol: %u", static_cast<uint8_t>(protocol));
-    return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                             c2usb::std_layout_cast<uint8_t*>(&protocol), sizeof(protocol));
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, std_layout_cast<uint8_t*>(&protocol),
+                             sizeof(protocol));
 }
 
 ssize_t service::set_protocol_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void const* buf,
@@ -337,7 +337,7 @@ c2usb::result service::send_report(session& sess, const std::span<const uint8_t>
         return c2usb::result::broken_pipe;
     }
 
-    return c2usb::result(attr->notify(
+    return attr->notify(
         data.subspan(offset),
         [](::bt_conn* conn, void* user_data)
         {
@@ -345,7 +345,7 @@ c2usb::result service::send_report(session& sess, const std::span<const uint8_t>
             auto* self = static_cast<service*>(attr->user_data);
             self->notify_callback(conn, attr);
         },
-        attr, it->conn));
+        attr, it->conn);
 }
 
 void service::notify_callback(::bt_conn* conn, const gatt::attribute* attr)
@@ -387,7 +387,7 @@ ssize_t service::get_sci_information(::bt_conn* conn, const ::bt_gatt_attr* attr
         return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
     }
     return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                             c2usb::std_layout_cast<const uint8_t*>(&sci_attributes_),
+                             std_layout_cast<const uint8_t*>(&sci_attributes_),
                              offsetof(decltype(sci_attributes_), groups) +
                                  sci_attributes_.num_groups * sizeof(sci_attributes_.groups[0]));
 }
@@ -403,7 +403,7 @@ ssize_t service::get_sci_mode(::bt_conn* conn, const ::bt_gatt_attr* attr, void*
         return bt_gatt_attr_read(conn, attr, buf, len, offset, &mode, sizeof(mode));
     }
     return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                             c2usb::std_layout_cast<const uint8_t*>(&it->active_sci_mode_),
+                             std_layout_cast<const uint8_t*>(&it->active_sci_mode_),
                              sizeof(it->active_sci_mode_));
 }
 
@@ -459,7 +459,7 @@ void service::connect_callback(bt_conn* conn, uint8_t err)
 
         size_t size = std::min<size_t>(sizeof(sci_attributes_), rsp->len - offset);
         std::copy_n(rsp->data + offset, size,
-                    c2usb::std_layout_cast<uint8_t*>(&sci_attributes_.min_supported_conn_interval));
+                    std_layout_cast<uint8_t*>(&sci_attributes_.min_supported_conn_interval));
 
         size -= offsetof(decltype(sci_attributes_), groups);
         if (sci_attributes_.num_groups > sci_attributes_.groups.size())
@@ -518,9 +518,8 @@ void service::connection_rate_changed(const connection_rate_params* p)
     {
         it->active_sci_mode_ = new_mode;
         LOG_INF("Connection %p SCI mode changed to %u", p->conn, uint8_t(new_mode));
-        sci_mode_attr()->notify(
-            std::span<const uint8_t>(c2usb::std_layout_cast<const uint8_t*>(&new_mode),
-                                     sizeof(new_mode)),
+        [[maybe_unused]] auto result = sci_mode_attr()->notify(
+            std::span<const uint8_t>(std_layout_cast<const uint8_t*>(&new_mode), sizeof(new_mode)),
             p->conn);
     }
 }

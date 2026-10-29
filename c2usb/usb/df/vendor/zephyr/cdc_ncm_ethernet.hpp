@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
+#include "ct_string.hpp"
 #include "usb/df/class/cdc_ncm.hpp"
 #include "usb/df/vendor/zephyr/cdc_ncm_ethernet_data.h"
 #include <zephyr/device.h>
@@ -9,21 +10,6 @@
 #include <zephyr/work_queue.hpp>
 
 extern "C" int c2usb_cdc_ncm_ethernet_init(const ::device* dev);
-
-// for a full-featured compile-time string implementation, see
-// https://github.com/intel/cpp-std-extensions/blob/main/include/stdx/ct_string.hpp
-template <std::size_t N>
-struct ct_string
-{
-    consteval ct_string() = default;
-
-    consteval ct_string(const char (&str)[N])
-    {
-        std::copy(std::begin(str), std::end(str), value.begin());
-    }
-
-    std::array<char, N> value{};
-};
 
 namespace usb::df::zephyr
 {

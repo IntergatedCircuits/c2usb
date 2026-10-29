@@ -12,6 +12,7 @@
 
 #include "hid/example/simple_keyboard.hpp"
 #include <bluetooth/advertise.hpp>
+#include <bluetooth/battery.hpp>
 #include <bluetooth/device_info.hpp>
 #include <bluetooth/hid_over_gatt.hpp>
 #include <raw_to_hex_string.hpp>
@@ -24,6 +25,7 @@ using namespace std::chrono_literals;
 
 static const uint8_t caps_led = 0;
 static const uint8_t adv_led = 1;
+const auto sec_lvl = bluetooth::security::L3_AUTH_ENC;
 
 static auto advertise(void)
 {
@@ -177,6 +179,15 @@ static void pairing_reply(int passkey)
     bt_conn_unref(pairing.value());
 }
 
+static auto& battery_service()
+{
+    using namespace bluetooth::battery;
+
+    static service_instance<option_flags::BATTERY_LEVEL_STATUS> service{sec_lvl};
+    static const STRUCT_SECTION_ITERABLE(bt_gatt_service_static, bt_bas) = service.static_service();
+    return service;
+}
+
 static int cmd_bt_passkey(const shell* sh, size_t argc, char** argv)
 {
     int err = 0;
@@ -202,7 +213,7 @@ static int cmd_bt_battery(const shell* sh, size_t argc, char** argv)
     }
     else
     {
-        bt_bas_set_battery_level(battery_level);
+        battery_service().set_battery_level(static_cast<uint8_t>(battery_level));
     }
     return 0;
 }
@@ -212,8 +223,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     SHELL_CMD_ARG(battery, NULL, "Update battery level to BT central", cmd_bt_battery, 2, 0),
     SHELL_SUBCMD_SET_END);
 SHELL_CMD_REGISTER(bt, &sub_bt, "BT", NULL);
-
-const auto sec_lvl = bluetooth::security::L3_AUTH_ENC;
 
 static auto& hog_service()
 {
@@ -305,6 +314,7 @@ int main(void)
 #endif
     device_info();
     hog_service();
+    battery_service();
 
     if (auto err = bt_enable(nullptr); err)
     {

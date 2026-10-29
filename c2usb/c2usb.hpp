@@ -194,4 +194,12 @@ template <typename To, RawMemoryStorage From>
     return reinterpret_cast<To>(ptr);
 }
 
+template <typename E>
+[[nodiscard]] constexpr bool enum_contains(E value, E flag)
+    requires(std::is_enum_v<E>)
+{
+    using U = std::underlying_type_t<E>;
+    return (static_cast<U>(value) & static_cast<U>(flag)) == static_cast<U>(flag);
+}
+
 } // namespace c2usb

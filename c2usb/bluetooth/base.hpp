@@ -12,6 +12,8 @@
 
 namespace bluetooth
 {
+using namespace c2usb;
+
 enum struct security : uint8_t
 {
     L1_NONE = BT_SECURITY_L1,

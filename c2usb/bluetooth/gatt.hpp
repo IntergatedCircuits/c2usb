@@ -8,6 +8,7 @@
 #else
 #error "Unsupported platform"
 #endif
+#include "bluetooth/assigned_numbers.hpp"
 #include "bluetooth/base.hpp"
 #include "bluetooth/uuid.hpp"
 #include "c2usb.hpp"
@@ -55,7 +56,7 @@ inline ssize_t error_to_ssize(std::optional<error> err, size_t len)
 // https://docs.zephyrproject.org/latest/connectivity/bluetooth/api/gatt.html
 namespace bluetooth::gatt
 {
-enum class permissions : uint16_t
+enum struct permissions : uint16_t
 {
     NONE = ::bt_gatt_perm::BT_GATT_PERM_NONE,
     READ = ::bt_gatt_perm::BT_GATT_PERM_READ,
@@ -124,7 +125,7 @@ constexpr permissions readwriteable_at(security level)
     }
 }
 
-enum class properties : uint8_t
+enum struct properties : uint8_t
 {
     NONE = 0,
     BROADCAST = BT_GATT_CHRC_BROADCAST,
@@ -136,7 +137,7 @@ enum class properties : uint8_t
     EXT_PROP = BT_GATT_CHRC_EXT_PROP,
 };
 
-enum class write_flags : uint8_t
+enum struct write_flags : uint8_t
 {
     NONE = 0,
     PREPARE = BT_GATT_WRITE_FLAG_PREPARE,
@@ -146,7 +147,7 @@ enum class write_flags : uint8_t
 
 class attribute;
 
-enum class ccc_flags : uint16_t
+enum struct ccc_flags : uint16_t
 {
     NONE = 0,
     NOTIFY = BT_GATT_CCC_NOTIFY,
@@ -307,8 +308,8 @@ struct attribute : ::bt_gatt_attr
     }
 
     template <typename T>
-    int notify(const std::span<const uint8_t>& data, ::bt_gatt_complete_func_t cb,
-               T* user_data = nullptr, ::bt_conn* conn = nullptr) const
+    c2usb::result notify(const std::span<const uint8_t>& data, ::bt_gatt_complete_func_t cb,
+                         T* user_data = nullptr, ::bt_conn* conn = nullptr) const
     {
         ::bt_gatt_notify_params params{
             .attr = this,
@@ -316,12 +317,36 @@ struct attribute : ::bt_gatt_attr
             .len = static_cast<uint16_t>(data.size()),
             .func = cb,
             .user_data = static_cast<void*>(const_cast<std::remove_const_t<T>*>(user_data))};
-        return bt_gatt_notify_cb(conn, &params);
+        return c2usb::result(bt_gatt_notify_cb(conn, &params));
     }
 
-    int notify(const std::span<const uint8_t>& data, ::bt_conn* conn = nullptr) const
+    c2usb::result notify(const std::span<const uint8_t>& data, ::bt_conn* conn = nullptr) const
     {
         return notify<std::nullptr_t>(data, nullptr, nullptr, conn);
+    }
+
+    class indication : private ::bt_gatt_indicate_params
+    {
+        friend class attribute;
+
+      public:
+        explicit indication(void (*result_cb)(::bt_conn*, indication&, bluetooth::att::error),
+                            void (*destroy_cb)(indication&))
+            : ::bt_gatt_indicate_params{
+                  .func = reinterpret_cast<void (*)(::bt_conn*, struct bt_gatt_indicate_params*,
+                                                    uint8_t)>(result_cb),
+                  .destroy =
+                      reinterpret_cast<void (*)(struct bt_gatt_indicate_params*)>(destroy_cb)}
+        {}
+    };
+
+    c2usb::result indicate(const std::span<const uint8_t>& data, indication& ind,
+                           ::bt_conn* conn = nullptr) const
+    {
+        ind.attr = this;
+        ind.data = static_cast<const void*>(data.data());
+        ind.len = static_cast<uint16_t>(data.size());
+        return c2usb::result(bt_gatt_indicate(conn, &ind));
     }
 
     /// @brief This class provides a convenience to initialize a GATT attributes array.
@@ -334,8 +359,8 @@ struct attribute : ::bt_gatt_attr
 
         constexpr gatt::attribute* data() { return attr_; }
 
-        /// @brief Creates a primary service attribute.
-        /// @param uuid service type UUID
+        /// @brief  Creates a primary service attribute.
+        /// @param  uuid service type UUID
         /// @return builder to continue setting the attribute array
         [[nodiscard]] C2USB_STATIC_CONSTEXPR builder primary_service(const bluetooth::uuid& uuid)
         {
@@ -344,15 +369,15 @@ struct attribute : ::bt_gatt_attr
             return builder(attr_ + 1);
         }
 
-        /// @brief Creates a characteristic using two attributes.
+        /// @brief  Creates a characteristic using two attributes.
         /// @tparam T user data's deduced type
         /// @tparam TRead read method's deduced type
         /// @tparam TWrite write method's deduced type
-        /// @param info characteristic declaration
-        /// @param perm characteristic value attribute access permissions
-        /// @param read the reader method gets called by GATT to get the characteristic value
-        /// @param write the writer method gets called by GATT to set the characteristic value
-        /// @param user_data context pointer
+        /// @param  info characteristic declaration
+        /// @param  perm characteristic value attribute access permissions
+        /// @param  read the reader method gets called by GATT to get the characteristic value
+        /// @param  write the writer method gets called by GATT to set the characteristic value
+        /// @param  user_data context pointer
         /// @return builder to continue setting the attribute array
         template <typename T, typename TRead, typename TWrite>
         [[nodiscard]] C2USB_STATIC_CONSTEXPR builder characteristic(const char_decl& info,
@@ -366,11 +391,11 @@ struct attribute : ::bt_gatt_attr
             return builder(attr_ + 2);
         }
 
-        /// @brief Creates a characteristic with a fixed value, using two attributes.
+        /// @brief  Creates a characteristic with a fixed value, using two attributes.
         /// @tparam T the fixed value's deduced type
-        /// @param info characteristic declaration
-        /// @param perm characteristic value attribute access permissions
-        /// @param value fixed value
+        /// @param  info characteristic declaration
+        /// @param  perm characteristic value attribute access permissions
+        /// @param  value fixed value
         /// @return builder to continue setting the attribute array
         template <typename T>
         [[nodiscard]] C2USB_STATIC_CONSTEXPR builder characteristic(const char_decl& info,
@@ -382,11 +407,11 @@ struct attribute : ::bt_gatt_attr
             return builder(attr_ + 2);
         }
 
-        /// @brief Creates a descriptor with a fixed value.
+        /// @brief  Creates a descriptor with a fixed value.
         /// @tparam T the fixed value's deduced type
-        /// @param uuid descriptor type UUID
-        /// @param perm descriptor attribute access permissions
-        /// @param value fixed value
+        /// @param  uuid descriptor type UUID
+        /// @param  perm descriptor attribute access permissions
+        /// @param  value fixed value
         /// @return builder to continue setting the attribute array
         template <typename T>
         [[nodiscard]] C2USB_STATIC_CONSTEXPR builder descriptor(const bluetooth::uuid& uuid,
@@ -407,9 +432,9 @@ struct attribute : ::bt_gatt_attr
             return builder(attr_ + 1);
         }
 
-        /// @brief Creates a Client Characteristic Configuration descriptor.
-        /// @param ccc the CCC context object
-        /// @param perm descriptor attribute access permissions
+        /// @brief  Creates a Client Characteristic Configuration descriptor.
+        /// @param  ccc the CCC context object
+        /// @param  perm descriptor attribute access permissions
         /// @return builder to continue setting the attribute array
         [[nodiscard]] C2USB_STATIC_CONSTEXPR builder ccc_descriptor(ccc_store& ccc,
                                                                     permissions perm)
@@ -422,6 +447,30 @@ struct attribute : ::bt_gatt_attr
       protected:
         gatt::attribute* attr_;
     };
+};
+
+/// @brief Characteristic Presentation Format descriptor value.
+class char_presentation_format
+{
+  public:
+    constexpr char_presentation_format(
+        core::format format, core::unit unit, core::instance description, int8_t exponent = 0,
+        core::name_space name_space = core::name_space::bluetooth_sig)
+        : format(format),
+          exponent(exponent),
+          unit_(static_cast<uint16_t>(unit)),
+          name_space(name_space),
+          description_(description.value)
+    {}
+
+    [[nodiscard]] const uint8_t* data() const { return std_layout_cast<const uint8_t*>(this); }
+
+  private:
+    core::format format{};
+    int8_t exponent{};
+    le_uint16_t unit_;
+    core::name_space name_space{};
+    le_uint16_t description_;
 };
 
 /// @brief This class manages the registration of GATT services.

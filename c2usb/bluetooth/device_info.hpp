@@ -18,9 +18,9 @@ enum class vendor_id_source : uint8_t
 struct pnp_id
 {
     vendor_id_source vid_source;
-    c2usb::le_uint16_t vendor_id;
-    c2usb::le_uint16_t product_id;
-    c2usb::le_uint16_t product_version;
+    le_uint16_t vendor_id;
+    le_uint16_t product_id;
+    le_uint16_t product_version;
 };
 
 struct revisions
@@ -82,7 +82,7 @@ class service
         if (auto* serial_str = std::get_if<std::string_view>(&sn))
         {
             return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                                     c2usb::std_layout_cast<const uint8_t*>(serial_str->data()),
+                                     std_layout_cast<const uint8_t*>(serial_str->data()),
                                      serial_str->size());
         }
         if (auto* serial_span = std::get_if<std::span<const uint8_t>>(&sn))
@@ -92,8 +92,8 @@ class service
                 return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
             }
             // or use std::to_chars
-            return c2usb::raw_to_hex_string(serial_span->subspan(offset / 2),
-                                            std::span<char>(static_cast<char*>(buf), len));
+            return raw_to_hex_string(serial_span->subspan(offset / 2),
+                                     std::span<char>(static_cast<char*>(buf), len));
         }
         return 0;
     }
@@ -107,8 +107,8 @@ class service
                      .vendor_id = info->vendor_id,
                      .product_id = info->product_id,
                      .product_version = info->product_version};
-        return bt_gatt_attr_read(conn, attr, buf, len, offset,
-                                 c2usb::std_layout_cast<uint8_t*>(&pnpid), sizeof(pnpid));
+        return bt_gatt_attr_read(conn, attr, buf, len, offset, std_layout_cast<uint8_t*>(&pnpid),
+                                 sizeof(pnpid));
     }
 
   protected:

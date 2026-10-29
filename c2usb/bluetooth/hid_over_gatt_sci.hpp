@@ -43,6 +43,7 @@ struct bt_conn_le_conn_rate_param
 
 namespace bluetooth
 {
+using namespace c2usb;
 
 /// @brief  A duration type representing the unit of time used for Bluetooth connection events,
 ///         which is 125 microseconds per count.
@@ -236,9 +237,9 @@ struct sci_mode_params : public ::bt_conn_le_conn_rate_param
 struct sci_range
 {
     // unit 125us (Time range: 375 μs to 4 s)
-    c2usb::le_uint16_t min{};    // Minimum supported connection interval
-    c2usb::le_uint16_t max{};    // Maximum supported connection interval
-    c2usb::le_uint16_t stride{}; // The connection interval resolution
+    le_uint16_t min{};    // Minimum supported connection interval
+    le_uint16_t max{};    // Maximum supported connection interval
+    le_uint16_t stride{}; // The connection interval resolution
 };
 
 template <size_t NUM_GROUPS>

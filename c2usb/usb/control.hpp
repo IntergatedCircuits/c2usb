@@ -87,10 +87,12 @@ struct request : public request_id
     template <typename T>
     constexpr request(usb::direction dir, request_base::type t, request_base::recipient rec, T code,
                       uint16_t value, uint16_t index = 0, uint16_t len = 0)
+        // NOLINTNEXTLINE(clang-diagnostic-dangling-field)
         : request_id(dir, t, rec, code), wValue(value), wIndex(index), wLength(len)
     {}
 
     constexpr request(request_id id, uint16_t value, uint16_t index = 0, uint16_t len = 0)
+        // NOLINTNEXTLINE(clang-diagnostic-dangling-field)
         : request_id(id), wValue(value), wIndex(index), wLength(len)
     {}
 

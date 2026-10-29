@@ -70,7 +70,7 @@ class power
     {}
 
   private:
-    uint16_t value_;
+    uint16_t value_{};
 };
 
 static_assert((sizeof(std::uintptr_t) == 4) or (sizeof(std::uintptr_t) == 8));
@@ -486,7 +486,9 @@ class view_base
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
+#if __GNUC__ >= 13
 #pragma GCC diagnostic ignored "-Wdangling-reference"
+#endif
 #endif
 
 /// @brief  Allows iterating through a configuration's all interfaces.

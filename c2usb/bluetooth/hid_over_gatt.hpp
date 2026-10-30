@@ -65,13 +65,6 @@ class service : public hid::transport
     }
 #endif
 
-  protected:
-    struct ccc_data : public gatt::ccc_store
-    {
-        std::span<const uint8_t> pending_notify{};
-        ccc_data() = default;
-    };
-
   private:
     template <typename T, void (service::*FUNC)(T*)>
     static void for_each(T* data)
@@ -198,8 +191,6 @@ class service : public hid::transport
         return {static_cast<const gatt::attribute*>(gatt_service_.attrs), gatt_service_.attr_count};
     }
 
-    std::span<const uint8_t>& get_pending_notify(const gatt::attribute* attr);
-
     static ssize_t get_report_map(::bt_conn* conn, const ::bt_gatt_attr* attr, void* buf,
                                   uint16_t len, uint16_t offset);
 
@@ -235,8 +226,8 @@ class service : public hid::transport
 
     static hid::report::properties report_attr_props(const gatt::attribute* attr);
 
-    gatt::attribute::builder add_input_report(gatt::attribute::builder attr_tail, ccc_data* ccc,
-                                              hid::report::properties props)
+    gatt::attribute::builder add_input_report(gatt::attribute::builder attr_tail,
+                                              gatt::ccc_store* ccc, hid::report::properties props)
     {
         ccc->cfg_write = [](::bt_conn* conn, const ::bt_gatt_attr* attr, uint16_t flags)
         {
@@ -331,7 +322,7 @@ class service : public hid::transport
   protected:
     std::span<gatt::attribute>
     fill_attributes(const std::span<const hid::report::properties>& report_table,
-                    const std::span<gatt::attribute>& attrs, const std::span<ccc_data>& cccs,
+                    const std::span<gatt::attribute>& attrs, const std::span<gatt::ccc_store>& cccs,
                     hid_over_gatt::info desc)
     {
         auto* ccc_ptr = cccs.data();
@@ -552,7 +543,7 @@ class service_instance : public service
     static constexpr auto BOOT = hid::boot::mode::NONE;
 #endif
     std::array<gatt::attribute, attribute_count(REPORT_PROPS, BOOT)> attributes_;
-    std::array<ccc_data, ccc_count(REPORT_PROPS, BOOT)> ccc_stores_;
+    std::array<gatt::ccc_store, ccc_count(REPORT_PROPS, BOOT)> ccc_stores_;
 
   public:
 #ifndef CONFIG_C2USB_HOGP_SCI

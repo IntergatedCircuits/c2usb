@@ -307,21 +307,6 @@ c2usb::result service::receive_report(session& sess, const std::span<uint8_t>& d
     return c2usb::result::ok;
 }
 
-std::span<const uint8_t>& service::get_pending_notify(const gatt::attribute* attr)
-{
-    attr += report_reference_offset() - 1;
-    if (!IS_ENABLED(CONFIG_C2USB_HID_BOOT_PROTOCOL) or
-        (attr->uuid == &uuid16<BT_UUID_HIDS_REPORT_REF_VAL>()))
-    {
-        // if we find the report reference descriptor, next is the CCC descriptor
-        // otherwise it's a boot report, where the CCC is this one
-        attr++;
-    }
-    // now attr points to the CCC descriptor
-    assert(attr->uuid == &uuid16<BT_UUID_GATT_CCC_VAL>());
-    return static_cast<ccc_data*>(const_cast<void*>(attr->user_data))->pending_notify;
-}
-
 c2usb::result service::send_report(session& sess, const std::span<const uint8_t>& data)
 {
     const gatt::attribute* attr = nullptr;
@@ -352,16 +337,7 @@ c2usb::result service::send_report(session& sess, const std::span<const uint8_t>
         return c2usb::result::broken_pipe;
     }
 
-    // alternatively we could allow queueing more than one notification per characteristic,
-    // at the cost of losing track of what message was sent, breaking report_sent() callback
-    auto& pending_notify = get_pending_notify(attr);
-    if (pending_notify.size() > 0)
-    {
-        return c2usb::result::device_or_resource_busy;
-    }
-
-    pending_notify = data;
-    auto result = c2usb::result(attr->notify(
+    return c2usb::result(attr->notify(
         data.subspan(offset),
         [](::bt_conn* conn, void* user_data)
         {
@@ -370,26 +346,17 @@ c2usb::result service::send_report(session& sess, const std::span<const uint8_t>
             self->notify_callback(conn, attr);
         },
         attr, it->conn));
-    if (result != c2usb::result::ok)
-    {
-        pending_notify = {};
-    }
-    return result;
 }
 
 void service::notify_callback(::bt_conn* conn, const gatt::attribute* attr)
 {
-    // clear pending notify before the callback
-    auto& pending_notify = get_pending_notify(attr);
-    auto buf = pending_notify;
-    pending_notify = {};
-    LOG_DBG("input report %x sent (size %u)",
-            std::bit_cast<uint16_t>(report_attr_props(attr).selector), buf.size());
+    auto selector = report_attr_props(attr).selector;
+    LOG_DBG("input report %x sent", std::bit_cast<uint16_t>(selector));
 
     if (auto it = std::ranges::find_if(sessions_, [&](const auto& s) { return s.conn == conn; });
         it != sessions_.end())
     {
-        it->session->report_sent(buf);
+        it->session->send_report_callback(selector, c2usb::result::ok);
     }
 }
 

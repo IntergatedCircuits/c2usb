@@ -88,6 +88,20 @@ class transfer
         return {const_cast<const uint8_t*>(data()), size()};
     }
 
+    [[nodiscard]] constexpr c2usb::result get_result() const
+    {
+        switch (result_)
+        {
+        case outcome::SUCCESS:
+            return c2usb::result::ok;
+        case outcome::CANCELLED:
+            return std::errc::operation_canceled;
+        case outcome::STALL:
+        default:
+            return std::errc::protocol_error;
+        }
+    }
+
   private:
     uint8_t* data_{};
     size_type size_{};

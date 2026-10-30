@@ -451,7 +451,9 @@ void device::process_input_complete(size_t data_length)
         }
         else if (session_ != nullptr)
         {
-            session_->report_sent(input_data);
+            auto selector = report::selector(
+                report::type::INPUT, app_.report_info().report_id_present ? input_data.front() : 0);
+            session_->send_report_callback(selector, c2usb::result::ok);
         }
     }
     else if (in_queue_.has_value())

@@ -53,8 +53,10 @@ class session : public c2usb::polymorphic
         return send_report(std::span<const uint8_t>(report->data(), sizeof(*report)));
     }
 
-    /// @brief  Feedback that the INPUT report has been sent.
-    virtual void report_sent([[maybe_unused]] const std::span<const uint8_t>& data) {}
+    /// @brief  Feedback that the INPUT report send operation has completed.
+    virtual void send_report_callback([[maybe_unused]] report::selector select,
+                                      [[maybe_unused]] c2usb::result result)
+    {}
 
     /// @brief  Provide the necessary buffer to receive an OUTPUT or FEATURE report from the host.
     c2usb::result receive_report(const std::span<uint8_t>& data,

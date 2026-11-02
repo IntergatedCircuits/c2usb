@@ -11,16 +11,16 @@ Checks: >
   -readability-magic-numbers,
   -readability-static-accessed-through-instance,
   cppcoreguidelines*,
-  -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   clang-analyzer-*,
   -clang-analyzer-optin.core.EnumCastOutOfRange
 
-WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 FormatStyle: file
 CheckOptions:

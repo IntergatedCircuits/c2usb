@@ -3,7 +3,7 @@
 
 using namespace usb::df;
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTBEGIN(*-type-reinterpret-cast)
 namespace usb::df::config
 {
 interface_endpoint_view interface::endpoints() const
@@ -20,9 +20,9 @@ interface_endpoint_view::reference interface_endpoint_view::operator[](size_t n)
 const config::interface& endpoint::interface() const
 {
     const auto* itfptr = reinterpret_cast<const config::interface*>(this);
-    do // NOLINT(cppcoreguidelines-avoid-do-while)
+    do // NOLINT(*-avoid-do-while)
     {
-        itfptr--; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        itfptr--;
     } while (not itfptr->valid());
     return *itfptr;
 }
@@ -54,6 +54,6 @@ const active_endpoint_view& view::active_endpoints() const
 {
     return reinterpret_cast<const active_endpoint_view&>(*this);
 }
-// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTEND(*-type-reinterpret-cast)
 
 } // namespace usb::df::config

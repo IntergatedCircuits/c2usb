@@ -34,12 +34,12 @@ class app_base_function : public df::named_function, public ::hid::transport
     ep_handle& ep_in_handle() { return ephs_[0]; }
     ep_handle& ep_out_handle() { return ephs_[1]; }
 
-    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTBEGIN(*-non-private-member-variables-in-classes)
     ::hid::application& app_;
     ::hid::session* session_{};
     reports_receiver rx_buffers_;
     std::array<ep_handle, 2> ephs_{};
-    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTEND(*-non-private-member-variables-in-classes)
 };
 
 /// @brief  The function is the actual USB HID function, implementing the full functionality.

@@ -170,7 +170,7 @@ template <typename To, RawMemoryStorage From>
              (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
 [[nodiscard]] To std_layout_cast(From* ptr) noexcept
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(*-type-reinterpret-cast)
     return reinterpret_cast<To>(ptr);
 }
 
@@ -180,7 +180,7 @@ template <typename To, StdLayoutType From>
              (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
 [[nodiscard]] To std_layout_cast(From* ptr) noexcept
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(*-type-reinterpret-cast)
     return reinterpret_cast<To>(ptr);
 }
 
@@ -190,7 +190,7 @@ template <typename To, RawMemoryStorage From>
              (not std::is_const_v<From> or std::is_const_v<std::remove_pointer_t<To>>)
 [[nodiscard]] To std_layout_cast(From* ptr) noexcept
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(*-type-reinterpret-cast)
     return reinterpret_cast<To>(ptr);
 }
 

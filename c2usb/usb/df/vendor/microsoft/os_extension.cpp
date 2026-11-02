@@ -6,7 +6,7 @@
 template <typename T>
 static auto desc_set_length(T* start, uint8_t* end)
 {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(*-type-reinterpret-cast)
     return std::distance(reinterpret_cast<uint8_t*>(start), end);
 }
 

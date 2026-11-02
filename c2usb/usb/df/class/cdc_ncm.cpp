@@ -265,7 +265,7 @@ c2usb::result function::connect(uint32_t bitrate)
     notify_payload_.speed_change.DLBitRate = bitrate;
     notify_payload_.speed_change.ULBitRate = bitrate;
     notify_payload_.connection.wValue = 1;
-    auto result = notify( // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto result = notify( // NOLINTNEXTLINE(*-type-reinterpret-cast)
         std::span(reinterpret_cast<const uint8_t*>(&notify_payload_), sizeof(notify_payload_)));
     if (result != c2usb::result::ok)
     {

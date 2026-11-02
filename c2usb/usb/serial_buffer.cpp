@@ -24,8 +24,7 @@ std::optional<std::span<const uint8_t>> serial_tx_buffer::write(const uint8_t* d
         {
             break;
         }
-        std::copy_n(data, writable,
-                    &buffer_of(idx)[new_pos]); // NOLINT(*-bounds-pointer-arithmetic)
+        std::copy_n(data, writable, &buffer_of(idx)[new_pos]);
         new_pos += writable;
     } while (not pos_[idx].compare_exchange_weak(pos, new_pos));
 

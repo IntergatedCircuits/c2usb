@@ -314,7 +314,7 @@ enum class formatting : char
 class signature : public le_uint32_t
 {
   public:
-    constexpr explicit signature(const char (&sig_str)[5]) // NOLINT(modernize-avoid-c-arrays)
+    constexpr explicit signature(const char (&sig_str)[5]) // NOLINT(*-avoid-c-arrays)
     {
         std::copy_n(sig_str, storage.size(), storage.data());
     }
@@ -411,7 +411,7 @@ struct datagram_pointer_table
     [[no_unique_address]] c2usb::reserved_t<(BIT_SIZE / 8) - 2> Reserved6;
     le_uint_t<BIT_SIZE> NextNdpIndex; // Offset of the next NDP16 from byte zero of the NTB
     [[no_unique_address]] c2usb::reserved_t<((BIT_SIZE / 8) - 2) * 2> Reserved12;
-    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    // NOLINTNEXTLINE(*-avoid-c-arrays)
     datagram_ptr<BIT_SIZE> Datagram[1]; // The last datagram index + header is always 0
 
     [[nodiscard]] static constexpr signature valid_signature(formatting fmt = formatting::IEEE802_3)

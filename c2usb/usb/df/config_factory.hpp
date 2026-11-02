@@ -11,7 +11,6 @@ struct detail
     constexpr static size_t join_elements(const uint8_t* chunk_sizes, const element** chunks,
                                           element* out)
     {
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         element* begin = out;
         while (*chunk_sizes != 0)
         {
@@ -23,7 +22,6 @@ struct detail
             chunks++;
             chunk_sizes++;
         }
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         return static_cast<size_t>(std::distance(begin, out));
     }
 
@@ -34,7 +32,6 @@ struct detail
         assign_element_array(const header& info, const uint8_t* chunk_sizes, const element** chunks,
                              element* out)
     {
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         // add the {interface, endpoint} chunks
         auto config_size = 1 + join_elements(chunk_sizes, chunks, out + 1);
 
@@ -45,7 +42,6 @@ struct detail
 
         // finally, a terminating footer
         out[config_size] = {};
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     }
 
   private:

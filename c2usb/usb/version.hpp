@@ -24,7 +24,6 @@ class version : public le_uint16_t
     [[nodiscard]] constexpr uint8_t& major() { return storage[1]; }
     [[nodiscard]] constexpr uint8_t& minor() { return storage[0]; }
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     /// @brief Constructs the version from an inline string, which can contain [0;2] '.' characters.
     /// @param vstr: the version string to convert
     consteval version(const char* vstr)
@@ -70,6 +69,5 @@ class version : public le_uint16_t
         }
         return result;
     }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 };
 } // namespace usb

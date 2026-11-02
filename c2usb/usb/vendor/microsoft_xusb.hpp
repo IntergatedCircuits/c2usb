@@ -3,12 +3,11 @@
 #include "usb/control.hpp"
 #include "usb/standard/descriptors.hpp"
 
-namespace usb::microsoft::xusb // NOLINT(modernize-concat-nested-namespaces)
+namespace usb::microsoft::xusb::inline xusb22
 {
 // notice the difference in the amount of documentation?
 // that's because this protocol isn't published, it's reverse-engineered...
-inline namespace xusb22
-{
+
 // https://www.partsnotincluded.com/understanding-the-xbox-360-wired-controllers-usb-data/
 
 /* https://github.com/nefarius/ViGEmBus/issues/40#issuecomment-619889180
@@ -122,6 +121,4 @@ struct descriptor : public usb::descriptor<descriptor>
         : bInEpAddress(in), bOutEpAddress(out)
     {}
 };
-} // namespace xusb22
-} // namespace usb::microsoft::xusb
-
+} // namespace usb::microsoft::xusb::inline xusb22

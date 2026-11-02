@@ -37,7 +37,7 @@ class descriptor_set
             {
                 return nullptr;
             }
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+            // NOLINTNEXTLINE(*-type-reinterpret-cast)
             const T* ptr = reinterpret_cast<const T*>(remaining_.data());
             if ((ptr->bLength < sizeof(T)) or (ptr->bLength > remaining_.size()))
             {
@@ -152,7 +152,7 @@ class bos_capability_set
             return;
         }
 
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         const auto* bos =
             reinterpret_cast<const descriptor::binary_object_store*>(bos_data_.data());
         if ((bos->bLength != sizeof(descriptor::binary_object_store)) or (not bos->type_valid()) or

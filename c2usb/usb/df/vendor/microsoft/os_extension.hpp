@@ -32,7 +32,7 @@ class descriptors : public vendor::extension
     get_platform_descriptor(const device& dev, df::buffer& buffer);
 
     static constexpr uint8_t MSOS2_SUPPORT_FLAG = 0x01;
-    uint8_t status_{}; // NOLINT(cppcoreguidelines-non-private-member-variables-in-classes)
+    uint8_t status_{}; // NOLINT(*-non-private-member-variables-in-classes)
 };
 
 /// @brief Non-template base class for @ref alternate_enumeration.

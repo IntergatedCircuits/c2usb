@@ -217,7 +217,7 @@ bool device::get_input()
     else
     {
         // this is a reset, or the master is only checking our presence on the bus
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         auto& reset_sentinel = *c2usb::std_layout_cast<le_uint16_t*>(buffer_.data());
         reset_sentinel = 0;
 

@@ -151,23 +151,21 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-align"
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     [[nodiscard]] dg_size_store* dg_size_ptr() const
     {
         // datagram lengths are saved backwards starting from the end of the buffer
         // and get ordered only at the time of NTB transmission
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         return reinterpret_cast<dg_size_store*>(std_layout_cast<uint8_t*>(this->data(this->page)) +
                                                 this->size() -
                                                 (sizeof(dg_size_store) * this->dg_count));
     }
     [[nodiscard]] dg_size_store* dg_size_end_ptr() const
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         return reinterpret_cast<dg_size_store*>(this->data(this->page) + this->size() -
                                                 sizeof(dg_size_store));
     }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 #pragma GCC diagnostic pop
 
   public:
@@ -179,7 +177,6 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
     bitfilled::sized_unsigned_t<BIT_SIZE / 16> dg_max_limit{};
 #endif
 
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     [[nodiscard]] uint8_t* tail() const { return this->data(this->page) + this->index; }
 
     /// @brief  Initialize the context for populating a new NTB,
@@ -299,8 +296,6 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         hdr->NdpIndex = index;
         hdr->BlockLength = index + dpt->Length;
 
-        // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
         // round 1: copy datagram lengths from the so-far alternatively used Index fields
         auto* dg = dpt->Datagram;
         auto* rev_dg = dg_size_end_ptr();
@@ -317,8 +312,6 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         }
         // a null element ends the datagram pointer table
         dg[dg_count] = {};
-
-        // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
         // switch to the other page for consecutive datagrams
         this->page = !this->page;
@@ -405,7 +398,6 @@ struct ntb_rx_ctx : public ntb_ctx<BIT_SIZE>
     {
         using namespace usb::cdc::ncm;
         hdr = std_layout_cast<const ntb::header<BIT_SIZE>*>(data);
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         dpt = std_layout_cast<const ntb::datagram_pointer_table<BIT_SIZE>*>(data + hdr->NdpIndex);
         table_index = std::numeric_limits<decltype(table_index)>::max(); // overflow on increment
     }

@@ -139,7 +139,7 @@ struct string : public usb::descriptor<string>
         }
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-align"
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         return {reinterpret_cast<const char16_t*>(Data),
                 (bLength - sizeof(usb::descriptor_header)) / sizeof(char16_t)};
 #pragma GCC diagnostic pop

@@ -28,7 +28,6 @@ class buffer
     [[nodiscard]] size_type used_length() const { return used_length_; }
     [[nodiscard]] bool empty() const { return used_length() == 0; }
     [[nodiscard]] uint8_t* begin() const { return data_; }
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     [[nodiscard]] uint8_t* end() const { return data_ + used_length(); }
 
     void clear() { used_length_ = 0; }
@@ -38,7 +37,6 @@ class buffer
     template <typename T, typename... Args>
     [[nodiscard]] T* allocate(Args&&... args)
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         return new (allocate(sizeof(T))) T(std::forward<Args>(args)...);
     }
 
@@ -106,13 +104,13 @@ class string_message
 
     void set_pending(const transfer& data = {});
 
-    // NOLINTBEGIN(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTBEGIN(*-non-private-member-variables-in-classes)
     C2USB_USB_TRANSFER_ALIGN(control::request, request_) {};
     df::buffer buffer_;
     transfer data_;
     bool pending_{};
     control::stage stage_{};
-    // NOLINTEND(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTEND(*-non-private-member-variables-in-classes)
 
   private:
     standard::descriptor::string* safe_allocate(size_t& size, size_t char_ratio = 1);

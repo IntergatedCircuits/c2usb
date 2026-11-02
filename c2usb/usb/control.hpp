@@ -96,6 +96,11 @@ struct request : public request_id
 
     struct splittable_uint16_t : public le_uint16_t
     {
+        constexpr splittable_uint16_t() = default;
+        constexpr splittable_uint16_t(uint16_t value)
+            : le_uint16_t(value)
+        {}
+
         [[nodiscard]] constexpr uint8_t high_byte() const { return this->storage[1]; }
         [[nodiscard]] constexpr uint8_t& high_byte() { return this->storage[1]; }
         [[nodiscard]] constexpr uint8_t low_byte() const { return this->storage[0]; }
@@ -117,7 +122,7 @@ struct request : public request_id
     splittable_uint16_t wIndex;
     splittable_uint16_t wLength;
 
-    // NOLINTNEXTLINE(cppcoreguidelines-slicing)
+    // NOLINTNEXTLINE(*-slicing)
     [[nodiscard]] constexpr auto id() const { return static_cast<request_id>(*this); }
     [[nodiscard]] constexpr static size_t size() { return sizeof(request); }
 };

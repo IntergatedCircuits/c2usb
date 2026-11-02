@@ -38,7 +38,7 @@ C2USB_STATIC_CONSTEXPR inline uint16_t packet_size_limit(type t, speed s)
     {
         return 0;
     }
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+    // NOLINTNEXTLINE(*-avoid-c-arrays)
     C2USB_STATIC_CONSTEXPR static const uint16_t sizes[4][3] = {
         // clang-format off
         // LS    FS    HS

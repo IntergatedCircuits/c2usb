@@ -75,7 +75,7 @@ class slave : public polymorphic
     /// @param  a: second data span
     virtual void send(const std::span<const uint8_t>& a, const std::span<const uint8_t>& b) = 0;
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTBEGIN(*-type-reinterpret-cast)
     template <typename T>
     void send(const T* a)
         requires(std::is_trivially_copyable_v<T>)
@@ -110,7 +110,7 @@ class slave : public polymorphic
     {
         receive(std::span<uint8_t>(reinterpret_cast<uint8_t*>(a), sizeof(T)), b);
     }
-    // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTEND(*-type-reinterpret-cast)
 
   protected:
     constexpr slave() = default;

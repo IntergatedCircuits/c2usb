@@ -136,7 +136,7 @@ class application : public c2usb::polymorphic
 
   protected:
     // allow subclasses to modify the report descriptor at runtime (for advanced use cases)
-    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTNEXTLINE(*-non-private-member-variables-in-classes)
     report_protocol report_info_;
 };
 

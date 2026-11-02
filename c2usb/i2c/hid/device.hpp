@@ -12,12 +12,10 @@ template <typename T>
 consteval T pack_str(const char* str)
 {
     T val = 0;
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     for (unsigned i = 0; (i < sizeof(T)) and (str[i] != '\0'); i++)
     {
         val = (val) | static_cast<T>(str[i]) << (i * 8);
     }
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return val;
 }
 } // namespace utilities
@@ -77,7 +75,7 @@ class device : public i2c::slave::module, public ::hid::transport
     template <typename T>
     [[nodiscard]] T* get_buffer()
     {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(*-type-reinterpret-cast)
         return reinterpret_cast<T*>(buffer_.data());
     }
 

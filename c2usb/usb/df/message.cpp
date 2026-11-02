@@ -10,7 +10,7 @@ uint8_t* buffer::allocate(size_type size)
 {
     // need to increase CONTROL_BUFFER_SIZE
     assert(data_ and ((used_length() + size) <= max_size()));
-    auto* ptr = data_ + used_length(); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    auto* ptr = data_ + used_length();
     used_length_ += size;
     return ptr;
 }
@@ -65,7 +65,6 @@ usb::standard::descriptor::string* string_message::safe_allocate(size_t& size, s
         size = max_size;
     }
     auto* buf = buffer_.allocate(sizeof(usb::standard::descriptor::string) + (size * char_ratio));
-    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     return new (buf) usb::standard::descriptor::string(buffer_.used_length());
 }
 

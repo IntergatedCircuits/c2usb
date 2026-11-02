@@ -68,7 +68,7 @@ class reference_array_view : public reference_array_view_base
         {}
         constexpr iterator& operator++()
         {
-            ptr_++; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            ptr_++;
             return *this;
         }
         constexpr iterator operator++(int)
@@ -112,7 +112,7 @@ class reference_array_view : public reference_array_view_base
     [[nodiscard]] constexpr std::size_t size() const
     {
         pointer const* ptr = data_;
-        for (; *ptr != nullptr; ++ptr) // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        for (; *ptr != nullptr; ++ptr)
         {
         }
         return static_cast<std::size_t>(std::distance(data_, ptr));

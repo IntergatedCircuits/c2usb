@@ -35,7 +35,7 @@ class transfer
     using size_type = uint16_t;
 
     constexpr transfer() = default;
-    // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
+    // NOLINTBEGIN(*-type-const-cast)
     constexpr transfer(const uint8_t* data, size_type size, outcome result = outcome::SUCCESS,
                        ep_handle eph = {})
         : data_(const_cast<uint8_t*>(data)), size_(size), result_(result), eph_(eph)
@@ -49,12 +49,12 @@ class transfer
           result_(success ? outcome::SUCCESS : outcome::CANCELLED),
           eph_(eph)
     {}
-    // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
+    // NOLINTEND(*-type-const-cast)
 
     template <typename T>
     transfer(T begin, T end)
         : data_(const_cast<uint8_t*>(std::to_address(begin))),
-          // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+          // NOLINTNEXTLINE(*-type-reinterpret-cast)
           size_(static_cast<size_type>(reinterpret_cast<const uint8_t*>(std::to_address(end)) -
                                        data_))
     {}

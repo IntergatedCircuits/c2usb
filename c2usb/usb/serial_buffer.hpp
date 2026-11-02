@@ -24,10 +24,7 @@ class double_buffer
 
   protected:
     [[nodiscard]] T* buffer() const { return buffer_; }
-    [[nodiscard]] T* buffer_of(size_type i)
-    {
-        return buffer_ + (i * size_); // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    }
+    [[nodiscard]] T* buffer_of(size_type i) { return buffer_ + (i * size_); }
     [[nodiscard]] auto size() const { return size_; }
 };
 

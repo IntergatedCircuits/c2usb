@@ -66,7 +66,7 @@ class function : public df::named_function
     }
     result notify(const usb::cdc::notification::header& data)
     {
-        return notify( // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return notify( // NOLINTNEXTLINE(*-type-reinterpret-cast)
             std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&data),
                                      sizeof(usb::cdc::notification::header) + data.wLength));
     }

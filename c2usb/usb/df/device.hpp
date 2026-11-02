@@ -44,7 +44,7 @@ class device : public polymorphic
     auto remote_wakeup() { return mac_.remote_wakeup(); }
 
     // using namespace magic_enum::bitwise_operators;
-    enum event : uint8_t
+    enum class event : uint8_t
     {
         NONE = 0,
         POWER_STATE_CHANGE = 1,
@@ -97,8 +97,7 @@ class device : public polymorphic
           product_info_(prodinfo),
           extension_(ext),
           speeds_(speeds),
-          max_config_count_(max_configs_count),
-          istr_config_base_(ISTR_GLOBAL_BASE - (max_configs_count * speeds.count()))
+          max_config_count_(max_configs_count)
     {
         mac_.init(*this, speeds);
     }
@@ -162,7 +161,8 @@ class device : public polymorphic
 
     const usb::speeds speeds_;
     const uint8_t max_config_count_;
-    const uint8_t istr_config_base_;
+    const uint8_t istr_config_base_{static_cast<uint8_t>(
+        ISTR_GLOBAL_BASE - (max_config_count_ * speeds_.count()))};
 };
 
 /// @brief  The device_instance class is the high level controller of the USB link on the device

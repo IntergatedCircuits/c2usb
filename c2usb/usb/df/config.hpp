@@ -70,7 +70,7 @@ class power
     {}
 
   private:
-    uint16_t value_;
+    uint16_t value_{};
 };
 
 static_assert((sizeof(std::uintptr_t) == 4) or (sizeof(std::uintptr_t) == 8));
@@ -227,7 +227,7 @@ class alignas(std::uintptr_t) element
   private:
     std::array<std::uintptr_t, sizeof(header) / sizeof(std::uintptr_t)> raw_;
     template <class T>
-    element(const T* in) // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    element(const T* in) // NOLINTNEXTLINE(*-type-reinterpret-cast)
         : raw_(*reinterpret_cast<const decltype(raw_)*>(in))
     {
         static_assert(sizeof(T) == sizeof(raw_));
@@ -246,8 +246,7 @@ template <size_t SIZE>
 using elements = std::array<element, SIZE>;
 
 template <size_t SIZE>
-constexpr auto to_elements(
-    element (&&a)[SIZE]) // NOLINT(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+constexpr auto to_elements(element (&&a)[SIZE]) // NOLINT(*-avoid-c-arrays)
 {
     return std::to_array<element>(std::move(a));
 }
@@ -257,7 +256,7 @@ constexpr auto to_elements(
 template <class T>
 using valid_test_method = bool (*)(const T&);
 
-// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTBEGIN(*-type-reinterpret-cast)
 
 /// @brief  View type that allows iterating through the different configuration elements.
 template <class T, bool (*valid_test)(const T&), bool CONTINUE_ON_INVALID = true>
@@ -296,7 +295,7 @@ class view_base
             }
             iterator& operator++()
             {
-                do // NOLINT(cppcoreguidelines-avoid-do-while)
+                do // NOLINT(*-avoid-do-while)
                 {
                     ptr_--;
                 } while (skip_position());
@@ -370,7 +369,7 @@ class view_base
         {
             if constexpr (CONTINUE_ON_INVALID)
             {
-                do // NOLINT(cppcoreguidelines-avoid-do-while)
+                do // NOLINT(*-avoid-do-while)
                 {
                     ptr_++;
                 } while (skip_position());
@@ -480,7 +479,7 @@ class view_base
         return safe_ptr<const_pointer>(ptr_, offset);
     }
 
-    // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+    // NOLINTNEXTLINE(*-non-private-member-variables-in-classes)
     const element* ptr_;
 };
 
@@ -663,6 +662,6 @@ class view_list : public reference_array_view<const element, const view>
         return false;
     }
 };
-// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+// NOLINTEND(*-type-reinterpret-cast)
 
 } // namespace usb::df::config

@@ -102,8 +102,11 @@ static int udc_buf_enqueue(const ::device* dev, ::net_buf* buf)
 }
 
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
-    : udc_mac(dev, ctrl_ep_buf_size,
-              can_detect_vbus(udc_caps(dev)) ? power::state::L3_OFF : power::state::L2_SUSPEND)
+    : udc_mac(
+          dev, ctrl_ep_buf_size,
+          (IS_ENABLED(CONFIG_C2USB_UDC_MAC_INITIAL_POWER_OFF) and can_detect_vbus(udc_caps(dev)))
+              ? power::state::L3_OFF
+              : power::state::L2_SUSPEND)
 {}
 
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state)

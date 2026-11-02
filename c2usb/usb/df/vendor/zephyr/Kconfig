@@ -18,6 +18,17 @@ config C2USB_UDC_MAC_THREAD_STACK_SIZE
     int "UDC MAC thread stack size"
     default 1024
 
+config C2USB_UDC_MAC_INITIAL_POWER_OFF
+    bool "Start the USB device in powered off state"
+    default y if UDC_NRF || (UDC_DWC2 && SOC_FAMILY_NORDIC_NRF)
+    help
+      Start the USB device in L3_OFF power state, and only connect to the bus
+      when the UDC driver reports Vbus presence. Ignored if the UDC driver
+      cannot detect Vbus.
+      Only enable this if the UDC driver reports Vbus that is already present at
+      initialization, otherwise the device stays disconnected until Vbus is reapplied.
+      If disabled, the device starts in L2_SUSPEND state and connects immediately.
+
 endif # C2USB_UDC_MAC
 
 rsource "Kconfig.cdc_ncm"

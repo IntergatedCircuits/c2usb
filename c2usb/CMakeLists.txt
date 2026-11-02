@@ -5,6 +5,18 @@ endif()
 
 add_library(c2usb)
 
+function(c2usb_zephyr_set_ndebug)
+    get_target_property(definitions zephyr_interface INTERFACE_COMPILE_DEFINITIONS)
+    get_target_property(options zephyr_interface INTERFACE_COMPILE_OPTIONS)
+    string(REGEX MATCH "(^|[^A-Za-z0-9_]|-D)NDEBUG([^A-Za-z0-9_]|$)" ndebug_defined
+        "${definitions};${options};${CMAKE_C_FLAGS};${CMAKE_CXX_FLAGS}")
+    if(CONFIG_ASSERT AND ndebug_defined)
+        message(FATAL_ERROR "NDEBUG is defined while CONFIG_ASSERT is enabled, disabling assert()")
+    elseif(NOT CONFIG_ASSERT AND NOT ndebug_defined)
+        target_compile_definitions(zephyr_interface INTERFACE NDEBUG)
+    endif()
+endfunction()
+
 set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
 include(get_cpm)
@@ -39,10 +51,9 @@ if(ZEPHYR_BASE)
     add_subdirectory(bluetooth)
     add_subdirectory(usb/df/vendor/zephyr)
 
-    target_compile_definitions(zephyr_interface INTERFACE
-        # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended
-        $<IF:$<BOOL:${CONFIG_DEBUG}>,DEBUG,NDEBUG>
-    )
+    # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended,
+    # after all modules and the application have added their compiler flags
+    cmake_language(DEFER DIRECTORY ${CMAKE_SOURCE_DIR} CALL c2usb_zephyr_set_ndebug)
 elseif(MCUX_SDK_PROJECT_NAME)
     target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE c2usb)
     add_subdirectory(usb/df/vendor/lwip)

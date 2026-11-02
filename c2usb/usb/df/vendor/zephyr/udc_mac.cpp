@@ -9,11 +9,6 @@ extern "C"
 #include <zephyr/drivers/usb/udc.h>
 }
 
-#if defined(CONFIG_DEBUG) == defined(NDEBUG)
-// for assert() to be active in debug configuration only, this is necessary
-#error "Either CONFIG_DEBUG or NDEBUG must be defined"
-#endif
-
 LOG_MODULE_REGISTER(c2usb, CONFIG_C2USB_UDC_MAC_LOG_LEVEL);
 
 static constexpr ::udc_event_type UDC_MAC_TASK = (udc_event_type)-1;

@@ -267,11 +267,26 @@ int cdc_ncm_ethernet::driver_set_config(const ::device* dev, ::ethernet_config_t
 
 using namespace usb::df::zephyr;
 
+template <auto FUNC, typename TApiFunc>
+struct ethernet_api_adapter
+{
+    static constexpr auto call = FUNC;
+};
+template <auto FUNC, typename TRet, typename... Args>
+struct ethernet_api_adapter<FUNC, TRet (*)(const ::device*, ::net_if*, Args...)>
+{
+    // Zephyr 4.5 added a net_if* argument to the ethernet_api callbacks,
+    // this wrapper drops it, so the same driver functions fit both API versions
+    static TRet call(const ::device* dev, ::net_if*, Args... args) { return FUNC(dev, args...); }
+};
+#define ETHERNET_API_FUNC(member, func)                                                            \
+    ethernet_api_adapter<func, decltype(::ethernet_api::member)>::call
+
 extern const ::ethernet_api c2usb_cdc_ncm_ethernet_api = {
     .iface_api = {.init = cdc_ncm_ethernet::driver_iface_init},
-    .start = cdc_ncm_ethernet::driver_start,
-    .stop = cdc_ncm_ethernet::driver_stop,
-    .get_capabilities = cdc_ncm_ethernet::driver_capabilities,
-    .set_config = cdc_ncm_ethernet::driver_set_config,
+    .start = ETHERNET_API_FUNC(start, cdc_ncm_ethernet::driver_start),
+    .stop = ETHERNET_API_FUNC(stop, cdc_ncm_ethernet::driver_stop),
+    .get_capabilities = ETHERNET_API_FUNC(get_capabilities, cdc_ncm_ethernet::driver_capabilities),
+    .set_config = ETHERNET_API_FUNC(set_config, cdc_ncm_ethernet::driver_set_config),
     .send = cdc_ncm_ethernet::driver_send,
 };

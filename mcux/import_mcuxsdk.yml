@@ -1,18 +1,11 @@
 manifest:
   remotes:
-    - name: IntergatedCircuits
-      url-base: https://github.com/IntergatedCircuits
     - name: nxp-mcuxpresso
       url-base: https://github.com/nxp-mcuxpresso
   #group-filter:
   #  - +optional # mcux-soc-svd
 
   projects:
-    - name: freertos-mcpp
-      remote: IntergatedCircuits
-      revision: 31e7c17d7d174d5901c5b0e53f999ea0540a30f3
-      path: modules/lib/freertos-mcpp
-
     - name: mcuxsdk-manifests
       remote: nxp-mcuxpresso
       path: mcuxsdk/manifest_int

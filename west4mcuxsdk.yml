@@ -1,4 +1,6 @@
 manifest:
+  group-filter: [-zephyr]
+
   self:
     import:
       - west.yml

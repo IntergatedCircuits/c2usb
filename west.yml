@@ -16,8 +16,19 @@ manifest:
       import:
         path-prefix: modules/lib
 
+    - name: zephyrrtos-mcpp
+      revision: 764060708b9a5bf26c07da27363b2325309d54bc
+      groups: [zephyr]
+      path: modules/lib/zephyrrtos-mcpp
+
+    - name: freertos-mcpp
+      revision: 31e7c17d7d174d5901c5b0e53f999ea0540a30f3
+      groups: [mcux]
+      path: modules/lib/freertos-mcpp
+
     - name: etl
       url: https://github.com/ETLCPP/etl
       revision: 20.49.0
       clone-depth: 1
+      groups: [zephyr, mcux]
       path: modules/lib/etl

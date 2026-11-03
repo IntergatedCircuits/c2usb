@@ -119,17 +119,16 @@ class alignas(std::uintptr_t) interface
     /// @param  sof_notify: whether the function requires start-of-frame notifications
     constexpr interface(df::function& func, uint8_t function_index = 0, uint8_t alt_settings = 0,
                         bool sof_notify = false)
-        : alt_settings_(alt_settings), function_index_(function_index), function_(func)
+        : alt_settings_(alt_settings), function_index_(function_index), function_(&func)
     {
         // only first byte is guaranteed to exist on all platforms
         reserved_[0] = uint8_t(sof_notify);
     }
     [[nodiscard]] constexpr bool valid() const
     {
-        return (always_zero_ == 0) and (std::bit_cast<std::uintptr_t>(&function_) !=
-                                        std::bit_cast<std::uintptr_t>(nullptr));
+        return (always_zero_ == 0) and (function_ != nullptr);
     }
-    [[nodiscard]] constexpr df::function& function() const { return function_; }
+    [[nodiscard]] constexpr df::function& function() const { return *function_; }
     [[nodiscard]] constexpr uint8_t function_index() const { return function_index_; }
     [[nodiscard]] constexpr bool primary() const { return function_index() == 0; }
     [[nodiscard]] constexpr uint8_t alt_setting_count() const { return alt_settings_ + 1; }
@@ -148,7 +147,7 @@ class alignas(std::uintptr_t) interface
     uint8_t alt_settings_{};
     uint8_t function_index_{};
     std::array<uint8_t, sizeof(std::uintptr_t) - 3> reserved_{};
-    df::function& function_;
+    df::function* function_;
 };
 static_assert(sizeof(header) == sizeof(interface));
 

@@ -336,13 +336,9 @@ uint16_t udc_mac::control_ep_max_packet_size(usb::speed speed) const
     }
 }
 
-void udc_mac::ctrl_stall(net_buf* buf, int err)
+void udc_mac::ctrl_stall(net_buf* buf, direction dir)
 {
-    auto addr = endpoint::address::control_in();
-    if ((request().direction() == usb::direction::OUT) and request().wLength and (err == -ENOMEM))
-    {
-        addr = endpoint::address::control_out();
-    }
+    auto addr = endpoint::address::control(dir);
     [[maybe_unused]] auto ret = ep_set_stall(addr);
 
     if constexpr (udc_managed_ctrl)
@@ -423,7 +419,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             if (!buf)
             {
                 LOG_ERR("Control EP data cannot be allocated, stalling EP");
-                return ctrl_stall(buf, -ENOMEM);
+                return ctrl_stall(buf, direction::IN);
             }
             buf->flags |= NET_BUF_EXTERNAL_DATA;
             auto& new_info = *udc_get_buf_info(buf);
@@ -434,14 +430,16 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
             // control OUT transfers are received in advance,
             // cannot provide new buffer afterwards
             LOG_ERR("Control OUT data couldn't be allocated, stalling EP");
-            return ctrl_stall(buf, -ENOMEM);
+            return ctrl_stall(buf, direction::OUT);
         }
 
         // step 1. setup stage
         auto transfer = control_ep_setup();
         if (transfer.stalled())
         {
-            return ctrl_stall(buf);
+            return ctrl_stall(buf, request().direction() == direction::OUT and request().wLength
+                                        ? direction::OUT
+                                        : direction::IN);
         }
 
         // step 2. data stage
@@ -453,7 +451,7 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
                 buf = move_data_out(buf, transfer);
                 if (!control_ep_data(direction::OUT, transfer))
                 {
-                    return ctrl_stall(buf);
+                    return ctrl_stall(buf, direction::IN);
                 }
             }
             else // direction::IN
@@ -602,7 +600,7 @@ void udc_mac::ctrl_status(usb::direction dir)
     }
     else if (udc_buf_enqueue(dev_, status_buf_) != 0)
     {
-        return ctrl_stall();
+        return ctrl_stall(nullptr, dir);
     }
     ctrl_setup();
 }
@@ -641,7 +639,9 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
         auto transfer = control_ep_setup();
         if (transfer.stalled())
         {
-            return ctrl_stall();
+            return ctrl_stall(nullptr, request().direction() == direction::OUT and request().wLength
+                                            ? direction::OUT
+                                            : direction::IN);
         }
 
         // initiate DATA stage
@@ -669,7 +669,7 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
 
                 udc_buf_enqueue(dev_, ctrl_buf_) == 0
                     ? ctrl_status(direction::OUT) // status OUT must be provided early
-                    : ctrl_stall();
+                    : ctrl_stall(nullptr, direction::IN);
             }
         }
         else // no DATA -> initiate STATUS IN stage
@@ -691,7 +691,7 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
         if (request().direction() == direction::OUT)
         {
             return ok ? ctrl_status(direction::IN) // initiate STATUS IN stage / stall
-                      : ctrl_stall();
+                      : ctrl_stall(nullptr, direction::IN);
         }
         else
         {

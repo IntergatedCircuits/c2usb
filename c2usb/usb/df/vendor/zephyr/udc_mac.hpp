@@ -51,7 +51,7 @@ class udc_mac : public df::mac
     void set_driver_ctx();
     void ctrl_setup();
     void ctrl_status(usb::direction dir);
-    void ctrl_stall(::net_buf* buf = nullptr, int err = 0);
+    void ctrl_stall(::net_buf* buf, usb::direction dir);
     bool set_attached(bool attached) override;
     void allocate_endpoints(config::active_endpoint_view config = {},
                             bool notify_sof = false) override;

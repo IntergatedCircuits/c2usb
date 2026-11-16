@@ -130,6 +130,8 @@ class mac : public polymorphic
 
     void set_power_state(power::state new_state);
 
+    [[nodiscard]] bool initialized() const { return dev_if_ != nullptr; }
+
     [[nodiscard]] bool control_in_zlp(const transfer& t) const
     {
         return (request().wLength > t.size()) and
@@ -140,6 +142,9 @@ class mac : public polymorphic
     {
         return std::span<uint8_t>(ctrl_msg_.buffer().begin(), ctrl_msg_.buffer().end());
     }
+
+    /// @brief  The size of the buffer passed to @ref set_control_buffer().
+    [[nodiscard]] auto control_buffer_capacity() const { return ctrl_msg_.buffer_.max_size(); }
 
     constexpr mac(power::state power_state = power::state::L3_OFF)
         : power_state_{power_state}

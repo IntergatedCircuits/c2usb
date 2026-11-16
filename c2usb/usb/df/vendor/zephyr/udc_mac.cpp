@@ -2,6 +2,7 @@
 #include "usb/df/vendor/zephyr/udc_mac.hpp"
 #include <atomic>
 #include "compatibility_helper.hpp"
+#include <magic_enum.hpp>
 #include <zephyr/logging/log.h>
 #include <zephyr/message_queue.hpp>
 extern "C"
@@ -101,12 +102,15 @@ static int udc_buf_enqueue(const ::device* dev, ::net_buf* buf)
     return ret;
 }
 
+/// @brief Whether the power state follows the Vbus events of the UDC driver.
+static bool follows_vbus(const ::device* dev)
+{
+    return IS_ENABLED(CONFIG_C2USB_UDC_MAC_INITIAL_POWER_OFF) and can_detect_vbus(udc_caps(dev));
+}
+
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
-    : udc_mac(
-          dev, ctrl_ep_buf_size,
-          (IS_ENABLED(CONFIG_C2USB_UDC_MAC_INITIAL_POWER_OFF) and can_detect_vbus(udc_caps(dev)))
-              ? power::state::L3_OFF
-              : power::state::L2_SUSPEND)
+    : udc_mac(dev, ctrl_ep_buf_size,
+              follows_vbus(dev) ? power::state::L3_OFF : power::state::L2_SUSPEND)
 {}
 
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state)
@@ -241,7 +245,7 @@ static int udc_mac_event_dispatch(const ::device*, const udc_event* event)
 
 void udc_mac::init(const usb::speeds& speeds)
 {
-    assert(control_ep_max_packet_size(speeds.max) <= ctrl_buf_->size);
+    assert(control_ep_max_packet_size(speeds.max) <= control_buffer_capacity());
     [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, udc_mac_event_dispatch, this);
     assert(ret == 0 and "Failed to initialize UDC");
 }
@@ -259,6 +263,19 @@ void udc_mac::deinit()
         ret = udc_purge_queues(dev_);
         assert(ret == 0 and "Failed to purge endpoint queues");
     }
+
+    if (follows_vbus(dev_))
+    {
+        // Vbus changes are not reported while the driver is shut down,
+        // the next udc_init() reports Vbus if it is present by then
+        set_power_state(power::state::L3_OFF);
+    }
+}
+
+void udc_mac::disable()
+{
+    [[maybe_unused]] auto ret = udc_disable(dev_);
+    assert(ret == 0 and "Failed to disable UDC");
 }
 
 bool udc_mac::set_attached(bool attached)
@@ -267,12 +284,13 @@ bool udc_mac::set_attached(bool attached)
     {
         return attached;
     }
-    if (power_state() == power::state::L3_OFF)
-    {
-        return false;
-    }
     if (attached)
     {
+        if (power_state() == power::state::L3_OFF)
+        {
+            // attached by the VBUS_READY event, as the device is active()
+            return false;
+        }
         if constexpr (not udc_managed_ctrl)
         {
             bool start_setup = udc_ep_queue_is_empty(dev_, USB_CONTROL_EP_OUT);
@@ -293,8 +311,17 @@ bool udc_mac::set_attached(bool attached)
     }
     else
     {
-        [[maybe_unused]] auto ret = udc_disable(dev_);
-        assert(ret == 0 and "Failed to disable UDC");
+        disable();
+
+        // Without the pull-up the host sees a disconnect, and the controller is off, so no
+        // bus event reports it. A detached device is suspended: report it after the
+        // driver events that are already queued.
+        udc_event event{.type = UDC_EVT_SUSPEND, .dev = dev_};
+        if (not message_queue().try_post(event))
+        {
+            assert(false and "Failed to queue suspend event");
+            set_power_state(power::state::L2_SUSPEND);
+        }
     }
     return udc_is_enabled(dev_);
 }
@@ -398,11 +425,11 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         stall_flags_.clear(endpoint::address::control_in());
 
         std::memcpy(&request(), buf->data, sizeof(request()));
-#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
-        // logged when DBG level is selected, but without the extra details of LOG_DBG()
-        LOG_INF("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
+
+        // use CONFIG_LOG_FUNC_NAME_PREFIX_DBG=n to hide callers
+        LOG_DBG("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
                 (uint16_t)request().wValue, (uint16_t)request().wLength);
-#endif
+
         // pop the buf chain for the next stage(s), freeing the setup buf
         buf = net_buf_frag_del(nullptr, buf);
 
@@ -438,8 +465,8 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         if (transfer.stalled())
         {
             return ctrl_stall(buf, request().direction() == direction::OUT and request().wLength
-                                        ? direction::OUT
-                                        : direction::IN);
+                                       ? direction::OUT
+                                       : direction::IN);
         }
 
         // step 2. data stage
@@ -518,68 +545,92 @@ usb::result udc_mac::queue_task(etl::delegate<void()> task)
     return post_event(event);
 }
 
-int udc_mac::event_callback(const udc_event& event)
+void udc_mac::event_callback(const udc_event& event)
 {
     if (event.type == UDC_MAC_TASK) [[unlikely]]
     {
         auto& task = reinterpret_cast<const etl::delegate<void()>&>(event.value);
         task();
-        return 0;
+        return;
     }
     auto* mac = get_event_ctx(event.dev);
     assert(mac != nullptr);
-    return mac->process_event(event);
+    if (mac->initialized())
+    {
+        mac->process_event(event);
+    }
 }
 
-int udc_mac::process_event(const udc_event& event)
+void udc_mac::process_event(const udc_event& event)
 {
-    if ((power_state() == power::state::L3_OFF) and (event.type != UDC_EVT_VBUS_READY)) [[unlikely]]
+    if (power_state() == power::state::L3_OFF) [[unlikely]]
     {
-        // flush late events after Vbus removal
-        return 0;
+        // this event is also handled in the other states below
+        if (event.type == UDC_EVT_VBUS_READY)
+        {
+            set_power_state(power::state::L2_SUSPEND);
+            set_attached(active());
+        }
+        else
+        {
+            LOG_DBG_RATELIMIT("%s event while bus off", magic_enum::enum_name(event.type).data());
+        }
+        return;
     }
     switch (event.type)
     {
     case UDC_EVT_EP_REQUEST:
+        // aborted completions also delivered
         process_ep_event(event.buf);
-        break;
-    case UDC_EVT_RESET:
-        bus_reset();
-        {
-            [[maybe_unused]] auto ret = udc_set_address(dev_, 0);
-            assert(ret == 0);
-            // control endpoints are opened in udc_init
-
-            if constexpr (udc_managed_ctrl)
-            {
-                // clear leftover pending ctrl data
-                ret = udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
-            }
-        }
-        break;
+        return;
     case UDC_EVT_SUSPEND:
         set_power_state(power::state::L2_SUSPEND);
-        break;
-    case UDC_EVT_RESUME:
-        set_power_state(power::state::L0_ON);
-        break;
-    case UDC_EVT_VBUS_READY:
-        set_power_state(power::state::L2_SUSPEND);
-        set_attached(active());
-        break;
+        return;
     case UDC_EVT_VBUS_REMOVED:
-        assert(power_state() != power::state::L3_OFF);
-        set_attached(false);
+        if (udc_is_enabled(dev_))
+        {
+            // not set_attached(), as there is no suspend before power off
+            disable();
+        }
         set_power_state(power::state::L3_OFF);
-        break;
-    case UDC_EVT_SOF:
-        sof_trigger();
-        break;
+        return;
     case UDC_EVT_ERROR:
-    default:
+    default: // the rest are handled only when enabled
         break;
     }
-    return 0;
+    if (not udc_is_enabled(dev_)) [[unlikely]]
+    {
+        LOG_DBG_RATELIMIT("%s event while not enabled", magic_enum::enum_name(event.type).data());
+        return;
+    }
+    switch (event.type)
+    {
+    case UDC_EVT_RESET:
+        bus_reset();
+        if (auto ret = udc_set_address(dev_, 0); ret != 0)
+        {
+            assert(ret == 0);
+        }
+        // control endpoints are opened in udc_init
+
+        if constexpr (udc_managed_ctrl)
+        {
+            // clear leftover pending ctrl data
+            std::ignore = udc_ep_dequeue(dev_, USB_CONTROL_EP_IN);
+        }
+        return;
+    case UDC_EVT_RESUME:
+        set_power_state(power::state::L0_ON);
+        return;
+    case UDC_EVT_VBUS_READY:
+        set_attached(active());
+        return;
+    case UDC_EVT_SOF:
+        sof_trigger();
+        return;
+    default:
+        return;
+    }
 }
 
 void udc_mac::ctrl_setup()
@@ -630,18 +681,16 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
         stall_flags_.clear(endpoint::address::control_in());
 
         std::memcpy(&request(), buf->data, sizeof(request()));
-#if CONFIG_C2USB_UDC_MAC_LOG_LEVEL >= LOG_LEVEL_DBG
-        // logged when DBG level is selected, but without the extra details of LOG_DBG()
-        LOG_INF("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
+        // use CONFIG_LOG_FUNC_NAME_PREFIX_DBG=n to hide callers
+        LOG_DBG("CTRL EP setup: %02x %02x %04x %u", request().bmRequestType, request().bRequest,
                 (uint16_t)request().wValue, (uint16_t)request().wLength);
-#endif
 
         auto transfer = control_ep_setup();
         if (transfer.stalled())
         {
             return ctrl_stall(nullptr, request().direction() == direction::OUT and request().wLength
-                                            ? direction::OUT
-                                            : direction::IN);
+                                           ? direction::OUT
+                                           : direction::IN);
         }
 
         // initiate DATA stage
@@ -767,7 +816,7 @@ void udc_mac::allocate_endpoints(config::active_endpoint_view config,
     // UDC driver uses build-time SOF notification configuration
     if (not IS_ENABLED(CONFIG_UDC_ENABLE_SOF) and notify_sof)
     {
-        LOG_WRN("SOF notification is requested, but CONFIG_UDC_ENABLE_SOF is not enabled");
+        LOG_ERR("SOF notification is requested, but CONFIG_UDC_ENABLE_SOF is not enabled");
     }
     // first clean up the previous allocation
     for (auto it = ep_bufs_.rbegin(); it != ep_bufs_.rend(); ++it)

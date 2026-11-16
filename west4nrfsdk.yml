@@ -5,5 +5,5 @@ manifest:
     import:
       - west.yml
       # choose one of two:
-      #- zephyr/import_zephyr.yml
-      - zephyr/import_nrfsdk.yml
+      - zephyr/import_zephyr.yml
+      #- zephyr/import_nrfsdk.yml

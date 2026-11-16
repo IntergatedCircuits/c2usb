@@ -1,0 +1,22 @@
+
+
+&usbotg_fs {
+	status = "disabled";
+};
+
+&{/soc} {
+	uhc_host: host-controller@40080000 {
+		compatible = "snps,dwc2";
+		reg = <0x40080000 0x40000>;
+		interrupts = <101 0>;
+		num-in-eps = <9>;
+		num-out-eps = <9>;
+		ghwcfg1 = <0x00000000>;
+		ghwcfg2 = <0x229ee120>;
+		ghwcfg4 = <0x17f08030>;
+		g-rx-fifo-size = <256>;
+		g-np-tx-fifo-size = <64>;
+		g-tx-fifo-size = <64 64 64 64 64 64 64 64>;
+		status = "okay";
+	};
+};

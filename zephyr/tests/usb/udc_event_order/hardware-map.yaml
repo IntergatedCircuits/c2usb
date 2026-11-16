@@ -1,0 +1,16 @@
+- connected: true
+  id: "0045002C3137510C39383538"
+  probe_id: "0045002C3137510C39383538"
+  platform: nucleo_h755zi_q/stm32h755xx/m7
+  product: ST-LINK/V3
+  runner: stm32cubeprogrammer
+  serial: /dev/serial/by-id/usb-STMicroelectronics_ST-LINK_V3_0045002C3137510C39383538-if02
+  serial_baud: 115200
+- connected: true
+  id: "001050254062"
+  probe_id: "001050254062"
+  platform: nrf52840dk/nrf52840
+  product: J-Link
+  runner: jlink
+  serial: /dev/serial/by-id/usb-SEGGER_J-Link_001050254062-if00
+  serial_baud: 115200

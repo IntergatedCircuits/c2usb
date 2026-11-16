@@ -1,0 +1,42 @@
+tests:
+  c2usb.usb.udc_event_order:
+    harness: pytest
+    platform_allow:
+      - nucleo_h755zi_q/stm32h755xx/m7
+    integration_platforms:
+      - nucleo_h755zi_q/stm32h755xx/m7
+    required_applications:
+      - application: c2usb.usb.udc_event_order.device
+        path: device
+        platform: nrf52840dk/nrf52840
+    harness_config:
+      pytest_root:
+        - pytest/test_udc_event_order.py
+      required_devices:
+        - platform: nrf52840dk/nrf52840
+          application: c2usb.usb.udc_event_order.device
+    tags:
+      - usb
+      - multidut
+      - hardware
+
+  c2usb.usb.udc_power_state:
+    harness: pytest
+    platform_allow:
+      - nucleo_h755zi_q/stm32h755xx/m7
+    integration_platforms:
+      - nucleo_h755zi_q/stm32h755xx/m7
+    required_applications:
+      - application: c2usb.usb.udc_power_state.device
+        path: c2usb_device
+        platform: nrf52840dk/nrf52840
+    harness_config:
+      pytest_root:
+        - pytest/test_c2usb_power_state.py
+      required_devices:
+        - platform: nrf52840dk/nrf52840
+          application: c2usb.usb.udc_power_state.device
+    tags:
+      - usb
+      - multidut
+      - hardware

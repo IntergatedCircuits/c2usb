@@ -438,8 +438,8 @@ void udc_mac::process_ctrl_ep_event(net_buf* buf, const udc_buf_info& info)
         if (transfer.stalled())
         {
             return ctrl_stall(buf, request().direction() == direction::OUT and request().wLength
-                                        ? direction::OUT
-                                        : direction::IN);
+                                       ? direction::OUT
+                                       : direction::IN);
         }
 
         // step 2. data stage
@@ -533,9 +533,12 @@ int udc_mac::event_callback(const udc_event& event)
 
 int udc_mac::process_event(const udc_event& event)
 {
+    LOG_DBG("UDC event %u at power state %u", static_cast<unsigned>(event.type),
+            static_cast<unsigned>(power_state()));
     if ((power_state() == power::state::L3_OFF) and (event.type != UDC_EVT_VBUS_READY)) [[unlikely]]
     {
         // flush late events after Vbus removal
+        LOG_DBG("Ignoring UDC event %u while powered off", static_cast<unsigned>(event.type));
         return 0;
     }
     switch (event.type)
@@ -640,8 +643,8 @@ void udc_mac::process_ctrl_ep(net_buf* buf, const udc_buf_info& info)
         if (transfer.stalled())
         {
             return ctrl_stall(nullptr, request().direction() == direction::OUT and request().wLength
-                                            ? direction::OUT
-                                            : direction::IN);
+                                           ? direction::OUT
+                                           : direction::IN);
         }
 
         // initiate DATA stage

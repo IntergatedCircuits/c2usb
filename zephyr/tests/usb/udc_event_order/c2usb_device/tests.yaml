@@ -1,0 +1,7 @@
+tests:
+  c2usb.usb.udc_power_state.device:
+    build_only: true
+    platform_allow:
+      - nrf52840dk/nrf52840
+    tags:
+      - usb

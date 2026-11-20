@@ -35,6 +35,8 @@ void mac::stop()
     {
         set_attached(false);
         active_ = false;
+        // the host forgets the device on detach, a new connection starts without remote wakeup
+        std_status_.remote_wakeup = false;
     }
 }
 
@@ -53,6 +55,11 @@ void mac::set_power_state(power::state new_state)
     if (new_state == power_state())
     {
         return;
+    }
+    if (new_state == power::state::L3_OFF)
+    {
+        // the host forgets the device on power loss, as on detach
+        std_status_.remote_wakeup = false;
     }
     power_state_.store(new_state);
     assert(dev_if_ != nullptr);

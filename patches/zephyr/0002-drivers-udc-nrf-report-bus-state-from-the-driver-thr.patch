@@ -1,0 +1,302 @@
+From: Benedek Kupper <kupper.benedek@gmail.com>
+Date: Thu, 19 Nov 2026 23:55:21 +0100
+Subject: [PATCH] drivers: udc: nrf: report bus state from the driver thread
+
+Bus events were reported as they occurred, RESET and VBUS from the ISRs,
+SUSPEND and RESUME from the driver thread. The stack could receive an
+invalid sequence:
+- RESET and RESUME after VBUS_REMOVED: when VBUS drops, the collapsing
+  pull-up raises USBRESET and a RESUME on a device already unpowered,
+- RESUME right after RESET from suspend, as USBRESET is serviced first,
+- SUSPEND and RESUME swapped, when both are pending for the driver
+  thread, which handles its events in a fixed order,
+- no VBUS event at all, when USBDETECTED and USBREMOVED are serviced
+  together while VBUS is present: the stack never learns that the
+  power, and with it the bus session, was lost.
+
+The ISRs now only record state: VBUS and reset event counts, and the
+suspend state. The driver thread compares it with what the stack was
+last told, and reports the difference in the order of the USB device
+state machine:
+- VBUS_REMOVED when VBUS is gone, or was lost and is back since the
+  last report, followed by VBUS_READY in the latter case,
+- no bus events unless VBUS_READY was reported last: before the stack
+  enables the controller there is no pull-up,
+- one RESET for any number of resets, which also ends suspend,
+- SUSPEND or RESUME when the suspend state differs from the reported.
+
+The SOF notification is also deferred to the driver thread, so all
+callbacks run in thread context. udc_init() reports VBUS from the
+thread as well.
+---
+ drivers/usb/udc/udc_nrf.c | 155 ++++++++++++++++++++++++++------------
+ 1 file changed, 106 insertions(+), 49 deletions(-)
+
+diff --git a/drivers/usb/udc/udc_nrf.c b/drivers/usb/udc/udc_nrf.c
+index 23d7f9854e3..740b089f9f8 100644
+--- a/drivers/usb/udc/udc_nrf.c
++++ b/drivers/usb/udc/udc_nrf.c
+@@ -37,12 +37,10 @@ enum udc_nrf_event_type {
+ 	UDC_NRF_EVT_EP_FINISHED,
+ 	/* SETUP data received */
+ 	UDC_NRF_EVT_SETUP,
+-	/* USB bus suspended */
+-	UDC_NRF_EVT_SUSPEND,
+-	/* USB bus resumed */
+-	UDC_NRF_EVT_RESUME,
+-	/* Remote Wakeup initiated */
+-	UDC_NRF_EVT_WUREQ,
++	/* VBUS, bus reset or suspend state changed */
++	UDC_NRF_EVT_BUS,
++	/* Start-of-frame */
++	UDC_NRF_EVT_SOF,
+ 	/* Endpoint dequeue requested */
+ 	UDC_NRF_EVT_DEQUEUE,
+ };
+@@ -70,7 +68,13 @@ static struct udc_ep_config ep_cfg_in[CFG_EPIN_CNT + CFG_EP_ISOIN_CNT + 1];
+ static bool udc_nrf_setup_set_addr, udc_nrf_fake_setup;
+ static uint8_t udc_nrf_address;
+ const static struct device *udc_nrf_dev;
+-static bool vbus_present;
++/*
++ * Bus state changes recorded by the ISRs, and reported by the driver thread.
++ * The suspend state is in m_bus_suspend.
++ */
++static atomic_t vbus_gen;
++static atomic_t reset_gen;
++static atomic_t bus_resync;
+ 
+ #define NRF_USBD_COMMON_EPIN_CNT      9
+ #define NRF_USBD_COMMON_EPOUT_CNT     9
+@@ -397,9 +401,10 @@ static inline void usbd_int_rise(void)
+ static void ev_usbreset_handler(void)
+ {
+ 	m_bus_suspend = false;
++	atomic_inc(&reset_gen);
+ 
+ 	LOG_INF("Reset");
+-	udc_submit_event(udc_nrf_dev, UDC_EVT_RESET, 0);
++	k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ }
+ 
+ static void nrf_usbd_dma_finished(nrf_usbd_common_ep_t ep)
+@@ -460,7 +465,7 @@ static void ev_sof_handler(void)
+ 
+ 	m_ep_armed &= ~USBD_EPISO_BIT_MASK;
+ 
+-	udc_submit_sof_event(udc_nrf_dev);
++	k_event_post(&drv_evt, BIT(UDC_NRF_EVT_SOF));
+ }
+ 
+ static void usbd_in_packet_sent(uint8_t ep)
+@@ -517,13 +522,13 @@ static void ev_usbevent_handler(void)
+ 		LOG_DBG("USBD event: SUSPEND");
+ 		m_bus_suspend = true;
+ 
+-		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_SUSPEND));
++		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 	}
+ 	if (event & USBD_EVENTCAUSE_RESUME_Msk) {
+ 		LOG_DBG("USBD event: RESUME");
+ 		m_bus_suspend = false;
+ 
+-		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_RESUME));
++		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 	}
+ 	if (event & USBD_EVENTCAUSE_USBWUALLOWED_Msk) {
+ 		LOG_DBG("USBD event: WUREQ (%s)", m_bus_suspend ? "In Suspend" : "Active");
+@@ -535,7 +540,7 @@ static void ev_usbevent_handler(void)
+ 				<< USBD_DPDMVALUE_STATE_Pos;
+ 			NRF_USBD->TASKS_DPDMDRIVE = 1;
+ 
+-			k_event_post(&drv_evt, BIT(UDC_NRF_EVT_WUREQ));
++			k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 		}
+ 	}
+ }
+@@ -1405,33 +1410,98 @@ static void udc_handle_ep_dequeue(const struct device *dev,
+ 	udc_ep_set_busy(cfg, false);
+ }
+ 
+-static void udc_nrf_thread_handler(const struct device *dev)
++static void udc_nrf_clear_suspended(const struct device *dev)
+ {
+-	uint32_t evt;
++	if (udc_is_suspended(dev)) {
++		udc_set_suspended(dev, false);
++	}
++}
+ 
+-	/* Wait for at least one event */
+-	k_event_wait(&drv_evt, UINT32_MAX, false, K_FOREVER);
++/*
++ * Report the bus state to the stack. The ISRs only record state: VBUS and
++ * reset event counts, and the suspend state. The state is compared here with
++ * what the stack was last told, and only the difference is reported, in the
++ * order of the USB device state machine. However the events since the last
++ * report were ordered, the stack receives a valid sequence that ends in the
++ * current state.
++ */
++static void udc_nrf_bus_report(const struct device *dev)
++{
++	/* Last reported state, owned by the driver thread */
++	static bool vbus_reported;
++	static atomic_val_t vbus_gen_reported;
++	static atomic_val_t reset_gen_reported;
++	/* Snapshot the count first: a later edge posts another report */
++	atomic_val_t vgen = atomic_get(&vbus_gen);
++	atomic_val_t rgen = atomic_get(&reset_gen);
++	bool vbus = nrfx_power_usbstatus_get() != NRFX_POWER_USB_STATE_DISCONNECTED;
++
++	if (atomic_clear(&bus_resync)) {
++		/* udc_init(): the stack starts out without VBUS */
++		vbus_reported = false;
++		udc_nrf_clear_suspended(dev);
++	}
++
++	/* VBUS gone, or lost and back since the last report */
++	if (vbus_reported && (!vbus || vgen != vbus_gen_reported)) {
++		LOG_INF("VBUS removed");
++		vbus_reported = false;
++		udc_nrf_clear_suspended(dev);
++		udc_submit_event(dev, UDC_EVT_VBUS_REMOVED, 0);
++	}
++	vbus_gen_reported = vgen;
++
++	if (!vbus_reported) {
++		/*
++		 * The stack enables the controller only after VBUS_READY, so
++		 * until then there is no pull-up. Bus events are artifacts of
++		 * the bus collapsing after VBUS removal.
++		 */
++		reset_gen_reported = rgen;
++		if (vbus) {
++			LOG_INF("VBUS ready");
++			vbus_reported = true;
++			udc_submit_event(dev, UDC_EVT_VBUS_READY, 0);
++		}
++		return;
++	}
+ 
+-	/* Process all events that are set */
+-	evt = k_event_clear(&drv_evt, UINT32_MAX);
++	if (rgen != reset_gen_reported) {
++		/* Any number of resets is one for the stack, it ends suspend */
++		reset_gen_reported = rgen;
++		udc_nrf_clear_suspended(dev);
++		udc_submit_event(dev, UDC_EVT_RESET, 0);
++	}
+ 
+-	if (evt & BIT(UDC_NRF_EVT_SUSPEND)) {
++	if (m_bus_suspend && !udc_is_suspended(dev)) {
+ 		LOG_INF("SUSPEND state detected");
+ 		nrf_usbd_legacy_suspend();
+ 		udc_set_suspended(dev, true);
+ 		udc_submit_event(dev, UDC_EVT_SUSPEND, 0);
+-	}
+-
+-	if (evt & BIT(UDC_NRF_EVT_RESUME)) {
++	} else if (!m_bus_suspend && udc_is_suspended(dev)) {
+ 		LOG_INF("RESUMING from suspend");
+ 		udc_set_suspended(dev, false);
+ 		udc_submit_event(dev, UDC_EVT_RESUME, 0);
+ 	}
++}
+ 
+-	if (evt & BIT(UDC_NRF_EVT_WUREQ)) {
+-		LOG_INF("Remote wakeup initiated");
+-		udc_set_suspended(dev, false);
+-		udc_submit_event(dev, UDC_EVT_RESUME, 0);
++static void udc_nrf_thread_handler(const struct device *dev)
++{
++	uint32_t evt;
++
++	/* Wait for at least one event */
++	k_event_wait(&drv_evt, UINT32_MAX, false, K_FOREVER);
++
++	/* Process all events that are set */
++	evt = k_event_clear(&drv_evt, UINT32_MAX);
++
++	/* Before transfers, so that a SETUP after a bus reset follows the RESET */
++	if (evt & BIT(UDC_NRF_EVT_BUS)) {
++		udc_nrf_bus_report(dev);
++	}
++
++	if (evt & BIT(UDC_NRF_EVT_SOF)) {
++		udc_submit_sof_event(dev);
+ 	}
+ 
+ 	if (evt & BIT(UDC_NRF_EVT_EP_FINISHED)) {
+@@ -1511,27 +1581,13 @@ static void udc_nrf_thread(void *p1, void *p2, void *p3)
+ 	}
+ }
+ 
+-/* Report VBUS from the regulator's level. DETECTED and REMOVED latched together are
+- * dispatched in a fixed order, so taking them at face value can end on "removed".
+- */
+-static void udc_nrf_vbus_sync(void)
+-{
+-	bool now = nrfx_power_usbstatus_get() != NRFX_POWER_USB_STATE_DISCONNECTED;
+-
+-	if (now == vbus_present) {
+-		return;
+-	}
+-
+-	vbus_present = now;
+-	udc_submit_event(udc_nrf_dev, now ? UDC_EVT_VBUS_READY : UDC_EVT_VBUS_REMOVED, 0);
+-}
+-
+ static void udc_nrf_power_handler(nrfx_power_usb_evt_t pwr_evt)
+ {
+ 	switch (pwr_evt) {
+ 	case NRFX_POWER_USB_EVT_DETECTED:
+ 		LOG_DBG("POWER event detected");
+-		udc_nrf_vbus_sync();
++		atomic_inc(&vbus_gen);
++		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 		break;
+ 	case NRFX_POWER_USB_EVT_READY:
+ 		LOG_DBG("POWER event ready");
+@@ -1539,7 +1595,8 @@ static void udc_nrf_power_handler(nrfx_power_usb_evt_t pwr_evt)
+ 		break;
+ 	case NRFX_POWER_USB_EVT_REMOVED:
+ 		LOG_DBG("POWER event removed");
+-		udc_nrf_vbus_sync();
++		atomic_inc(&vbus_gen);
++		k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 		break;
+ 	default:
+ 		LOG_ERR("Unknown power event %d", pwr_evt);
+@@ -1761,12 +1818,10 @@ static int udc_nrf_disable(const struct device *dev)
+ static int udc_nrf_init(const struct device *dev)
+ {
+ 	const struct udc_nrf_config *cfg = dev->config;
+-	unsigned int key;
+ 
+ #if defined(CONFIG_CLOCK_CONTROL_NRF)
+ 	hfxo_mgr = z_nrf_clock_control_get_onoff(cfg->clock);
+ #endif
+-	vbus_present = false;
+ 
+ #ifdef CONFIG_HAS_HW_NRF_USBREG
+ 	/* Use CLOCK/POWER priority for compatibility with other series where
+@@ -1791,10 +1846,12 @@ static int udc_nrf_init(const struct device *dev)
+ 
+ 	nrfx_power_usbevt_enable();
+ 
+-	/* A re-init, or VBUS already present with no edge latched, raises no event. */
+-	key = irq_lock();
+-	udc_nrf_vbus_sync();
+-	irq_unlock(key);
++	/*
++	 * The stack starts out without VBUS. Report VBUS if it is present: a
++	 * re-init, or VBUS present with no edge latched, raises no event.
++	 */
++	atomic_set(&bus_resync, 1);
++	k_event_post(&drv_evt, BIT(UDC_NRF_EVT_BUS));
+ 
+ 	LOG_INF("Initialized");
+ 
+-- 
+2.53.0
+

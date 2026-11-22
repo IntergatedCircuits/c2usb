@@ -2,7 +2,7 @@
 # the closest thing to a spec: mcuxsdk-core/scripts/mcux_module.py
 name: c2usb
 build:
-  cmake: c2usb
+  cmake: mcux
   kconfig: mcux/Kconfig
 
 samples:

@@ -1,85 +1,12 @@
-if (NOT CONFIG_C2USB)
-    message("build without c2usb")
-    return()
-endif()
-
 add_library(c2usb)
 
-function(c2usb_zephyr_set_ndebug)
-    get_target_property(definitions zephyr_interface INTERFACE_COMPILE_DEFINITIONS)
-    get_target_property(options zephyr_interface INTERFACE_COMPILE_OPTIONS)
-    string(REGEX MATCH "(^|[^A-Za-z0-9_]|-D)NDEBUG([^A-Za-z0-9_]|$)" ndebug_defined
-        "${definitions};${options};${CMAKE_C_FLAGS};${CMAKE_CXX_FLAGS}")
-    if(CONFIG_ASSERT AND ndebug_defined)
-        message(FATAL_ERROR "NDEBUG is defined while CONFIG_ASSERT is enabled, disabling assert()")
-    elseif(NOT CONFIG_ASSERT AND NOT ndebug_defined)
-        target_compile_definitions(zephyr_interface INTERFACE NDEBUG)
-    endif()
-endfunction()
-
-set(WORKSPACE_TOPDIR "${CMAKE_CURRENT_LIST_DIR}/../..")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
-include(get_cpm)
-
-# ports
-if(ZEPHYR_BASE)
-    if(FALSE)
-    # compile-time string support
-    CPMAddPackage("gh:intel/cpp-std-extensions#9767ab7dae3924531fcf629983377d9f35dff08b")
-    if(CMAKE_CXX_COMPILER_FORCED)
-        # CMake skipped compile-feature detection for this toolchain (for example, Zephyr's
-        # cross-compiler sets CMAKE_CXX_COMPILER_FORCED and leaves the feature list empty), so any
-        # target-level feature requirements need to be cleared after dependency creation instead.
-        # This keeps the actual dialect selection to the toolchain/Kconfig choice while avoiding
-        # stale or empty upstream feature metadata from nested project() calls.
-        foreach(target stdx boost_mp11 concurrency)
-            if(TARGET ${target})
-                set_target_properties(${target} PROPERTIES INTERFACE_COMPILE_FEATURES "")
-            endif()
-        endforeach()
-    endif()
-    endif(FALSE)
-
-    target_link_libraries(app PRIVATE c2usb)
-    target_link_libraries(c2usb
-        PUBLIC      zephyr_interface
-        INTERFACE   kernel
-    )
-    # prevent build errors from late generated zephyr/heap_constants.h
-    add_dependencies(c2usb zephyr_generated_headers)
-
-    add_subdirectory(bluetooth)
-    add_subdirectory(usb/df/vendor/zephyr)
-
-    # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended,
-    # after all modules and the application have added their compiler flags
-    cmake_language(DEFER DIRECTORY ${CMAKE_SOURCE_DIR} CALL c2usb_zephyr_set_ndebug)
-elseif(MCUX_SDK_PROJECT_NAME)
-    target_link_libraries(${MCUX_SDK_PROJECT_NAME} PRIVATE c2usb)
-    add_subdirectory(usb/df/vendor/lwip)
-    add_subdirectory(usb/df/vendor/nxp)
-endif()
-
-CPMAddPackage("gh:Neargye/magic_enum@0.9.3")
-
-if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/bitfilled/CMakeLists.txt")
-    set(CPM_bitfilled_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/bitfilled")
-endif()
-if(ZEPHYR_HID_RP_MODULE_DIR OR MCUX_HID_RP_MODULE_DIR)
-else()
-    if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/hid-rp/CMakeLists.txt")
-        set(CPM_hid-rp_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/hid-rp")
-    endif()
-    CPMAddPackage("gh:IntergatedCircuits/hid-rp#894bd1f49c44bfbd20b44e6fd22ccf961a2f46db")
-endif()
-
-if(ZEPHYR_ETL_MODULE_DIR OR MCUX_ETL_MODULE_DIR)
-else()
-    if(EXISTS "${WORKSPACE_TOPDIR}/modules/lib/etl/CMakeLists.txt")
-        set(CPM_etl_SOURCE "${WORKSPACE_TOPDIR}/modules/lib/etl")
-    endif()
-    CPMAddPackage("gh:ETLCPP/etl#20.48.1")
-endif()
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/manifest_deps.cmake)
+manifest_deps_add(
+    MANIFEST    ${CMAKE_CURRENT_LIST_DIR}/../west.yml
+    PROVIDED    ${C2USB_SDK_PROVIDED_DEPENDENCIES}
+    # SDK specific dependencies are imported through their west module
+    SKIP_GROUPS zephyr mcux
+)
 
 target_link_libraries(c2usb
     PUBLIC

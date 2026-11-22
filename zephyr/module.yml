@@ -1,5 +1,6 @@
+name: c2usb
 build:
-  cmake: c2usb
+  cmake: zephyr
   kconfig: zephyr/Kconfig
   settings:
     dts_root: zephyr

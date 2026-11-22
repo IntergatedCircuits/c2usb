@@ -3,25 +3,24 @@ manifest:
   self:
     path: c2usb
     west-commands: scripts/west-commands.yml
-  defaults:
-    remote: IntergatedCircuits
-
-  remotes:
-    - name: IntergatedCircuits
-      url-base: https://github.com/IntergatedCircuits
-
+  # this file is also parsed by cmake/manifest_deps.cmake,
+  # so every project is written as "- name:" followed by one "key: value" per line,
+  # with an explicit url and revision
   projects:
     - name: hid-rp
+      url: https://github.com/IntergatedCircuits/hid-rp
       revision: 08f367bf5335633ae80e694f296e224fdc518fe8
       import:
         path-prefix: modules/lib
 
     - name: zephyrrtos-mcpp
+      url: https://github.com/IntergatedCircuits/zephyrrtos-mcpp
       revision: 764060708b9a5bf26c07da27363b2325309d54bc
       groups: [zephyr]
       path: modules/lib/zephyrrtos-mcpp
 
     - name: freertos-mcpp
+      url: https://github.com/IntergatedCircuits/freertos-mcpp
       revision: 31e7c17d7d174d5901c5b0e53f999ea0540a30f3
       groups: [mcux]
       path: modules/lib/freertos-mcpp
@@ -30,5 +29,10 @@ manifest:
       url: https://github.com/ETLCPP/etl
       revision: 20.49.0
       clone-depth: 1
-      groups: [zephyr, mcux]
       path: modules/lib/etl
+
+    - name: magic_enum
+      url: https://github.com/Neargye/magic_enum
+      revision: v0.9.3
+      clone-depth: 1
+      path: modules/lib/magic_enum

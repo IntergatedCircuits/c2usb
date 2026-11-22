@@ -6,6 +6,7 @@ tests:
       - qemu_cortex_m3
     integration_platforms:
       - native_sim/native/64
+      - qemu_cortex_m3
     # keep -fpermissive to avoid C++ compilation errors due to zephyr C headers
     extra_configs:
       - CONFIG_COMPILER_WARNINGS_AS_ERRORS=n

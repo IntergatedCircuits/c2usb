@@ -7,6 +7,7 @@
 #include <zephyr/message_queue.hpp>
 extern "C"
 {
+#include "drivers/usb/udc_vbus.h"
 #include <zephyr/drivers/usb/udc.h>
 }
 
@@ -105,12 +106,22 @@ static int udc_buf_enqueue(const ::device* dev, ::net_buf* buf)
 /// @brief Whether the power state follows the Vbus events of the UDC driver.
 static bool follows_vbus(const ::device* dev)
 {
-    return IS_ENABLED(CONFIG_C2USB_UDC_MAC_INITIAL_POWER_OFF) and can_detect_vbus(udc_caps(dev));
+    return udc_vbus_available(dev) or
+           (IS_ENABLED(CONFIG_C2USB_UDC_MAC_INITIAL_POWER_OFF) and can_detect_vbus(udc_caps(dev)));
+}
+
+static power::state initial_power_state(const ::device* dev)
+{
+    if (udc_vbus_available(dev))
+    {
+        // the VBUS sense GPIO can be read before the UDC is initialized
+        return udc_vbus_present(dev) ? power::state::L2_SUSPEND : power::state::L3_OFF;
+    }
+    return follows_vbus(dev) ? power::state::L3_OFF : power::state::L2_SUSPEND;
 }
 
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size)
-    : udc_mac(dev, ctrl_ep_buf_size,
-              follows_vbus(dev) ? power::state::L3_OFF : power::state::L2_SUSPEND)
+    : udc_mac(dev, ctrl_ep_buf_size, initial_power_state(dev))
 {}
 
 udc_mac::udc_mac(const ::device* dev, size_t ctrl_ep_buf_size, usb::power::state power_state)
@@ -248,10 +259,18 @@ void udc_mac::init(const usb::speeds& speeds)
     assert(control_ep_max_packet_size(speeds.max) <= control_buffer_capacity());
     [[maybe_unused]] auto ret = invoke_function(udc_init, dev_, udc_mac_event_dispatch, this);
     assert(ret == 0 and "Failed to initialize UDC");
+
+    if (udc_vbus_available(dev_))
+    {
+        // reports the current state too, as the UDC driver cannot
+        ret = udc_vbus_enable(dev_);
+        assert(ret == 0 and "Failed to enable VBUS sensing");
+    }
 }
 
 void udc_mac::deinit()
 {
+    udc_vbus_disable(dev_);
     [[maybe_unused]] auto ret = udc_shutdown(dev_);
     assert(ret == 0 and "Failed to shutdown UDC");
 

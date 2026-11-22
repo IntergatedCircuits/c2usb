@@ -13,6 +13,9 @@ if(CONFIG_C2USB)
 
     add_subdirectory(../c2usb/bluetooth c2usb/bluetooth)
     add_subdirectory(../c2usb/usb/df/vendor/zephyr c2usb/usb/df/vendor/zephyr)
+    add_subdirectory(drivers/usb/udc_vbus)
+
+    zephyr_include_directories(${CMAKE_CURRENT_LIST_DIR})
 
     # set the standard compiler flag based on zephyr Kconfig, so e.g. assert() works as intended,
     # after all modules and the application have added their compiler flags

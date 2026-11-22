@@ -10,6 +10,7 @@ if C2USB
 rsource "../c2usb/Kconfig"
 rsource "../c2usb/bluetooth/Kconfig"
 rsource "../c2usb/usb/df/vendor/zephyr/Kconfig"
+rsource "drivers/usb/udc_vbus/Kconfig"
 
 endif
 

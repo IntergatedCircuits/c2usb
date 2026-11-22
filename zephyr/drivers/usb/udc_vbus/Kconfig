@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MPL-2.0
+
+menuconfig C2USB_UDC_VBUS
+    bool "VBUS sense GPIO for UDC drivers"
+    # the "vbus-gpios" property is not declared in most UDC bindings, so it can only be detected
+    # on the conventional label of the controller, other cases must be enabled manually
+    default y if $(dt_nodelabel_has_prop,zephyr_udc0,vbus-gpios)
+    select GPIO
+    select UDC_DRIVER
+    help
+      Report the VBUS state of a UDC from a GPIO, if the UDC driver cannot detect it.
+      Enabled per controller by adding a "vbus-gpios" property to the UDC devicetree node,
+      that is the input pin which is active when VBUS is present:
+
+        &zephyr_udc0 { vbus-gpios = <&gpioa 9 GPIO_ACTIVE_HIGH>; };
+
+      The pin is read from interrupt context, so its GPIO controller must be accessible
+      without sleeping. It is ignored (and left untouched) if the UDC driver can detect VBUS.
+
+if C2USB_UDC_VBUS
+
+module = C2USB_UDC_VBUS
+module-str = c2usb UDC VBUS
+source "subsys/logging/Kconfig.template.log_config"
+
+config C2USB_UDC_VBUS_DEBOUNCE_MS
+    int "VBUS sense debounce time in milliseconds"
+    default 0
+    help
+      Time the pin level must be stable before the change is reported.
+      When 0, every edge is evaluated and reported immediately from the interrupt.
+
+endif # C2USB_UDC_VBUS

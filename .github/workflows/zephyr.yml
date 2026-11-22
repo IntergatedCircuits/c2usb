@@ -48,8 +48,7 @@ jobs:
         shell: bash
         run: |
           west twister -T . -O build/twister-coverage \
-            -p native_sim/native/64 -p qemu_cortex_m3 \
-            -p nrf52840dk/nrf52840 -p nrf54lm20dk/nrf54lm20a/cpuapp \
+            --integration \
             --coverage --coverage-platform native_sim/native/64 \
             --gcov-tool "$(gcc -print-prog-name=gcov)" \
             --coverage-basedir ../c2usb \

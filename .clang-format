@@ -38,3 +38,34 @@ AllowShortLambdasOnASingleLine: Inline
 ShortNamespaceLines: 1
 InsertNewlineAtEOF: true
 KeepEmptyLinesAtEOF: true
+---
+# C sources: high-impact subset of zephyr/.clang-format
+Language: C
+BasedOnStyle: LLVM
+ColumnLimit: 100
+UseTab: ForContinuationAndIndentation
+IndentWidth: 8
+ContinuationIndentWidth: 8
+BreakBeforeBraces: Linux
+IndentCaseLabels: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlignConsecutiveMacros: AcrossComments
+InsertBraces: true
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SortIncludes:
+  Enabled: false
+IfMacros:
+  - 'CHECKIF'
+WhitespaceSensitiveMacros:
+  - COND_CODE_0
+  - COND_CODE_1
+  - IF_DISABLED
+  - IF_ENABLED
+  - LISTIFY
+  - STRINGIFY
+  - Z_STRINGIFY
+InsertNewlineAtEOF: true

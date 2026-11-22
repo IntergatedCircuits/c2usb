@@ -2,6 +2,18 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "Select zephyr upstream",
+			"group": {
+				"kind": "none",
+				"isDefault": true
+			},
+			"options": {
+				"cwd": "${workspaceFolder:c2usb}"
+			},
+			"type": "shell",
+			"command": "west config manifest.file west4zephyr.yml && west config manifest.path c2usb"
+		},
+		{
 			"label": "Select nRF Connect SDK",
 			"group": {
 				"kind": "none",

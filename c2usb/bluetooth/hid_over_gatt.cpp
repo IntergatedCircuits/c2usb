@@ -94,12 +94,8 @@ ssize_t service::control_point_request(::bt_conn* conn, const ::bt_gatt_attr* at
     {
     case uint8_t(event::SUSPEND):
     case uint8_t(event::EXIT_SUSPEND):
-#if CONFIG_C2USB_HOGP_POWER_EVENT
-        if (auto* self = static_cast<service*>(attr->user_data); self->power_event_delegate_)
-        {
-            self->power_event_delegate_(*self, static_cast<event>(cmd));
-        }
-#endif
+        transport::suspend(static_cast<service*>(attr->user_data)->get_session(conn),
+                           cmd == uint8_t(event::SUSPEND));
         return len;
 #if defined(CONFIG_C2USB_HOGP_SCI)
     case uint8_t(sci_mode::DEFAULT):

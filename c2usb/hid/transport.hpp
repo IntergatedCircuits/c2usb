@@ -56,6 +56,15 @@ class transport : public c2usb::interface
         }
         sess = &app.start(params);
     }
+    /// @brief  Update the session's suspend state, and notify it if changed.
+    static void suspend(session* sess, bool suspended)
+    {
+        if ((sess != nullptr) and (sess->suspended_ != suspended))
+        {
+            sess->suspended_ = suspended;
+            sess->suspend_callback(suspended);
+        }
+    }
     static void stop(application& app, session*& sess)
     {
         if (sess != nullptr)

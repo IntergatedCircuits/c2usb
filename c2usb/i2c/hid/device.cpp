@@ -45,6 +45,8 @@ void device::link_reset()
     // clear context
     in_queue_.reset();
     rx_buffers_ = {};
+    // reset puts the device in ON power state
+    powered_ = true;
 
     // send 0 length input report
     queue_input_report(std::span<const uint8_t>());
@@ -262,20 +264,12 @@ bool device::on_start(i2c::direction dir, size_t data_length)
     return success;
 }
 
-void device::delegate_power_event(event ev)
-{
-    if (power_event_delegate_)
-    {
-        power_event_delegate_(*this, ev);
-    }
-}
-
 void device::set_power(bool powered)
 {
     if (powered_ != powered)
     {
         powered_ = powered;
-        delegate_power_event(event::POWER_STATE_CHANGE);
+        transport::suspend(session_, not powered);
     }
 }
 

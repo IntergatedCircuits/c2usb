@@ -28,6 +28,12 @@ void app_base_function::disable([[maybe_unused]] const config::interface& iface)
     close_eps(ephs_);
 }
 
+void app_base_function::power_state_change(usb::power::state new_state,
+                                           [[maybe_unused]] bool remote_wake)
+{
+    transport::suspend(session_, new_state != usb::power::state::L0_ON);
+}
+
 c2usb::result app_base_function::send_report([[maybe_unused]] ::hid::session& sess,
                                              const std::span<const uint8_t>& data)
 {

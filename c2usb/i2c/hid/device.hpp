@@ -4,7 +4,6 @@
 #include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
-#include <etl/delegate.h>
 
 inline namespace utilities
 {
@@ -46,16 +45,6 @@ class device : public i2c::slave::module, public ::hid::transport
     device(device&&) = delete;
     device& operator=(device&&) = delete;
 
-    enum class event : uint8_t
-    {
-        POWER_STATE_CHANGE = 0,
-    };
-    using power_event_delegate = etl::delegate<void(device&, event)>;
-    void set_power_event_delegate(const power_event_delegate& delegate)
-    {
-        power_event_delegate_ = delegate;
-    }
-
     [[nodiscard]] bool get_power_state() const { return powered_; }
 
   private:
@@ -66,8 +55,6 @@ class device : public i2c::slave::module, public ::hid::transport
     c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
                                  ::hid::report::type type) override;
-
-    void delegate_power_event(event ev);
 
     bool on_start(i2c::direction dir, size_t data_length) override;
     void on_stop(i2c::direction dir, size_t data_length) override;
@@ -101,7 +88,6 @@ class device : public i2c::slave::module, public ::hid::transport
     ::hid::application& app_;
     ::hid::session* session_{};
     const hid::product_info& pinfo_;
-    power_event_delegate power_event_delegate_;
     reports_receiver rx_buffers_;
     i2c::slave& slave_;
     uint16_t hid_descriptor_reg_;

@@ -24,6 +24,7 @@ class app_base_function : public df::named_function, public ::hid::transport
   protected:
     void start(const config::interface& iface, ::hid::boot::mode prot);
     void disable(const config::interface& iface) override;
+    void power_state_change(usb::power::state new_state, bool remote_wake) override;
 
     c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,

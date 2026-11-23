@@ -43,6 +43,13 @@ class session : public c2usb::polymorphic
     [[nodiscard]] hid::boot::mode boot_protocol() const { return boot_mode_; }
     [[nodiscard]] hid::channel channel() const { return channel_; }
 
+    /// @brief  Whether the host has suspended this session's link.
+    [[nodiscard]] bool suspended() const { return suspended_; }
+
+    /// @brief  Notification that the host has suspended or resumed this session's link.
+    ///         Called only on state change, @ref suspended() already reflects the new state.
+    virtual void suspend_callback([[maybe_unused]] bool suspended) {}
+
     /// @brief  Send an INPUT report to the host. This is the only device-initiated data transfer.
     c2usb::result send_report(const std::span<const uint8_t>& data);
 
@@ -88,14 +95,13 @@ class session : public c2usb::polymorphic
     session(session&&) = delete;
     session& operator=(session&&) = delete;
 
-    [[nodiscard]] uint32_t get_idle([[maybe_unused]] uint8_t report_id = 0,
+    [[nodiscard]] uint32_t get_idle(uint8_t report_id = 0,
                                     [[maybe_unused]] unsigned multiplier = 1) const
     {
         return report_id == 0 ? idle_rate_ : 0;
     }
 
-    bool set_idle([[maybe_unused]] uint8_t report_id, [[maybe_unused]] uint16_t idle_repeat,
-                  [[maybe_unused]] unsigned multiplier = 1)
+    bool set_idle(uint8_t report_id, uint8_t idle_repeat, [[maybe_unused]] unsigned multiplier)
     {
         if (report_id == 0)
         {
@@ -105,14 +111,22 @@ class session : public c2usb::polymorphic
         // but keep the value as it's a good macOS detection mechanism
         return idle_repeat == 0;
     }
+    bool set_idle([[maybe_unused]] uint8_t report_id, [[maybe_unused]] uint16_t idle_repeat)
+    {
+        // in case I2C HID implements it
+        return idle_repeat == 0;
+    }
 
   private:
+    friend class transport;
+
     std::atomic<transport*> tp_;
     hid::channel channel_;
     hid::boot::mode boot_mode_;
+    bool suspended_{};
 
     // these fields are managed by the application/session
-    uint16_t idle_rate_{};
+    uint8_t idle_rate_{};
 };
 
 /// @brief  This class defines the kind of HID application being implemented by means of its report

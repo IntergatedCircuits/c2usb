@@ -8,9 +8,6 @@ module = C2USB_HOGP
 module-str = c2usb HID over GATT
 source "subsys/logging/Kconfig.template.log_config"
 
-config C2USB_HOGP_POWER_EVENT
-    bool "Enable HOGP control point power event callback"
-
 config C2USB_HOGP_SCI
     bool "Enable HID Shorter Connection Intervals (SCI) support"
     depends on BT_SHORTER_CONNECTION_INTERVALS

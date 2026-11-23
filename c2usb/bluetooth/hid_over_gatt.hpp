@@ -5,7 +5,6 @@
 #include "hid/transport.hpp"
 #include "usb/base.hpp"
 #include "usb/class/hid.hpp"
-#include <etl/delegate.h>
 #include <hid/report.hpp>
 #include <hid/report_protocol.hpp>
 
@@ -56,14 +55,6 @@ class service : public hid::transport
     c2usb::result send_report(hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(hid::session& sess, const std::span<uint8_t>& data,
                                  hid::report::type type = hid::report::type::OUTPUT) override;
-
-    using power_event_delegate = etl::delegate<void(service&, event)>;
-#if CONFIG_C2USB_HOGP_POWER_EVENT
-    void set_power_event_delegate(const power_event_delegate& delegate)
-    {
-        power_event_delegate_ = delegate;
-    }
-#endif
 
   private:
     template <typename T, void (service::*FUNC)(T*)>
@@ -295,9 +286,6 @@ class service : public hid::transport
     hid::application& app_;
     std::array<conn_session, CONFIG_BT_MAX_CONN> sessions_{};
     gatt::optional_service gatt_service_;
-#if CONFIG_C2USB_HOGP_POWER_EVENT
-    power_event_delegate power_event_delegate_{};
-#endif
     const gatt::permissions access_;
 #if CONFIG_C2USB_HID_BOOT_PROTOCOL
     const hid::boot::mode boot_mode_;

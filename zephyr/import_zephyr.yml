@@ -6,10 +6,11 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyr
-      revision: v4.4.2
+      revision: v4.5.0
       clone-depth: 1
       import:
         name-allowlist:
           - cmsis_6
           - hal_stm32
           - mcuboot
+          - zcbor

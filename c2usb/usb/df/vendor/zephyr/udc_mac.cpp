@@ -936,10 +936,6 @@ usb::result udc_mac::ep_transfer(const transfer& xfer, usb::direction dir)
     assert((buf != nullptr) and (info.owner != nullptr));
     auto addr = endpoint::address(info.ep);
 
-    if ((dir == direction::IN) and (power_state() != power::state::L0_ON))
-    {
-        return result::network_down;
-    }
     if (busy_flags_.test_and_set(addr))
     {
         return result::device_or_resource_busy;
@@ -985,13 +981,7 @@ usb::result udc_mac::ep_close(usb::df::ep_handle& eph)
 
 usb::result udc_mac::ep_cancel(usb::df::ep_handle eph)
 {
-    auto addr = ep_handle_to_address(eph);
-    auto ret = udc_ep_dequeue(dev_, addr);
-    if (ret == 0)
-    {
-        busy_flags_.clear(addr);
-    }
-    return usb::result(ret);
+    return usb::result(udc_ep_dequeue(dev_, ep_handle_to_address(eph)));
 }
 
 usb::result udc_mac::ep_set_stall(endpoint::address addr)

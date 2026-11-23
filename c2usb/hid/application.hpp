@@ -61,9 +61,21 @@ class session : public c2usb::polymorphic
     }
 
     /// @brief  Feedback that the INPUT report send operation has completed.
+    ///         The result is operation_canceled if the report was withdrawn by
+    ///         @ref cancel_report_send.
     virtual void send_report_callback([[maybe_unused]] report::selector select,
                                       [[maybe_unused]] c2usb::result result)
     {}
+
+    /// @brief  Request to withdraw the INPUT report that was passed to @ref send_report,
+    ///         but hasn't been delivered to the host yet.
+    ///         If a report is pending, its outcome is reported through @ref send_report_callback,
+    ///         as the transfer may still complete before the cancellation takes effect.
+    ///         The callback may be invoked before this function returns.
+    /// @return ok: the cancellation is issued, or there is no pending report
+    ///         operation_in_progress: the report transfer may be under way, it cannot be cancelled
+    ///         operation_not_supported: the transport doesn't support cancellation
+    c2usb::result cancel_report_send();
 
     /// @brief  Provide the necessary buffer to receive an OUTPUT or FEATURE report from the host.
     c2usb::result receive_report(const std::span<uint8_t>& data,

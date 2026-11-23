@@ -29,6 +29,7 @@ class app_base_function : public df::named_function, public ::hid::transport
     c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
                                  ::hid::report::type type = ::hid::report::type::OUTPUT) override;
+    c2usb::result cancel_report_send(::hid::session& sess) override;
 
     void ep_callback(const transfer& xfer) override;
 

@@ -40,6 +40,19 @@ c2usb::result app_base_function::send_report([[maybe_unused]] ::hid::session& se
     return send_ep(ep_in_handle(), data);
 }
 
+c2usb::result app_base_function::cancel_report_send([[maybe_unused]] ::hid::session& sess)
+{
+    // while the bus is active, the transfer might be partially or fully sent already,
+    // only cancel when the host is guaranteed not to poll the endpoint
+    if (not suspended())
+    {
+        return result::operation_in_progress;
+    }
+    // the completion is reported through ep_callback, either as cancelled, or as successful
+    // if it completed before the cancellation took effect
+    return cancel_ep(ep_in_handle());
+}
+
 c2usb::result app_base_function::receive_report([[maybe_unused]] ::hid::session& sess,
                                                 const std::span<uint8_t>& data,
                                                 ::hid::report::type type)

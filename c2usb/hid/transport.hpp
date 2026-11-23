@@ -41,6 +41,11 @@ class transport : public c2usb::interface
     virtual c2usb::result send_report(session& sess, const std::span<const uint8_t>& data) = 0;
     virtual c2usb::result receive_report(session& sess, const std::span<uint8_t>& data,
                                          report::type type = report::type::OUTPUT) = 0;
+    /// @brief  Withdraw the pending INPUT report, see @ref session::cancel_report_send.
+    virtual c2usb::result cancel_report_send([[maybe_unused]] session& sess)
+    {
+        return std::errc::operation_not_supported;
+    }
 
   protected: // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void start(application& app, session*& sess, const session::params& params)

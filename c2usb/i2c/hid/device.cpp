@@ -34,6 +34,7 @@ device::~device()
 
     // clear context
     in_queue_.reset();
+    in_owner_.store(in_owner::NONE);
     rx_buffers_ = {};
 }
 
@@ -44,6 +45,7 @@ void device::link_reset()
 
     // clear context
     in_queue_.reset();
+    in_owner_.store(in_owner::NONE);
     rx_buffers_ = {};
     // reset puts the device in ON power state
     powered_ = true;
@@ -199,15 +201,42 @@ bool device::reply_request(size_t data_length)
 
 bool device::queue_input_report(const std::span<const uint8_t>& data)
 {
-    slave().set_pin_interrupt(true);
     in_queue_.emplace(data);
+    slave().set_pin_interrupt(true);
     return true;
+}
+
+c2usb::result device::cancel_report_send(session& sess)
+{
+    if (not claim_input(in_owner::CANCELLING))
+    {
+        // the host is reading the queued report
+        return c2usb::result::operation_in_progress;
+    }
+    // while claimed, the queued report cannot be consumed by the I2C ISR
+    if (not in_queue_.has_value() or in_queue_->empty())
+    {
+        // nothing to cancel (the reset response is not cancellable)
+        release_input(in_owner::CANCELLING);
+        return c2usb::result::ok;
+    }
+    auto select = report::selector(report::type::INPUT,
+                                   app_.report_info().report_id_present ? in_queue_->front() : 0);
+    in_queue_.reset();
+    // if the host still reads in response to an already observed interrupt,
+    // it gets an empty report, which it ignores
+    slave().set_pin_interrupt(false);
+    release_input(in_owner::CANCELLING);
+
+    sess.send_report_callback(select, c2usb::result::operation_canceled);
+    return c2usb::result::ok;
 }
 
 bool device::get_input()
 {
-    // send the next report from the queue
-    if (in_queue_.has_value() and (not in_queue_.value().empty()))
+    // send the next report from the queue, unless it's being cancelled
+    bool sending = claim_input(in_owner::SENDING);
+    if (sending and in_queue_.has_value() and not in_queue_->empty())
     {
         auto input_data = in_queue_.value();
 
@@ -218,6 +247,7 @@ bool device::get_input()
     }
     else
     {
+        release_input(in_owner::SENDING);
         // this is a reset, or the master is only checking our presence on the bus
         // NOLINTNEXTLINE(*-type-reinterpret-cast)
         auto& reset_sentinel = *c2usb::std_layout_cast<le_uint16_t*>(buffer_.data());
@@ -426,6 +456,9 @@ void device::process_write(size_t data_length)
 
 void device::process_input_complete(size_t data_length)
 {
+    // release the queued report, if it was claimed by get_input()
+    release_input(in_owner::SENDING);
+
     // verify sent length
     if (in_queue_.has_value() and ((REPORT_LENGTH_SIZE + in_queue_.value().size()) <= data_length))
     {

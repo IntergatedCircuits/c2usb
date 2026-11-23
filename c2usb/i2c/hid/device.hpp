@@ -4,6 +4,7 @@
 #include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
+#include <tuple>
 
 inline namespace utilities
 {
@@ -55,6 +56,7 @@ class device : public i2c::slave::module, public ::hid::transport
     c2usb::result send_report(::hid::session& sess, const std::span<const uint8_t>& data) override;
     c2usb::result receive_report(::hid::session& sess, const std::span<uint8_t>& data,
                                  ::hid::report::type type) override;
+    c2usb::result cancel_report_send(::hid::session& sess) override;
 
     bool on_start(i2c::direction dir, size_t data_length) override;
     void on_stop(i2c::direction dir, size_t data_length) override;
@@ -74,7 +76,25 @@ class device : public i2c::slave::module, public ::hid::transport
 
     bool reply_request(size_t data_length);
 
+    /// @brief  Owner of the queued input report, only the owner may consume it.
+    enum class in_owner : uint8_t
+    {
+        NONE,
+        SENDING,    // the host is reading it (I2C ISR context)
+        CANCELLING, // it's being withdrawn (application context)
+    };
+
     bool get_input();
+    bool claim_input(in_owner owner)
+    {
+        auto expected = in_owner::NONE;
+        return in_owner_.compare_exchange_strong(expected, owner);
+    }
+    void release_input(in_owner owner)
+    {
+        // only the current owner can release it
+        std::ignore = in_owner_.compare_exchange_strong(owner, in_owner::NONE);
+    }
 
     void set_power(bool powered);
     bool set_report(::hid::report::type type, const std::span<const uint8_t>& data);
@@ -94,6 +114,7 @@ class device : public i2c::slave::module, public ::hid::transport
     uint8_t stage_{};
     bool powered_{};
     std::optional<std::span<const uint8_t>> in_queue_;
+    std::atomic<in_owner> in_owner_{};
     std::array<uint8_t, sizeof(descriptor)> buffer_{};
 };
 

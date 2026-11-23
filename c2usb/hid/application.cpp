@@ -16,6 +16,17 @@ c2usb::result session::send_report(const std::span<const uint8_t>& data)
     }
 }
 
+c2usb::result session::cancel_report_send()
+{
+    if (auto* tp = tp_.load())
+    {
+        return tp->cancel_report_send(*this);
+    }
+    {
+        return std::errc::connection_reset;
+    }
+}
+
 c2usb::result session::receive_report(const std::span<uint8_t>& data, report::type type)
 {
     assert(not data.empty());

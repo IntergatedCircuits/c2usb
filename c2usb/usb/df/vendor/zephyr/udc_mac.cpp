@@ -986,10 +986,15 @@ usb::result udc_mac::ep_cancel(usb::df::ep_handle eph)
 
 usb::result udc_mac::ep_set_stall(endpoint::address addr)
 {
+    if ((addr.number() != 0) and busy_flags_.test(addr))
+    {
+        // stall shall abort any pending transfer
+        // (dequeue first, as some UDC drivers clear the halted state on dequeue)
+        std::ignore = udc_ep_dequeue(dev_, addr);
+    }
     auto ret = udc_ep_set_halt(dev_, addr);
     if (ret == 0)
     {
-        // TODO: set busy flag?
         stall_flags_.test_and_set(addr);
     }
     return usb::result(ret);
@@ -1001,7 +1006,6 @@ usb::result udc_mac::ep_clear_stall(endpoint::address addr)
     if (ret == 0)
     {
         stall_flags_.clear(addr);
-        // TODO: clear busy flag?
     }
     return usb::result(ret);
 }

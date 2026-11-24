@@ -25,6 +25,7 @@ cdc_ncm_ethernet::cdc_ncm_ethernet(const ::device* dev)
 {
     config_ = static_cast<const ::c2usb_cdc_ncm_ethernet_config*>(dev->config);
     ::k_work_init_delayable(&works_, &perform_work_handler);
+    work_queue_ = &::k_sys_work_q;
     ::k_event_init(&events_);
 }
 
@@ -81,7 +82,7 @@ void cdc_ncm_ethernet::state_change(cdc::ncm::function& function, cdc::ncm::stat
     }
     else if (::net_if_is_admin_up(netif_) != (new_state == cdc::ncm::state::CONNECTED))
     {
-        work_handle().reschedule(10ms);
+        work_handle().reschedule(*work_queue_, 10ms);
     }
 }
 
@@ -91,7 +92,7 @@ int cdc_ncm_ethernet::driver_start(const ::device* dev)
     LOG_DBG("network interface started");
     if ((self.function_ != nullptr) and (self.function_->get_state() == cdc::ncm::state::ENABLED))
     {
-        self.work_handle().reschedule(0ms);
+        self.work_handle().reschedule(*self.work_queue_, 0ms);
     }
     return 0;
 }
@@ -102,7 +103,7 @@ int cdc_ncm_ethernet::driver_stop(const ::device* dev)
     LOG_DBG("network interface stopped");
     if ((self.function_ != nullptr) and (self.function_->get_state() == cdc::ncm::state::CONNECTED))
     {
-        self.work_handle().reschedule(0ms);
+        self.work_handle().reschedule(*self.work_queue_, 0ms);
     }
     return 0;
 }
@@ -144,7 +145,7 @@ void cdc_ncm_ethernet::perform_work()
         if (result != c2usb::result::ok)
         {
             LOG_ERR("Failed to update link state: %d", result.to_int());
-            work_handle().reschedule(50ms);
+            work_handle().reschedule(*work_queue_, 50ms);
         }
     }
 
@@ -169,7 +170,7 @@ void cdc_ncm_ethernet::perform_work()
                 ::net_pkt_unref(packet);
             }
             // retry after a short delay
-            work_handle().reschedule(10ms);
+            work_handle().reschedule(*work_queue_, 10ms);
             break;
         }
     }
@@ -177,7 +178,7 @@ void cdc_ncm_ethernet::perform_work()
 
 void cdc_ncm_ethernet::data_received([[maybe_unused]] cdc::ncm::function& function)
 {
-    work_handle().reschedule(0ms);
+    work_handle().reschedule(*work_queue_, 0ms);
 }
 
 int cdc_ncm_ethernet::driver_send(const ::device* dev, ::net_pkt* packet)

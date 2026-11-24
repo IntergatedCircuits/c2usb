@@ -46,11 +46,15 @@ class cdc_ncm_ethernet final : private cdc::ncm::network_interface, private ::c2
     /// @param  if_address: the MAC address assigned to the host interface
     /// @param  ntb_buffer: the NTB buffer pair for the NCM function
     /// @param  dev: the Zephyr device instance, acquired with DEVICE_DT_GET(node_id)
+    /// @param  work_queue: the work queue that processes the network interface's deferred work
+    ///         (link state synchronization and RX datagram delivery), defaults to the system
+    ///         work queue
     /// @return Pointer to the constructed NCM function, or nullptr on failure
     template <ct_string FullName>
     static cdc::ncm::function*
     construct(const usb::cdc::mac_address& if_address, const cdc::ncm::ntb_buffer& ntb_buffer,
-              const ::device* dev = device_get_binding(FullName.value.data()))
+              const ::device* dev = device_get_binding(FullName.value.data()),
+              ::k_work_q& work_queue = ::k_sys_work_q)
     {
         auto* self = from_device(dev);
         if (self == nullptr)
@@ -65,6 +69,7 @@ class cdc_ncm_ethernet final : private cdc::ncm::network_interface, private ::c2
         // static function instance for each template instantiation
         static cdc::ncm::function function{if_address, *self, ntb_buffer,
                                            self->config().function_name};
+        self->work_queue_ = &work_queue;
         self->function_ = &function;
         return &function;
     }

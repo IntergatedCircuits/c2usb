@@ -25,6 +25,7 @@ struct c2usb_cdc_ncm_ethernet
     c2usb_cdc_ncm_ethernet_function* function_;
     struct net_if* netif_;
     struct k_work_delayable works_;
+    struct k_work_q* work_queue_;
     struct k_event events_;
     struct
     {

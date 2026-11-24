@@ -15,7 +15,7 @@ manifest:
 
     - name: zephyrrtos-mcpp
       url: https://github.com/IntergatedCircuits/zephyrrtos-mcpp
-      revision: 764060708b9a5bf26c07da27363b2325309d54bc
+      revision: 0a51d013f099dfa3d4a0e6c34a7c9f49a15bafcb
       groups: [zephyr]
       path: modules/lib/zephyrrtos-mcpp
 

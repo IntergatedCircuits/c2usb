@@ -76,6 +76,7 @@ struct ntb_traits<16>
 {
     using index_t = uint16_t;
     static constexpr size_t header_size = 12;
+    static constexpr size_t ndp_index_offset = 10;
     // Offset of Datagram[0] within the NDP structure
     static constexpr size_t ndp_datagram_offset = 8;
     static constexpr size_t datagram_ptr_size = 4;
@@ -128,6 +129,7 @@ struct ntb_traits<32>
 {
     using index_t = uint32_t;
     static constexpr size_t header_size = 16;
+    static constexpr size_t ndp_index_offset = 12;
     // Offset of Datagram[0] within the NDP-32 structure
     // Layout: sig[4]+Len[2]+Reserved[2]+Next[4]+Reserved[4] = 16
     static constexpr size_t ndp_datagram_offset = 16;
@@ -373,6 +375,43 @@ std::vector<std::vector<uint8_t>> drain_rx(usb::cdc::ncm::ntb_rx_ctx<BIT_SIZE>& 
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// ntb_tx_ctx armed state test helpers
+// ---------------------------------------------------------------------------
+
+using ntb16 = std::integral_constant<size_t, 16>;
+using ntb32 = std::integral_constant<size_t, 32>;
+
+constexpr size_t TX_PAGE_SIZE = 256;
+
+// the start of the given page in a tx_ctx storage made with TX_PAGE_SIZE
+const uint8_t* tx_page(const std::vector<uint32_t>& storage, size_t page)
+{
+    // NOLINTNEXTLINE(*-type-reinterpret-cast)
+    return reinterpret_cast<const uint8_t*>(storage.data()) + (page * TX_PAGE_SIZE);
+}
+
+uint16_t ntb_sequence(std::span<const uint8_t> ntb)
+{
+    return static_cast<uint16_t>(ntb[6] | (ntb[7] << 8));
+}
+
+template <typename TCtx>
+bool append_filled(TCtx& ctx, uint8_t fill)
+{
+    std::array<uint8_t, DG_SIZE> dg{};
+    dg.fill(fill);
+    return ctx.append_datagram(dg.begin(), dg.end());
+}
+
+template <size_t BIT_SIZE>
+std::vector<std::vector<uint8_t>> rx_roundtrip(std::span<const uint8_t> ntb)
+{
+    std::vector<uint8_t> ntb_copy(ntb.begin(), ntb.end());
+    auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
+    return drain_rx(rx);
+}
+
 } // namespace
 
 SUITE(cdc_ncm_ntb)
@@ -381,67 +420,46 @@ SUITE(cdc_ncm_ntb)
     // VALID NTBs
     // =======================================================================
 
-    TEST_CASE("valid NTB16: NDP at end")
+    TEMPLATE_TEST_CASE("valid NTB: NDP at end", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("valid NTB32: NDP at end")
+    TEMPLATE_TEST_CASE("valid NTB: NDP at front", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<32>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_front<BIT_SIZE>();
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("valid NTB16: NDP at front")
+    TEMPLATE_TEST_CASE("valid NTB: NDP in middle with two datagrams", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<16>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_in_middle<BIT_SIZE>();
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("valid NTB32: NDP at front")
+    TEMPLATE_TEST_CASE("valid NTB: two chained NDPs", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<32>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("valid NTB16: NDP in middle with two datagrams")
-    {
-        auto buf = make_ntb_ndp_in_middle<16>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("valid NTB32: NDP in middle with two datagrams")
-    {
-        auto buf = make_ntb_ndp_in_middle<32>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("valid NTB16: two chained NDPs")
-    {
-        auto buf = make_ntb_two_ndps<16>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("valid NTB32: two chained NDPs")
-    {
-        auto buf = make_ntb_two_ndps<32>();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_two_ndps<BIT_SIZE>();
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // Span larger than BlockLength is fine (host-side receive buffer scenario)
-    TEST_CASE("valid NTB16: span larger than BlockLength")
+    TEMPLATE_TEST_CASE("valid NTB: span larger than BlockLength", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
         buf.resize(buf.size() + 64, 0);
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("valid NTB32: span larger than BlockLength")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        buf.resize(buf.size() + 64, 0);
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // =======================================================================
@@ -450,20 +468,13 @@ SUITE(cdc_ncm_ntb)
 
     // --- Header signature ---------------------------------------------------
 
-    TEST_CASE("invalid NTB16: wrong header signature")
+    TEMPLATE_TEST_CASE("invalid NTB: wrong header signature", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
         buf[0] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: wrong header signature")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        buf[0] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     TEST_CASE("invalid: NTB16 buffer rejected as NTB32")
@@ -482,177 +493,107 @@ SUITE(cdc_ncm_ntb)
 
     // --- HeaderLength -------------------------------------------------------
 
-    TEST_CASE("invalid NTB16: wrong HeaderLength")
+    TEMPLATE_TEST_CASE("invalid NTB: wrong HeaderLength", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        // HeaderLength at [4..5], correct value is 12
-        buf[4] = 10;
-        buf[5] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: wrong HeaderLength")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        // HeaderLength at [4..5], correct value is 16
-        buf[4] = 12;
-        buf[5] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        // HeaderLength at [4..5]
+        write_le<uint16_t>(buf.data() + 4, static_cast<uint16_t>(T::header_size - 2));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- BlockLength alignment ----------------------------------------------
 
-    TEST_CASE("invalid NTB16: BlockLength not multiple of 4")
+    TEMPLATE_TEST_CASE("invalid NTB: BlockLength not multiple of 4", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        // Corrupt BlockLength at [8..9] to be non-aligned; grow span to match
-        uint16_t bl = static_cast<uint16_t>(buf.size() + 1);
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        // Corrupt BlockLength at [8..] to be non-aligned; grow span to match
+        auto bl = static_cast<index_t>(buf.size() + 1);
         buf.push_back(0);
-        write_le<uint16_t>(buf.data() + 8, bl);
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: BlockLength not multiple of 4")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        uint32_t bl = static_cast<uint32_t>(buf.size() + 1);
-        buf.push_back(0);
-        write_le<uint32_t>(buf.data() + 8, bl);
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        write_le<index_t>(buf.data() + 8, bl);
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- BlockLength vs span ------------------------------------------------
 
-    TEST_CASE("invalid NTB16: BlockLength exceeds span")
+    TEMPLATE_TEST_CASE("invalid NTB: BlockLength exceeds span", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        CHECK(not usb::cdc::ncm::is_valid_ntb<16>(
-            std::span<const uint8_t>(buf.data(), buf.size() - 4)));
-    };
-
-    TEST_CASE("invalid NTB32: BlockLength exceeds span")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        CHECK(not usb::cdc::ncm::is_valid_ntb<32>(
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
             std::span<const uint8_t>(buf.data(), buf.size() - 4)));
     };
 
     // --- NdpIndex location --------------------------------------------------
 
-    TEST_CASE("invalid NTB16: NdpIndex inside header (too small)")
+    TEMPLATE_TEST_CASE("invalid NTB: NdpIndex inside header (too small)", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        // NdpIndex at [10..11]; set to 4, which is < header_size (12)
-        buf[10] = 4;
-        buf[11] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        // set NdpIndex to 4, which is < header_size
+        write_le<index_t>(buf.data() + T::ndp_index_offset, 4);
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("invalid NTB32: NdpIndex inside header (too small)")
+    TEMPLATE_TEST_CASE("invalid NTB: NDP extends beyond span", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<32>();
-        // NdpIndex at [12..15]; set to 4 < header_size (16)
-        buf[12] = 4;
-        buf[13] = 0;
-        buf[14] = 0;
-        buf[15] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB16: NDP extends beyond span")
-    {
-        auto buf = make_ntb_ndp_at_end<16>();
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
         // Point NdpIndex to the very last byte - NDP base won't fit
-        auto ndp_off = static_cast<uint16_t>(buf.size() - 1);
-        buf[10] = ndp_off & 0xFF;
-        buf[11] = (ndp_off >> 8) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: NDP extends beyond span")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        auto ndp_off = static_cast<uint32_t>(buf.size() - 1);
-        buf[12] = ndp_off & 0xFF;
-        buf[13] = (ndp_off >> 8) & 0xFF;
-        buf[14] = (ndp_off >> 16) & 0xFF;
-        buf[15] = (ndp_off >> 24) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        write_le<index_t>(buf.data() + T::ndp_index_offset, static_cast<index_t>(buf.size() - 1));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- NDP signature ------------------------------------------------------
 
-    TEST_CASE("invalid NTB16: wrong NDP signature")
+    TEMPLATE_TEST_CASE("invalid NTB: wrong NDP signature", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        // NDP starts at header_size + DG_SIZE = 12 + 20 = 32
-        buf[ntb_traits<16>::header_size + DG_SIZE] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: wrong NDP signature")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        buf[ntb_traits<32>::header_size + DG_SIZE] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        // NDP starts right after the header and the datagram
+        buf[ntb_traits<BIT_SIZE>::header_size + DG_SIZE] = 'X';
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- NDP Length ---------------------------------------------------------
 
-    TEST_CASE("invalid NTB16: NDP Length too small")
+    TEMPLATE_TEST_CASE("invalid NTB: NDP Length too small", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<16>();
-        // NDP at offset 32; Length at NDP+4
-        // Minimum valid Length = ndp_datagram_offset + datagram_ptr_size = 8 + 4 = 12
-        // Write 8, which is below the minimum
-        size_t ndp_off = ntb_traits<16>::header_size + DG_SIZE;
-        buf[ndp_off + 4] = 8;
-        buf[ndp_off + 5] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        // NDP right after the datagram; Length at NDP+4
+        // Minimum valid Length = ndp_datagram_offset + datagram_ptr_size
+        // Write ndp_datagram_offset, which is below the minimum
+        size_t ndp_off = T::header_size + DG_SIZE;
+        write_le<uint16_t>(buf.data() + ndp_off + 4, static_cast<uint16_t>(T::ndp_datagram_offset));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("invalid NTB32: NDP Length too small")
+    TEMPLATE_TEST_CASE("invalid NTB: NDP Length makes NDP extend past BlockLength", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_end<32>();
-        // Minimum valid Length = 16 + 8 = 24; write 16 which is below minimum
-        size_t ndp_off = ntb_traits<32>::header_size + DG_SIZE;
-        buf[ndp_off + 4] = 16;
-        buf[ndp_off + 5] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB16: NDP Length makes NDP extend past BlockLength")
-    {
-        auto buf = make_ntb_ndp_at_end<16>();
-        size_t ndp_off = ntb_traits<16>::header_size + DG_SIZE;
-        auto big = static_cast<uint16_t>(buf.size() + 4);
-        buf[ndp_off + 4] = big & 0xFF;
-        buf[ndp_off + 5] = (big >> 8) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: NDP Length makes NDP extend past BlockLength")
-    {
-        auto buf = make_ntb_ndp_at_end<32>();
-        size_t ndp_off = ntb_traits<32>::header_size + DG_SIZE;
-        auto big = static_cast<uint16_t>(buf.size() + 8);
-        buf[ndp_off + 4] = big & 0xFF;
-        buf[ndp_off + 5] = (big >> 8) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        auto buf = make_ntb_ndp_at_end<BIT_SIZE>();
+        size_t ndp_off = T::header_size + DG_SIZE;
+        auto big = static_cast<uint16_t>(buf.size() + T::datagram_ptr_size);
+        write_le<uint16_t>(buf.data() + ndp_off + 4, big);
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- Datagram pointer checks --------------------------------------------
@@ -660,167 +601,93 @@ SUITE(cdc_ncm_ntb)
     // The "NDP at front" layout puts the NDP right after the header, so we
     // can easily address Datagram[0] and the terminator.
 
-    TEST_CASE("invalid NTB16: datagram DatagramIndex inside header")
+    TEMPLATE_TEST_CASE("invalid NTB: datagram DatagramIndex inside header", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<16>();
-        // NDP at header_size=12; Datagram[0] at NDP+8 = 20
-        constexpr size_t dg_ptr_off =
-            ntb_traits<16>::header_size + ntb_traits<16>::ndp_datagram_offset;
-        buf[dg_ptr_off] = 4;
-        buf[dg_ptr_off + 1] = 0; // DatagramIndex = 4 < header_size
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_front<BIT_SIZE>();
+        // NDP right after the header, Datagram[0] at NDP + ndp_datagram_offset
+        constexpr size_t dg_ptr_off = T::header_size + T::ndp_datagram_offset;
+        // DatagramIndex = 4 < header_size
+        write_le<index_t>(buf.data() + dg_ptr_off, 4);
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("invalid NTB32: datagram DatagramIndex inside header")
+    TEMPLATE_TEST_CASE("invalid NTB: datagram extends beyond BlockLength", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<32>();
-        // NDP at 16; Datagram[0] at NDP+16 = 32
-        constexpr size_t dg_ptr_off =
-            ntb_traits<32>::header_size + ntb_traits<32>::ndp_datagram_offset;
-        // DatagramIndex = 4 (little-endian uint32)
-        buf[dg_ptr_off] = 4;
-        buf[dg_ptr_off + 1] = 0;
-        buf[dg_ptr_off + 2] = 0;
-        buf[dg_ptr_off + 3] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_front<BIT_SIZE>();
+        constexpr size_t dg_ptr_off = T::header_size + T::ndp_datagram_offset;
+        // DatagramLength follows DatagramIndex
+        write_le<index_t>(buf.data() + dg_ptr_off + sizeof(index_t),
+                          static_cast<index_t>(buf.size() + T::datagram_ptr_size));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("invalid NTB16: datagram extends beyond BlockLength")
+    TEMPLATE_TEST_CASE("invalid NTB: DatagramLength below minimum (14)", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<16>();
-        constexpr size_t dg_ptr_off =
-            ntb_traits<16>::header_size + ntb_traits<16>::ndp_datagram_offset;
-        auto huge = static_cast<uint16_t>(buf.size() + 4);
-        // DatagramLength is at dg_ptr_off+2
-        buf[dg_ptr_off + 2] = huge & 0xFF;
-        buf[dg_ptr_off + 3] = (huge >> 8) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        using index_t = typename T::index_t;
+        auto buf = make_ntb_ndp_at_front<BIT_SIZE>();
+        constexpr size_t dg_ptr_off = T::header_size + T::ndp_datagram_offset;
+        // 8 < DG_MIN=14
+        write_le<index_t>(buf.data() + dg_ptr_off + sizeof(index_t), 8);
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
-    TEST_CASE("invalid NTB32: datagram extends beyond BlockLength")
+    TEMPLATE_TEST_CASE("invalid NTB: null terminator missing", ntb16, ntb32)
     {
-        auto buf = make_ntb_ndp_at_front<32>();
-        constexpr size_t dg_ptr_off =
-            ntb_traits<32>::header_size + ntb_traits<32>::ndp_datagram_offset;
-        auto huge = static_cast<uint32_t>(buf.size() + 8);
-        // DatagramLength is at dg_ptr_off+4
-        buf[dg_ptr_off + 4] = huge & 0xFF;
-        buf[dg_ptr_off + 5] = (huge >> 8) & 0xFF;
-        buf[dg_ptr_off + 6] = (huge >> 16) & 0xFF;
-        buf[dg_ptr_off + 7] = (huge >> 24) & 0xFF;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB16: DatagramLength below minimum (14)")
-    {
-        auto buf = make_ntb_ndp_at_front<16>();
-        constexpr size_t dg_ptr_off =
-            ntb_traits<16>::header_size + ntb_traits<16>::ndp_datagram_offset;
-        buf[dg_ptr_off + 2] = 8;
-        buf[dg_ptr_off + 3] = 0; // 8 < DG_MIN=14
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: DatagramLength below minimum (14)")
-    {
-        auto buf = make_ntb_ndp_at_front<32>();
-        constexpr size_t dg_ptr_off =
-            ntb_traits<32>::header_size + ntb_traits<32>::ndp_datagram_offset;
-        buf[dg_ptr_off + 4] = 8;
-        buf[dg_ptr_off + 5] = 0;
-        buf[dg_ptr_off + 6] = 0;
-        buf[dg_ptr_off + 7] = 0;
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB16: null terminator missing")
-    {
-        auto buf = make_ntb_ndp_at_front<16>();
-        // Datagram[0] at NDP+8; terminator (Datagram[1]) at NDP+12
-        constexpr size_t term_off = ntb_traits<16>::header_size +
-                                    ntb_traits<16>::ndp_datagram_offset +
-                                    ntb_traits<16>::datagram_ptr_size;
-        buf[term_off] = 0x10;
-        buf[term_off + 1] = 0x00; // non-zero DatagramIndex
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: null terminator missing")
-    {
-        auto buf = make_ntb_ndp_at_front<32>();
-        // Datagram[0] at NDP+16; terminator (Datagram[1]) at NDP+24
-        constexpr size_t term_off = ntb_traits<32>::header_size +
-                                    ntb_traits<32>::ndp_datagram_offset +
-                                    ntb_traits<32>::datagram_ptr_size;
+        constexpr size_t BIT_SIZE = TestType::value;
+        using T = ntb_traits<BIT_SIZE>;
+        auto buf = make_ntb_ndp_at_front<BIT_SIZE>();
+        // terminator (Datagram[1]) follows Datagram[0]
+        constexpr size_t term_off = T::header_size + T::ndp_datagram_offset + T::datagram_ptr_size;
         buf[term_off] = 0x10; // non-zero DatagramIndex
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // --- Chained NDP signature check ----------------------------------------
 
-    TEST_CASE("invalid NTB16: second NDP has wrong signature")
+    TEMPLATE_TEST_CASE("invalid NTB: second NDP has wrong signature", ntb16, ntb32)
     {
-        auto buf = make_ntb_two_ndps<16>();
-        // Compute NDP1 offset, matching make_ntb_two_ndps<16> layout
-        constexpr size_t ndp0_off = ntb_traits<16>::header_size + DG_SIZE;
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_two_ndps<BIT_SIZE>();
+        // Compute NDP1 offset, matching make_ntb_two_ndps<BIT_SIZE> layout
+        constexpr size_t ndp0_off = ntb_traits<BIT_SIZE>::header_size + DG_SIZE;
         constexpr size_t ndp0_len =
-            ntb_traits<16>::ndp_datagram_offset + 2 * ntb_traits<16>::datagram_ptr_size;
+            ntb_traits<BIT_SIZE>::ndp_datagram_offset + 2 * ntb_traits<BIT_SIZE>::datagram_ptr_size;
         constexpr size_t ndp1_off = c2usb::aligned_size<uint32_t>(ndp0_off + ndp0_len);
         buf[ndp1_off] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: second NDP has wrong signature")
-    {
-        auto buf = make_ntb_two_ndps<32>();
-        constexpr size_t ndp0_off = ntb_traits<32>::header_size + DG_SIZE;
-        constexpr size_t ndp0_len =
-            ntb_traits<32>::ndp_datagram_offset + 2 * ntb_traits<32>::datagram_ptr_size;
-        constexpr size_t ndp1_off = c2usb::aligned_size<uint32_t>(ndp0_off + ndp0_len);
-        buf[ndp1_off] = 'X';
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // An NTB with an NDP containing no datagrams has nothing to process,
     // so is_valid_ntb correctly rejects it.
-    TEST_CASE("invalid NTB16: NDP with no datagrams")
+    TEMPLATE_TEST_CASE("invalid NTB: NDP with no datagrams", ntb16, ntb32)
     {
-        auto buf = make_ntb_empty_ndp<16>();
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: NDP with no datagrams")
-    {
-        auto buf = make_ntb_empty_ndp<32>();
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_empty_ndp<BIT_SIZE>();
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // Circular NextNdpIndex references must be rejected instead of causing an
     // unbounded traversal loop (DoS via crafted/corrupt NTB).
-    TEST_CASE("invalid NTB16: circular NDP chain does not cause infinite loop")
+    TEMPLATE_TEST_CASE("invalid NTB: circular NDP chain does not cause infinite loop", ntb16, ntb32)
     {
-        auto buf = make_ntb_circular_ndps<16>();
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<16>(std::span<const uint8_t>(buf.data(), buf.size())));
-    };
-
-    TEST_CASE("invalid NTB32: circular NDP chain does not cause infinite loop")
-    {
-        auto buf = make_ntb_circular_ndps<32>();
-        CHECK(
-            not usb::cdc::ncm::is_valid_ntb<32>(std::span<const uint8_t>(buf.data(), buf.size())));
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto buf = make_ntb_circular_ndps<BIT_SIZE>();
+        CHECK(not usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(
+            std::span<const uint8_t>(buf.data(), buf.size())));
     };
 
     // =======================================================================
@@ -830,10 +697,11 @@ SUITE(cdc_ncm_ntb)
     // pop_datagram() returns spans whose base is this->data(page), so the
     // NTB bytes must reside in the rx_ctx buffer (use make_rx_ctx helper).
 
-    TEST_CASE("ntb_rx_ctx NTB16: NDP at end, one datagram")
+    TEMPLATE_TEST_CASE("ntb_rx_ctx: NDP at end, one datagram", ntb16, ntb32)
     {
-        auto ntb = make_ntb_ndp_at_end<16>();
-        auto [ctx, storage] = make_rx_ctx<16>(ntb);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto ntb = make_ntb_ndp_at_end<BIT_SIZE>();
+        auto [ctx, storage] = make_rx_ctx<BIT_SIZE>(ntb);
 
         // The datagram lives at header_size offset, length DG_SIZE, content all zeros
         auto dg = ctx.pop_datagram();
@@ -842,10 +710,11 @@ SUITE(cdc_ncm_ntb)
         CHECK(ctx.pop_datagram().empty());
     };
 
-    TEST_CASE("ntb_rx_ctx NTB32: NDP at end, one datagram")
+    TEMPLATE_TEST_CASE("ntb_rx_ctx: NDP at front, one datagram", ntb16, ntb32)
     {
-        auto ntb = make_ntb_ndp_at_end<32>();
-        auto [ctx, storage] = make_rx_ctx<32>(ntb);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto ntb = make_ntb_ndp_at_front<BIT_SIZE>();
+        auto [ctx, storage] = make_rx_ctx<BIT_SIZE>(ntb);
 
         auto dg = ctx.pop_datagram();
         CHECK(dg.size() == DG_SIZE);
@@ -853,32 +722,11 @@ SUITE(cdc_ncm_ntb)
         CHECK(ctx.pop_datagram().empty());
     };
 
-    TEST_CASE("ntb_rx_ctx NTB16: NDP at front, one datagram")
+    TEMPLATE_TEST_CASE("ntb_rx_ctx: NDP in middle, two datagrams", ntb16, ntb32)
     {
-        auto ntb = make_ntb_ndp_at_front<16>();
-        auto [ctx, storage] = make_rx_ctx<16>(ntb);
-
-        auto dg = ctx.pop_datagram();
-        CHECK(dg.size() == DG_SIZE);
-        CHECK(std::ranges::all_of(dg, [](uint8_t b) { return b == 0; }));
-        CHECK(ctx.pop_datagram().empty());
-    };
-
-    TEST_CASE("ntb_rx_ctx NTB32: NDP at front, one datagram")
-    {
-        auto ntb = make_ntb_ndp_at_front<32>();
-        auto [ctx, storage] = make_rx_ctx<32>(ntb);
-
-        auto dg = ctx.pop_datagram();
-        CHECK(dg.size() == DG_SIZE);
-        CHECK(std::ranges::all_of(dg, [](uint8_t b) { return b == 0; }));
-        CHECK(ctx.pop_datagram().empty());
-    };
-
-    TEST_CASE("ntb_rx_ctx NTB16: NDP in middle, two datagrams")
-    {
-        auto ntb = make_ntb_ndp_in_middle<16>();
-        auto [ctx, storage] = make_rx_ctx<16>(ntb);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto ntb = make_ntb_ndp_in_middle<BIT_SIZE>();
+        auto [ctx, storage] = make_rx_ctx<BIT_SIZE>(ntb);
 
         auto dg0 = ctx.pop_datagram();
         CHECK(dg0.size() == DG_SIZE);
@@ -887,34 +735,11 @@ SUITE(cdc_ncm_ntb)
         CHECK(ctx.pop_datagram().empty());
     };
 
-    TEST_CASE("ntb_rx_ctx NTB32: NDP in middle, two datagrams")
+    TEMPLATE_TEST_CASE("ntb_rx_ctx: two chained NDPs, one datagram each", ntb16, ntb32)
     {
-        auto ntb = make_ntb_ndp_in_middle<32>();
-        auto [ctx, storage] = make_rx_ctx<32>(ntb);
-
-        auto dg0 = ctx.pop_datagram();
-        CHECK(dg0.size() == DG_SIZE);
-        auto dg1 = ctx.pop_datagram();
-        CHECK(dg1.size() == DG_SIZE);
-        CHECK(ctx.pop_datagram().empty());
-    };
-
-    TEST_CASE("ntb_rx_ctx NTB16: two chained NDPs, one datagram each")
-    {
-        auto ntb = make_ntb_two_ndps<16>();
-        auto [ctx, storage] = make_rx_ctx<16>(ntb);
-
-        auto dg0 = ctx.pop_datagram();
-        CHECK(dg0.size() == DG_SIZE);
-        auto dg1 = ctx.pop_datagram();
-        CHECK(dg1.size() == DG_SIZE);
-        CHECK(ctx.pop_datagram().empty());
-    };
-
-    TEST_CASE("ntb_rx_ctx NTB32: two chained NDPs, one datagram each")
-    {
-        auto ntb = make_ntb_two_ndps<32>();
-        auto [ctx, storage] = make_rx_ctx<32>(ntb);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto ntb = make_ntb_two_ndps<BIT_SIZE>();
+        auto [ctx, storage] = make_rx_ctx<BIT_SIZE>(ntb);
 
         auto dg0 = ctx.pop_datagram();
         CHECK(dg0.size() == DG_SIZE);
@@ -924,57 +749,29 @@ SUITE(cdc_ncm_ntb)
     };
 
     // Verify that rx_ctx returns the exact bytes that were placed in the NTB.
-    TEST_CASE("ntb_rx_ctx NTB16: datagram content is preserved")
+    TEMPLATE_TEST_CASE("ntb_rx_ctx: datagram content is preserved", ntb16, ntb32)
     {
-        using idx_t = ntb_traits<16>::index_t;
+        constexpr size_t BIT_SIZE = TestType::value;
+        using idx_t = ntb_traits<BIT_SIZE>::index_t;
         // Build NTB manually with distinct datagram content
-        idx_t dg_off = static_cast<idx_t>(ntb_traits<16>::header_size);
+        idx_t dg_off = static_cast<idx_t>(ntb_traits<BIT_SIZE>::header_size);
         idx_t ndp_off = static_cast<idx_t>(dg_off + DG_SIZE);
         size_t ndp_len =
-            ntb_traits<16>::ndp_datagram_offset + 2 * ntb_traits<16>::datagram_ptr_size;
+            ntb_traits<BIT_SIZE>::ndp_datagram_offset + 2 * ntb_traits<BIT_SIZE>::datagram_ptr_size;
         idx_t block_len = static_cast<idx_t>(c2usb::aligned_size<uint32_t>(ndp_off + ndp_len));
 
         std::vector<uint8_t> ntb(block_len, 0);
-        ntb_traits<16>::write_header(ntb.data(), 0, block_len, ndp_off);
+        ntb_traits<BIT_SIZE>::write_header(ntb.data(), 0, block_len, ndp_off);
         // Fill datagram with recognizable pattern
         for (size_t i = 0; i < DG_SIZE; ++i)
         {
             ntb[dg_off + i] = static_cast<uint8_t>(i + 1);
         }
         std::pair<idx_t, idx_t> dg{dg_off, static_cast<idx_t>(DG_SIZE)};
-        ntb_traits<16>::write_ndp(ntb.data(), ndp_off, 0,
-                                  std::span<const std::pair<idx_t, idx_t>>(&dg, 1));
+        ntb_traits<BIT_SIZE>::write_ndp(ntb.data(), ndp_off, 0,
+                                        std::span<const std::pair<idx_t, idx_t>>(&dg, 1));
 
-        auto [ctx, storage] = make_rx_ctx<16>(ntb);
-        auto popped = ctx.pop_datagram();
-        CHECK(popped.size() == DG_SIZE);
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            CHECK(popped[i] == static_cast<uint8_t>(i + 1));
-        }
-        CHECK(ctx.pop_datagram().empty());
-    };
-
-    TEST_CASE("ntb_rx_ctx NTB32: datagram content is preserved")
-    {
-        using idx_t = ntb_traits<32>::index_t;
-        idx_t dg_off = static_cast<idx_t>(ntb_traits<32>::header_size);
-        idx_t ndp_off = static_cast<idx_t>(dg_off + DG_SIZE);
-        size_t ndp_len =
-            ntb_traits<32>::ndp_datagram_offset + 2 * ntb_traits<32>::datagram_ptr_size;
-        idx_t block_len = static_cast<idx_t>(c2usb::aligned_size<uint32_t>(ndp_off + ndp_len));
-
-        std::vector<uint8_t> ntb(block_len, 0);
-        ntb_traits<32>::write_header(ntb.data(), 0, block_len, ndp_off);
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            ntb[dg_off + i] = static_cast<uint8_t>(i + 1);
-        }
-        std::pair<idx_t, idx_t> dg{dg_off, static_cast<idx_t>(DG_SIZE)};
-        ntb_traits<32>::write_ndp(ntb.data(), ndp_off, 0,
-                                  std::span<const std::pair<idx_t, idx_t>>(&dg, 1));
-
-        auto [ctx, storage] = make_rx_ctx<32>(ntb);
+        auto [ctx, storage] = make_rx_ctx<BIT_SIZE>(ntb);
         auto popped = ctx.pop_datagram();
         CHECK(popped.size() == DG_SIZE);
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -991,14 +788,15 @@ SUITE(cdc_ncm_ntb)
     // tx_ctx produces NDP-at-end layout: | header | datagrams | NDP |
     // BlockLength = NdpIndex + dpt->Length.
 
-    TEST_CASE("ntb_tx_ctx NTB16: one datagram, output matches make_ntb_ndp_at_end")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: one datagram, output matches make_ntb_ndp_at_end", ntb16, ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         // make_ntb_ndp_at_end uses a zero-filled datagram of DG_SIZE bytes,
         // which is exactly what tx_ctx produces for a zero-filled append.
-        auto expected = make_ntb_ndp_at_end<16>();
+        auto expected = make_ntb_ndp_at_end<BIT_SIZE>();
         size_t page_bytes = expected.size();
 
-        auto [ctx, storage] = make_tx_ctx<16>(page_bytes);
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(page_bytes);
         std::array<uint8_t, DG_SIZE> dg_data{};
         CHECK(ctx.append_datagram(dg_data.begin(), dg_data.end()));
         auto ntb = ctx.pop_ntb();
@@ -1007,70 +805,38 @@ SUITE(cdc_ncm_ntb)
         CHECK(std::ranges::equal(ntb, std::span<const uint8_t>(expected)));
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: one datagram, output matches make_ntb_ndp_at_end")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: pop_ntb with no datagrams returns empty", ntb16, ntb32)
     {
-        auto expected = make_ntb_ndp_at_end<32>();
-        size_t page_bytes = expected.size();
-
-        auto [ctx, storage] = make_tx_ctx<32>(page_bytes);
-        std::array<uint8_t, DG_SIZE> dg_data{};
-        CHECK(ctx.append_datagram(dg_data.begin(), dg_data.end()));
-        auto ntb = ctx.pop_ntb();
-
-        CHECK(ntb.size() == expected.size());
-        CHECK(std::ranges::equal(ntb, std::span<const uint8_t>(expected)));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: pop_ntb with no datagrams returns empty")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         auto ntb = ctx.pop_ntb();
         CHECK(ntb.empty());
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: pop_ntb with no datagrams returns empty")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: datagram too small is rejected", ntb16, ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        auto ntb = ctx.pop_ntb();
-        CHECK(ntb.empty());
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: datagram too small is rejected")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         std::array<uint8_t, DG_MIN - 1> small{};
         CHECK(not ctx.append_datagram(small.begin(), small.end()));
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: datagram too small is rejected")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: datagram too large for remaining space is rejected", ntb16,
+                       ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        std::array<uint8_t, DG_MIN - 1> small{};
-        CHECK(not ctx.append_datagram(small.begin(), small.end()));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: datagram too large for remaining space is rejected")
-    {
+        constexpr size_t BIT_SIZE = TestType::value;
         // Use a very small page: just enough for header + one DG_SIZE datagram + NDP
-        auto expected = make_ntb_ndp_at_end<16>();
-        auto [ctx, storage] = make_tx_ctx<16>(expected.size());
+        auto expected = make_ntb_ndp_at_end<BIT_SIZE>();
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(expected.size());
         std::array<uint8_t, DG_SIZE> dg{};
         CHECK(ctx.append_datagram(dg.begin(), dg.end()));     // first fits
         CHECK(not ctx.append_datagram(dg.begin(), dg.end())); // second doesn't
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: datagram too large for remaining space is rejected")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: sequence number increments across pop_ntb calls", ntb16, ntb32)
     {
-        auto expected = make_ntb_ndp_at_end<32>();
-        auto [ctx, storage] = make_tx_ctx<32>(expected.size());
-        std::array<uint8_t, DG_SIZE> dg{};
-        CHECK(ctx.append_datagram(dg.begin(), dg.end()));
-        CHECK(not ctx.append_datagram(dg.begin(), dg.end()));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: sequence number increments across pop_ntb calls")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         std::array<uint8_t, DG_SIZE> dg{};
 
         ctx.append_datagram(dg.begin(), dg.end());
@@ -1084,97 +850,53 @@ SUITE(cdc_ncm_ntb)
         CHECK(seq1 == static_cast<uint16_t>(seq0 + 1));
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: sequence number increments across pop_ntb calls")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: output is a valid NTB", ntb16, ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        std::array<uint8_t, DG_SIZE> dg{};
-
-        ctx.append_datagram(dg.begin(), dg.end());
-        auto ntb0 = ctx.pop_ntb();
-        auto seq0 = static_cast<uint16_t>(ntb0[6]) | (static_cast<uint16_t>(ntb0[7]) << 8);
-
-        ctx.append_datagram(dg.begin(), dg.end());
-        auto ntb1 = ctx.pop_ntb();
-        auto seq1 = static_cast<uint16_t>(ntb1[6]) | (static_cast<uint16_t>(ntb1[7]) << 8);
-
-        CHECK(seq1 == static_cast<uint16_t>(seq0 + 1));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: output is a valid NTB")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         std::array<uint8_t, DG_SIZE> dg{};
         ctx.append_datagram(dg.begin(), dg.end());
         auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(ntb));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: output is a valid NTB")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: output with two datagrams is a valid NTB", ntb16, ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        std::array<uint8_t, DG_SIZE> dg{};
-        ctx.append_datagram(dg.begin(), dg.end());
-        auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(ntb));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: output with two datagrams is a valid NTB")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(512);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(512);
         std::array<uint8_t, DG_SIZE> dg{};
         ctx.append_datagram(dg.begin(), dg.end());
         ctx.append_datagram(dg.begin(), dg.end());
         auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(ntb));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB32: output with two datagrams is a valid NTB")
-    {
-        auto [ctx, storage] = make_tx_ctx<32>(512);
-        std::array<uint8_t, DG_SIZE> dg{};
-        ctx.append_datagram(dg.begin(), dg.end());
-        ctx.append_datagram(dg.begin(), dg.end());
-        auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(ntb));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
     };
 
     // --- allocate_datagram + commit_datagram ---------------------------------
 
-    TEST_CASE("ntb_tx_ctx NTB16: allocate_datagram returns empty for too-small size")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: allocate_datagram returns empty for too-small size", ntb16,
+                       ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         CHECK(ctx.allocate_datagram(DG_MIN - 1).empty());
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: allocate_datagram returns empty for too-small size")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: allocate_datagram returns empty when no space", ntb16, ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        CHECK(ctx.allocate_datagram(DG_MIN - 1).empty());
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: allocate_datagram returns empty when no space")
-    {
-        auto expected = make_ntb_ndp_at_end<16>();
-        auto [ctx, storage] = make_tx_ctx<16>(expected.size());
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto expected = make_ntb_ndp_at_end<BIT_SIZE>();
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(expected.size());
         auto span = ctx.allocate_datagram(DG_SIZE);
         CHECK(not span.empty());
         ctx.commit_datagram(span);
         CHECK(ctx.allocate_datagram(DG_SIZE).empty());
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: allocate_datagram returns empty when no space")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: allocate_datagram returns empty when dg_max_limit hit", ntb16,
+                       ntb32)
     {
-        auto expected = make_ntb_ndp_at_end<32>();
-        auto [ctx, storage] = make_tx_ctx<32>(expected.size());
-        auto span = ctx.allocate_datagram(DG_SIZE);
-        CHECK(not span.empty());
-        ctx.commit_datagram(span);
-        CHECK(ctx.allocate_datagram(DG_SIZE).empty());
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: allocate_datagram returns empty when dg_max_limit hit")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(256);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(256);
         ctx.dg_max_limit = 1;
         auto span = ctx.allocate_datagram(DG_SIZE);
         CHECK(not span.empty());
@@ -1182,20 +904,12 @@ SUITE(cdc_ncm_ntb)
         CHECK(ctx.allocate_datagram(DG_SIZE).empty());
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: allocate_datagram returns empty when dg_max_limit hit")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: allocate+commit output matches make_ntb_ndp_at_end", ntb16,
+                       ntb32)
     {
-        auto [ctx, storage] = make_tx_ctx<32>(256);
-        ctx.dg_max_limit = 1;
-        auto span = ctx.allocate_datagram(DG_SIZE);
-        CHECK(not span.empty());
-        ctx.commit_datagram(span);
-        CHECK(ctx.allocate_datagram(DG_SIZE).empty());
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: allocate+commit output matches make_ntb_ndp_at_end")
-    {
-        auto expected = make_ntb_ndp_at_end<16>();
-        auto [ctx, storage] = make_tx_ctx<16>(expected.size());
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto expected = make_ntb_ndp_at_end<BIT_SIZE>();
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(expected.size());
         auto span = ctx.allocate_datagram(DG_SIZE);
         CHECK(not span.empty());
         std::fill(span.begin(), span.end(), uint8_t{0});
@@ -1205,22 +919,10 @@ SUITE(cdc_ncm_ntb)
         CHECK(std::ranges::equal(ntb, std::span<const uint8_t>(expected)));
     };
 
-    TEST_CASE("ntb_tx_ctx NTB32: allocate+commit output matches make_ntb_ndp_at_end")
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: allocate+commit two datagrams is a valid NTB", ntb16, ntb32)
     {
-        auto expected = make_ntb_ndp_at_end<32>();
-        auto [ctx, storage] = make_tx_ctx<32>(expected.size());
-        auto span = ctx.allocate_datagram(DG_SIZE);
-        CHECK(not span.empty());
-        std::fill(span.begin(), span.end(), uint8_t{0});
-        ctx.commit_datagram(span);
-        auto ntb = ctx.pop_ntb();
-        CHECK(ntb.size() == expected.size());
-        CHECK(std::ranges::equal(ntb, std::span<const uint8_t>(expected)));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB16: allocate+commit two datagrams is a valid NTB")
-    {
-        auto [ctx, storage] = make_tx_ctx<16>(512);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(512);
         auto sp0 = ctx.allocate_datagram(DG_SIZE);
         CHECK(not sp0.empty());
         ctx.commit_datagram(sp0);
@@ -1228,20 +930,7 @@ SUITE(cdc_ncm_ntb)
         CHECK(not sp1.empty());
         ctx.commit_datagram(sp1);
         auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<16>(ntb));
-    };
-
-    TEST_CASE("ntb_tx_ctx NTB32: allocate+commit two datagrams is a valid NTB")
-    {
-        auto [ctx, storage] = make_tx_ctx<32>(512);
-        auto sp0 = ctx.allocate_datagram(DG_SIZE);
-        CHECK(not sp0.empty());
-        ctx.commit_datagram(sp0);
-        auto sp1 = ctx.allocate_datagram(DG_SIZE);
-        CHECK(not sp1.empty());
-        ctx.commit_datagram(sp1);
-        auto ntb = ctx.pop_ntb();
-        CHECK(usb::cdc::ncm::is_valid_ntb<32>(ntb));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
     };
 
     // =======================================================================
@@ -1251,10 +940,11 @@ SUITE(cdc_ncm_ntb)
     // Assemble an NTB with tx_ctx, feed the output into rx_ctx, verify all
     // popped datagrams equal the originally appended datagrams.
 
-    TEST_CASE("round-trip NTB16: single datagram with known content")
+    TEMPLATE_TEST_CASE("round-trip: single datagram with known content", ntb16, ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
 
         std::array<uint8_t, DG_SIZE> original{};
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -1266,38 +956,18 @@ SUITE(cdc_ncm_ntb)
 
         // Copy into rx_ctx buffer
         std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<16>(ntb_copy);
+        auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
 
         auto result = drain_rx(rx);
         CHECK(result.size() == 1u);
         CHECK(std::ranges::equal(result[0], original));
     };
 
-    TEST_CASE("round-trip NTB32: single datagram with known content")
+    TEMPLATE_TEST_CASE("round-trip: two datagrams with distinct content", ntb16, ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
-
-        std::array<uint8_t, DG_SIZE> original{};
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            original[i] = static_cast<uint8_t>(0xA0 + i);
-        }
-        CHECK(tx.append_datagram(original.begin(), original.end()));
-        auto ntb_span = tx.pop_ntb();
-
-        std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<32>(ntb_copy);
-
-        auto result = drain_rx(rx);
-        CHECK(result.size() == 1u);
-        CHECK(std::ranges::equal(result[0], original));
-    };
-
-    TEST_CASE("round-trip NTB16: two datagrams with distinct content")
-    {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
 
         std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -1310,7 +980,7 @@ SUITE(cdc_ncm_ntb)
         auto ntb_span = tx.pop_ntb();
 
         std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<16>(ntb_copy);
+        auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
 
         auto result = drain_rx(rx);
         CHECK(result.size() == 2u);
@@ -1318,34 +988,12 @@ SUITE(cdc_ncm_ntb)
         CHECK(std::ranges::equal(result[1], dg1));
     };
 
-    TEST_CASE("round-trip NTB32: two datagrams with distinct content")
+    TEMPLATE_TEST_CASE("round-trip: consecutive pop_ntb calls produce independent NTBs", ntb16,
+                       ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
-
-        std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            dg0[i] = static_cast<uint8_t>(0x11 + i);
-            dg1[i] = static_cast<uint8_t>(0xAA - i);
-        }
-        CHECK(tx.append_datagram(dg0.begin(), dg0.end()));
-        CHECK(tx.append_datagram(dg1.begin(), dg1.end()));
-        auto ntb_span = tx.pop_ntb();
-
-        std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<32>(ntb_copy);
-
-        auto result = drain_rx(rx);
-        CHECK(result.size() == 2u);
-        CHECK(std::ranges::equal(result[0], dg0));
-        CHECK(std::ranges::equal(result[1], dg1));
-    };
-
-    TEST_CASE("round-trip NTB16: consecutive pop_ntb calls produce independent NTBs")
-    {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
 
         std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -1365,53 +1013,23 @@ SUITE(cdc_ncm_ntb)
         std::vector<uint8_t> ntb1(span1.begin(), span1.end());
 
         // Verify NTB0
-        auto [rx0, rx0_storage] = make_rx_ctx<16>(ntb0);
+        auto [rx0, rx0_storage] = make_rx_ctx<BIT_SIZE>(ntb0);
         auto result0 = drain_rx(rx0);
         CHECK(result0.size() == 1u);
         CHECK(std::ranges::equal(result0[0], dg0));
 
         // Verify NTB1
-        auto [rx1, rx1_storage] = make_rx_ctx<16>(ntb1);
+        auto [rx1, rx1_storage] = make_rx_ctx<BIT_SIZE>(ntb1);
         auto result1 = drain_rx(rx1);
         CHECK(result1.size() == 1u);
         CHECK(std::ranges::equal(result1[0], dg1));
     };
 
-    TEST_CASE("round-trip NTB32: consecutive pop_ntb calls produce independent NTBs")
+    TEMPLATE_TEST_CASE("round-trip: max datagrams limited by dg_max_limit", ntb16, ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
-
-        std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            dg0[i] = static_cast<uint8_t>(0x01 + i);
-            dg1[i] = static_cast<uint8_t>(0x81 + i);
-        }
-
-        tx.append_datagram(dg0.begin(), dg0.end());
-        auto span0 = tx.pop_ntb();
-        std::vector<uint8_t> ntb0(span0.begin(), span0.end());
-
-        tx.append_datagram(dg1.begin(), dg1.end());
-        auto span1 = tx.pop_ntb();
-        std::vector<uint8_t> ntb1(span1.begin(), span1.end());
-
-        auto [rx0, rx0_storage] = make_rx_ctx<32>(ntb0);
-        auto result0 = drain_rx(rx0);
-        CHECK(result0.size() == 1u);
-        CHECK(std::ranges::equal(result0[0], dg0));
-
-        auto [rx1, rx1_storage] = make_rx_ctx<32>(ntb1);
-        auto result1 = drain_rx(rx1);
-        CHECK(result1.size() == 1u);
-        CHECK(std::ranges::equal(result1[0], dg1));
-    };
-
-    TEST_CASE("round-trip NTB16: max datagrams limited by dg_max_limit")
-    {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
         tx.dg_max_limit = 2;
 
         std::array<uint8_t, DG_SIZE> dg{};
@@ -1421,33 +1039,16 @@ SUITE(cdc_ncm_ntb)
 
         auto ntb_span = tx.pop_ntb();
         std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<16>(ntb_copy);
+        auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
         auto result = drain_rx(rx);
         CHECK(result.size() == 2u);
     };
 
-    TEST_CASE("round-trip NTB32: max datagrams limited by dg_max_limit")
+    TEMPLATE_TEST_CASE("round-trip: single datagram via allocate+commit", ntb16, ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
-        tx.dg_max_limit = 2;
-
-        std::array<uint8_t, DG_SIZE> dg{};
-        CHECK(tx.append_datagram(dg.begin(), dg.end()));
-        CHECK(tx.append_datagram(dg.begin(), dg.end()));
-        CHECK(not tx.append_datagram(dg.begin(), dg.end())); // limit hit
-
-        auto ntb_span = tx.pop_ntb();
-        std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<32>(ntb_copy);
-        auto result = drain_rx(rx);
-        CHECK(result.size() == 2u);
-    };
-
-    TEST_CASE("round-trip NTB16: single datagram via allocate+commit")
-    {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
 
         std::array<uint8_t, DG_SIZE> original{};
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -1462,40 +1063,18 @@ SUITE(cdc_ncm_ntb)
         auto ntb_span = tx.pop_ntb();
 
         std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<16>(ntb_copy);
+        auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
         auto result = drain_rx(rx);
         CHECK(result.size() == 1u);
         CHECK(std::ranges::equal(result[0], original));
     };
 
-    TEST_CASE("round-trip NTB32: single datagram via allocate+commit")
+    TEMPLATE_TEST_CASE("round-trip: two datagrams via allocate+commit with distinct content", ntb16,
+                       ntb32)
     {
+        constexpr size_t BIT_SIZE = TestType::value;
         constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
-
-        std::array<uint8_t, DG_SIZE> original{};
-        for (size_t i = 0; i < DG_SIZE; ++i)
-        {
-            original[i] = static_cast<uint8_t>(0xA0 + i);
-        }
-
-        auto span = tx.allocate_datagram(DG_SIZE);
-        CHECK(not span.empty());
-        std::copy(original.begin(), original.end(), span.begin());
-        tx.commit_datagram(span);
-        auto ntb_span = tx.pop_ntb();
-
-        std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<32>(ntb_copy);
-        auto result = drain_rx(rx);
-        CHECK(result.size() == 1u);
-        CHECK(std::ranges::equal(result[0], original));
-    };
-
-    TEST_CASE("round-trip NTB16: two datagrams via allocate+commit with distinct content")
-    {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<16>(page_size);
+        auto [tx, tx_storage] = make_tx_ctx<BIT_SIZE>(page_size);
 
         std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
         for (size_t i = 0; i < DG_SIZE; ++i)
@@ -1516,41 +1095,198 @@ SUITE(cdc_ncm_ntb)
 
         auto ntb_span = tx.pop_ntb();
         std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<16>(ntb_copy);
+        auto [rx, rx_storage] = make_rx_ctx<BIT_SIZE>(ntb_copy);
         auto result = drain_rx(rx);
         CHECK(result.size() == 2u);
         CHECK(std::ranges::equal(result[0], dg0));
         CHECK(std::ranges::equal(result[1], dg1));
     };
 
-    TEST_CASE("round-trip NTB32: two datagrams via allocate+commit with distinct content")
+    // =======================================================================
+    // ntb_tx_ctx - armed state tracking
+    // =======================================================================
+    //
+    // The armed NTB is the one on the page opposite to the one being populated,
+    // its non-zero BlockLength marks it armed.
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: fresh context is not armed", ntb16, ntb32)
     {
-        constexpr size_t page_size = 512;
-        auto [tx, tx_storage] = make_tx_ctx<32>(page_size);
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(not ctx.armed());
+        CHECK(ctx.armed_ntb().empty());
+    };
 
-        std::array<uint8_t, DG_SIZE> dg0{}, dg1{};
-        for (size_t i = 0; i < DG_SIZE; ++i)
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: arm without datagrams does nothing", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(not ctx.arm());
+        CHECK(not ctx.armed());
+        CHECK(ctx.armed_ntb().empty());
+        // the empty arm attempt must not have consumed the page or sequence
+        CHECK(append_filled(ctx, 0x5A));
+        CHECK(ctx.arm());
+        CHECK(ntb_sequence(ctx.armed_ntb()) == 0);
+        CHECK(ctx.armed_ntb().data() == tx_page(*storage, 0));
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: arm one datagram, armed NTB matches make_ntb_ndp_at_end", ntb16,
+                       ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto expected = make_ntb_ndp_at_end<BIT_SIZE>();
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(expected.size());
+        std::array<uint8_t, DG_SIZE> dg{};
+        CHECK(ctx.append_datagram(dg.begin(), dg.end()));
+        CHECK(ctx.arm());
+        CHECK(ctx.armed());
+        auto ntb = ctx.armed_ntb();
+        CHECK(ntb.size() == expected.size());
+        CHECK(std::ranges::equal(ntb, std::span<const uint8_t>(expected)));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: arm while armed keeps the armed NTB intact", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(append_filled(ctx, 0x11));
+        CHECK(ctx.arm());
+        auto first = ctx.armed_ntb();
+        std::vector<uint8_t> first_copy(first.begin(), first.end());
+
+        // datagrams keep being assembled on the other page while one is armed
+        CHECK(append_filled(ctx, 0x22));
+        CHECK(append_filled(ctx, 0x33));
+        CHECK(ctx.arm());
+        auto still = ctx.armed_ntb();
+        CHECK(still.data() == first.data());
+        CHECK(std::ranges::equal(still, first_copy));
+
+        // the armed NTB still decodes to only the first datagram
+        auto dgs = rx_roundtrip<BIT_SIZE>(still);
+        CHECK(dgs.size() == 1u);
+        CHECK(std::ranges::all_of(dgs[0], [](uint8_t b) { return b == 0x11; }));
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: disarm releases the armed NTB", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(append_filled(ctx, 0x11));
+        CHECK(ctx.arm());
+        ctx.disarm();
+        CHECK(not ctx.armed());
+        CHECK(ctx.armed_ntb().empty());
+        // disarming twice is harmless
+        ctx.disarm();
+        CHECK(not ctx.armed());
+        // nothing left to send
+        CHECK(not ctx.arm());
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: datagrams assembled while armed are sent next", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(append_filled(ctx, 0x11));
+        CHECK(ctx.arm());
+        auto seq0 = ntb_sequence(ctx.armed_ntb());
+        CHECK(append_filled(ctx, 0x22));
+        CHECK(append_filled(ctx, 0x33));
+
+        ctx.disarm();
+        CHECK(ctx.arm());
+        auto ntb = ctx.armed_ntb();
+        CHECK(ntb.data() == tx_page(*storage, 1));
+        CHECK(ntb_sequence(ntb) == static_cast<uint16_t>(seq0 + 1));
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
+
+        auto dgs = rx_roundtrip<BIT_SIZE>(ntb);
+        CHECK(dgs.size() == 2u);
+        CHECK(std::ranges::all_of(dgs[0], [](uint8_t b) { return b == 0x22; }));
+        CHECK(std::ranges::all_of(dgs[1], [](uint8_t b) { return b == 0x33; }));
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: arm/disarm cycles alternate pages and increment sequence",
+                       ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        for (uint8_t i = 0; i < 6; ++i)
         {
-            dg0[i] = static_cast<uint8_t>(0x11 + i);
-            dg1[i] = static_cast<uint8_t>(0xAA - i);
+            auto fill = static_cast<uint8_t>(0x40 + i);
+            CHECK(append_filled(ctx, fill));
+            CHECK(ctx.arm());
+            auto ntb = ctx.armed_ntb();
+            CHECK(ntb.data() == tx_page(*storage, i % 2));
+            CHECK(ntb_sequence(ntb) == i);
+
+            auto dgs = rx_roundtrip<BIT_SIZE>(ntb);
+            CHECK(dgs.size() == 1u);
+            CHECK(std::ranges::all_of(dgs[0], [fill](uint8_t b) { return b == fill; }));
+            ctx.disarm();
+            CHECK(not ctx.armed());
         }
+    };
 
-        auto sp0 = tx.allocate_datagram(DG_SIZE);
-        CHECK(not sp0.empty());
-        std::copy(dg0.begin(), dg0.end(), sp0.begin());
-        tx.commit_datagram(sp0);
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: reset clears stale armed state from a dirty buffer", ntb16,
+                       ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        // emulate stale buffer contents, e.g. from a previous session
+        std::ranges::fill(*storage, 0xA5A5A5A5u);
+        ctx.page = 1;
+        ctx.reset();
+        CHECK(ctx.page == 0);
+        CHECK(not ctx.armed());
+        CHECK(ctx.armed_ntb().empty());
 
-        auto sp1 = tx.allocate_datagram(DG_SIZE);
-        CHECK(not sp1.empty());
-        std::copy(dg1.begin(), dg1.end(), sp1.begin());
-        tx.commit_datagram(sp1);
+        CHECK(append_filled(ctx, 0x77));
+        CHECK(ctx.arm());
+        auto ntb = ctx.armed_ntb();
+        CHECK(ntb.data() == tx_page(*storage, 0));
+        CHECK(ntb_sequence(ntb) == 0);
+        CHECK(usb::cdc::ncm::is_valid_ntb<BIT_SIZE>(ntb));
+    };
 
-        auto ntb_span = tx.pop_ntb();
-        std::vector<uint8_t> ntb_copy(ntb_span.begin(), ntb_span.end());
-        auto [rx, rx_storage] = make_rx_ctx<32>(ntb_copy);
-        auto result = drain_rx(rx);
-        CHECK(result.size() == 2u);
-        CHECK(std::ranges::equal(result[0], dg0));
-        CHECK(std::ranges::equal(result[1], dg1));
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: reset discards armed and pending datagrams", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(append_filled(ctx, 0x11));
+        CHECK(ctx.arm());
+        CHECK(append_filled(ctx, 0x22));
+        ctx.reset();
+        CHECK(not ctx.armed());
+        CHECK(not ctx.arm());
+
+        // sequence numbering restarts
+        CHECK(append_filled(ctx, 0x33));
+        CHECK(ctx.arm());
+        CHECK(ntb_sequence(ctx.armed_ntb()) == 0);
+    };
+
+    TEMPLATE_TEST_CASE("ntb_tx_ctx: pop_ntb releases the armed NTB and arms the next", ntb16, ntb32)
+    {
+        constexpr size_t BIT_SIZE = TestType::value;
+        auto [ctx, storage] = make_tx_ctx<BIT_SIZE>(TX_PAGE_SIZE);
+        CHECK(append_filled(ctx, 0x11));
+        CHECK(ctx.arm());
+        CHECK(append_filled(ctx, 0x22));
+
+        auto ntb = ctx.pop_ntb();
+        CHECK(ctx.armed());
+        CHECK(ntb.data() == ctx.armed_ntb().data());
+        CHECK(ntb.data() == tx_page(*storage, 1));
+        auto dgs = rx_roundtrip<BIT_SIZE>(ntb);
+        CHECK(dgs.size() == 1u);
+        CHECK(std::ranges::all_of(dgs[0], [](uint8_t b) { return b == 0x22; }));
+
+        // nothing pending: the previous NTB is released and nothing is armed
+        CHECK(ctx.pop_ntb().empty());
+        CHECK(not ctx.armed());
     };
 };

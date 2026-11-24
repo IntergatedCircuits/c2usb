@@ -168,9 +168,7 @@ void function::enable(const config::interface& iface, uint8_t alt_sel)
         // data interface only enabled when alternate setting 1 is set
         open_data_eps(iface);
 
-        ntb_in_.page = {};
-        ntb_in_.header(ntb_in_.page)->Sequence = 0;
-        ntb_in_.init();
+        ntb_in_.reset();
         in_flags_.store(ntb_clear_to_send_flag);
 
         ntb_out_.page = {};
@@ -191,7 +189,9 @@ void function::disable(const config::interface& iface)
         in_flags_.fetch_and(flag_type(~ntb_connected_flag));
         netif_.state_change(*this, old_state, state::DISABLED);
 
-        ntb2send_ = {};
+        // abort the ongoing transfer before releasing its buffer
+        cancel_ep(ep_in_handle());
+        ntb_in_.disarm();
         out_flags_.store(0);
 
         cancel_ep(ep_notify_handle());
@@ -352,13 +352,13 @@ c2usb::result function::commit_datagram(const std::span<uint8_t>& dg)
 
 c2usb::result function::try_send(flag_type flags_to_clear)
 {
-    if (ntb2send_.empty())
+    if (not ntb_in_.armed())
     {
-        // new NTB is popped, so no more pending data
-        ntb2send_ = ntb_in_.pop_ntb();
+        // new NTB is armed, so no more pending data
+        ntb_in_.arm();
         flags_to_clear |= ntb_pending_flag;
     }
-    auto result = send_data(ntb2send_);
+    auto result = send_data(ntb_in_.armed_ntb());
     if (result == c2usb::result::ok)
     {
         flags_to_clear |= ntb_clear_to_send_flag;
@@ -381,7 +381,9 @@ void function::notify_ep_callback(const transfer& xfer)
                (((flags & ntb_connected_flag) == 0) == connected));
         if (not connected)
         {
-            ntb2send_ = {};
+            // abort the ongoing transfer before releasing its buffer
+            cancel_ep(ep_in_handle());
+            ntb_in_.disarm();
         }
 
         state old_state = connected ? state::ENABLED : state::CONNECTED;
@@ -421,7 +423,7 @@ void function::ep_in_callback(const transfer& xfer)
         flags_to_set = ntb_clear_to_send_flag;
         if (xfer.success())
         {
-            ntb2send_ = {};
+            ntb_in_.disarm();
         }
     }
 
@@ -431,7 +433,7 @@ void function::ep_in_callback(const transfer& xfer)
         return;
     }
     // when the conditions are right, send the next NTB IN
-    if (bool pending = ((flags & ntb_pending_flag) != 0); not ntb2send_.empty() or pending)
+    if (bool pending = ((flags & ntb_pending_flag) != 0); ntb_in_.armed() or pending)
     {
         if ((try_send() == c2usb::result::ok) and pending)
         {

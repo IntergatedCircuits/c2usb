@@ -139,6 +139,7 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
     using base::data;
     using base::size;
     using size_type = typename base::size_type;
+    using page_type = typename base::page_type;
 
   private:
     // reflect the layout of a datagram pointer
@@ -188,6 +189,46 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         rem_size = std::min(this->size(), max_size) - sizeof(ntb::header<BIT_SIZE>) -
                    sizeof(ntb::datagram_pointer_table<BIT_SIZE>);
     }
+
+    /// @brief  Reset the context to its initial state: first page, sequence 0, nothing armed
+    void reset()
+    {
+        this->page = {};
+        this->header(this->page)->Sequence = 0;
+        disarm();
+        init();
+    }
+
+    /// @brief  Check whether an assembled NTB is waiting to be sent (or is being sent).
+    ///         The armed NTB is always on the other page from the one being populated,
+    ///         and its non-zero BlockLength marks it armed.
+    [[nodiscard]] bool armed() const
+    {
+        return this->header(page_type(!this->page))->BlockLength != 0;
+    }
+
+    /// @brief  Finalize the NTB being assembled and mark it for transmission.
+    ///         Does nothing if an NTB is already armed, or there are no datagrams to send.
+    /// @return true if an NTB is armed after the call
+    bool arm()
+    {
+        if (not armed() and (dg_count > 0))
+        {
+            finalize();
+        }
+        return armed();
+    }
+
+    /// @return the armed NTB data, or an empty span if none is armed
+    [[nodiscard]] std::span<const uint8_t> armed_ntb() const
+    {
+        auto other = page_type(!this->page);
+        return std::span<const uint8_t>(std_layout_cast<const uint8_t*>(this->data(other)),
+                                        this->header(other)->BlockLength);
+    }
+
+    /// @brief  Release the armed NTB, once it has been sent or its transfer was aborted
+    void disarm() { this->header(page_type(!this->page))->BlockLength = 0; }
 
     /// @brief  Append a datagram to the current NTB being assembled
     /// @tparam TIterator: an input iterator type with value type convertible to uint8_t
@@ -262,16 +303,19 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         dg_size_ptr()->size = static_cast<size_type>(dg.size());
     }
 
-    /// @brief  Finalize the current NTB and prepare it for transmission,
-    ///         returning a span of the NTB data to be sent
-    /// @return a span of the NTB ready for transmission
+    /// @brief  Release the previously armed NTB, then arm and return the next one
+    /// @return a span of the NTB ready for transmission, or empty if there were no datagrams
     std::span<const uint8_t> pop_ntb()
     {
-        if (dg_count == 0)
-        {
-            return {};
-        }
+        disarm();
+        arm();
+        return armed_ntb();
+    }
 
+  private:
+    /// @brief  Finalize the NTB being assembled, and switch to the other page for population
+    void finalize()
+    {
         // layout while populating:
         // +--------------------------------------------------------------------------------------+
         // | header | datagram 0 | ... | datagram N | empty         | reverse datagram size store |
@@ -317,11 +361,9 @@ struct ntb_tx_ctx : public ntb_ctx<BIT_SIZE>
         this->page = !this->page;
         this->header(this->page)->Sequence = hdr->Sequence + 1;
         init();
-
-        return std::span<const uint8_t>(std_layout_cast<const uint8_t*>(this->data(!this->page)),
-                                        hdr->BlockLength);
     }
 
+  public:
     /// @brief  Performs the SET_NTB_INPUT_SIZE request, validating and applying it
     /// @param  msg: the control message containing the new input size
     /// @return True if the input size was successfully set, false otherwise

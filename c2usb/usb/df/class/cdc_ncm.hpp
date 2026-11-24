@@ -193,7 +193,6 @@ class function : public cdc::function
 
     const usb::cdc::mac_address& if_address_;
     network_interface& netif_;
-    std::span<const uint8_t> ntb2send_;
     std::atomic<flag_type> in_flags_;
     std::atomic<flag_type> out_flags_;
     std::atomic<state> state_;

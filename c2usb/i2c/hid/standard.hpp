@@ -85,11 +85,19 @@ enum class opcode : uint8_t
     SET_PROTOCOL = 0x7, /// Request from HOST to DEVICE to set the protocol mode
 };
 
-/// @brief  Storage class for viewing commands.
-class command_view
+/// @brief  Commands with a report ID at or above this value use the extended (3 byte) format.
+constexpr inline uint8_t SHORT_REPORT_ID_LIMIT = 0xf;
+
+/// @brief  Storage class of commands, in the short (2 byte) or extended (3 byte) format.
+///         All the data is held in this class (and none in derived classes),
+///         to keep the commands standard layout types, for safe raw memory casting.
+template <std::size_t SIZE>
+class basic_command
 {
+    static_assert((SIZE == 2) or (SIZE == 3));
+
   public:
-    constexpr static uint8_t SHORT_REPORT_ID_LIMIT = 0xf;
+    constexpr static uint8_t SHORT_REPORT_ID_LIMIT = hid::SHORT_REPORT_ID_LIMIT;
     [[nodiscard]] constexpr hid::opcode opcode() const
     {
         return static_cast<hid::opcode>(buffer_[1]);
@@ -104,6 +112,8 @@ class command_view
     {
         return static_cast<::hid::report::type>((buffer_[0] >> 4) & 0x3);
     }
+    /// @note   When viewing received data in the extended format through a command_view,
+    ///         the report ID is read from the byte following the 2 byte storage.
     [[nodiscard]] ::hid::report::id::type report_id() const
     {
         return is_extended() ? *(buffer_.data() + 2) : (buffer_[0] & SHORT_REPORT_ID_LIMIT);
@@ -115,38 +125,47 @@ class command_view
     [[nodiscard]] constexpr bool sleep() const { return (buffer_[0] & 1) != 0; }
 
   protected:
-    constexpr command_view(hid::opcode opcode, uint8_t value)
+    constexpr basic_command(hid::opcode opcode, uint8_t value)
         : buffer_{value, static_cast<uint8_t>(opcode)}
     {}
-
-  private:
-    std::array<uint8_t, 2> buffer_{};
-};
-
-/// @brief  Storage class for creating commands.
-template <::hid::report::id::type REPORT_ID = 0>
-class command : public command_view
-{
-    constexpr static bool extended() { return REPORT_ID >= SHORT_REPORT_ID_LIMIT; }
-
-  public:
-    constexpr command(hid::opcode opcode, bool sleep = false)
-        : command_view(opcode, sleep)
-    {}
-    constexpr command(hid::opcode opcode, ::hid::report::type type)
-        : command_view(opcode, (static_cast<uint8_t>(type) << 4) |
-                                   std::min(REPORT_ID, SHORT_REPORT_ID_LIMIT))
+    constexpr void set_extended_report_id(::hid::report::id::type report_id)
+        requires(SIZE == 3)
     {
-        if constexpr (extended())
-        {
-            ext_buffer_ = REPORT_ID;
-        }
+        buffer_[2] = report_id;
     }
 
   private:
-    using conditional_buffer_t = std::conditional_t<extended(), uint8_t, std::monostate>;
-    [[no_unique_address]] conditional_buffer_t ext_buffer_{};
+    std::array<uint8_t, SIZE> buffer_{};
 };
+
+/// @brief  Storage class for viewing received commands of either format.
+using command_view = basic_command<2>;
+
+/// @brief  Storage class for creating commands.
+template <::hid::report::id::type REPORT_ID = 0>
+class command : public basic_command<(REPORT_ID >= SHORT_REPORT_ID_LIMIT) ? 3 : 2>
+{
+    constexpr static bool extended() { return REPORT_ID >= SHORT_REPORT_ID_LIMIT; }
+    using base = basic_command<extended() ? 3 : 2>;
+
+  public:
+    constexpr command(hid::opcode opcode, bool sleep = false)
+        : base(opcode, sleep)
+    {}
+    constexpr command(hid::opcode opcode, ::hid::report::type type)
+        : base(opcode, (static_cast<uint8_t>(type) << 4) |
+                           std::min<uint8_t>(REPORT_ID, SHORT_REPORT_ID_LIMIT))
+    {
+        if constexpr (extended())
+        {
+            this->set_extended_report_id(REPORT_ID);
+        }
+    }
+};
+static_assert(std::is_standard_layout_v<command<>> and std::is_trivially_copyable_v<command<>>);
+static_assert(std::is_standard_layout_v<command<SHORT_REPORT_ID_LIMIT>> and
+              std::is_trivially_copyable_v<command<SHORT_REPORT_ID_LIMIT>>);
+static_assert((sizeof(command<>) == 2) and (sizeof(command<SHORT_REPORT_ID_LIMIT>) == 3));
 
 /// @brief  Storage for most common command data size.
 struct short_data

@@ -12,13 +12,15 @@ static uint16_t get_u16(const uint8_t* data)
 namespace i2c::hid
 {
 device::device(application& app, const product_info& pinfo, i2c::slave& slave, i2c::address address,
-               uint16_t hid_descriptor_reg_address)
+               uint16_t hid_descriptor_reg_address, const std::span<uint8_t>& buffer)
     : module(address),
       app_(app),
       pinfo_(pinfo),
       slave_(slave),
-      hid_descriptor_reg_(hid_descriptor_reg_address)
+      hid_descriptor_reg_(hid_descriptor_reg_address),
+      buffer_(buffer)
 {
+    assert(buffer_.size() >= buffer_size(app_.report_info()));
     slave_.register_module(*this);
 }
 
@@ -51,27 +53,41 @@ void device::link_reset()
     powered_ = true;
 
     // send 0 length input report
-    queue_input_report(std::span<const uint8_t>());
+    queue_reset_response();
 }
 
 c2usb::result device::receive_report([[maybe_unused]] session& sess, const std::span<uint8_t>& data,
                                      report::type type)
 {
     assert(type != report::type::INPUT);
-    if ((rx_buffers_[type].empty()) or (stage_ == 0))
-    {
-        // save the target buffer for when the transfer is made
-        rx_buffers_[type] = data;
-        return c2usb::result::ok;
-    }
-    // the previously passed buffer is being used for receiving data
-    return c2usb::result::device_or_resource_busy;
+    // the host writes are received into the device's own buffer, the report is only copied
+    // into the application's buffer when the transfer completes, so it can be replaced anytime
+    rx_buffers_[type] = data;
+    return c2usb::result::ok;
 }
 
 c2usb::result device::send_report([[maybe_unused]] session& sess,
                                   const std::span<const uint8_t>& data)
 {
-    return queue_input_report(data) ? c2usb::result::ok : c2usb::result::device_or_resource_busy;
+    // while claimed, the queue cannot be consumed by the I2C ISR
+    if (not claim_input(in_owner::QUEUEING))
+    {
+        // the host is reading the previous report
+        return c2usb::result::device_or_resource_busy;
+    }
+    if (in_queue_.has_value())
+    {
+        // a single report can be pending, it must be delivered or cancelled first
+        release_input(in_owner::QUEUEING);
+        return c2usb::result::device_or_resource_busy;
+    }
+    in_queue_.emplace(data);
+    release_input(in_owner::QUEUEING);
+
+    // assert the interrupt line only after releasing the queue: if the host reads the input
+    // register while it's claimed, it gets an empty report, and the line is deasserted
+    slave().set_pin_interrupt(true);
+    return c2usb::result::ok;
 }
 
 void device::get_hid_descriptor(descriptor& desc) const
@@ -89,11 +105,12 @@ bool device::get_report(report::selector select)
     {
         return false;
     }
-    auto data = session_->get_report(select, std::span(buffer_).subspan(sizeof(le_uint16_t)));
+    auto data = session_->get_report(select, buffer_.subspan(sizeof(le_uint16_t)));
     if (!data.empty())
     {
+        // the length field includes its own size
         auto& report_length = *get_buffer<le_uint16_t>();
-        report_length = static_cast<uint16_t>(data.size());
+        report_length = static_cast<uint16_t>(REPORT_LENGTH_SIZE + data.size());
 
         // send the length 2 bytes, followed by the report data
         slave().send(&report_length, data);
@@ -199,11 +216,11 @@ bool device::reply_request(size_t data_length)
     }
 }
 
-bool device::queue_input_report(const std::span<const uint8_t>& data)
+void device::queue_reset_response()
 {
-    in_queue_.emplace(data);
+    // called from the I2C ISR, replacing any pending report (the session is already stopped)
+    in_queue_.emplace();
     slave().set_pin_interrupt(true);
-    return true;
 }
 
 c2usb::result device::cancel_report_send(session& sess)
@@ -240,8 +257,9 @@ bool device::get_input()
     {
         auto input_data = in_queue_.value();
 
+        // the length field includes its own size
         auto& report_length = *c2usb::std_layout_cast<le_uint16_t*>(buffer_.data());
-        report_length = static_cast<uint16_t>(input_data.size());
+        report_length = static_cast<uint16_t>(REPORT_LENGTH_SIZE + input_data.size());
 
         slave().send(&report_length, input_data);
     }
@@ -281,7 +299,7 @@ bool device::on_start(i2c::direction dir, size_t data_length)
         {
             // first part of the transfer, receive register / command
             stage_ = 1;
-            slave().receive(buffer_, rx_buffers_.largest());
+            slave().receive(buffer_);
             success = true;
         }
     }
@@ -305,41 +323,30 @@ void device::set_power(bool powered)
 
 bool device::set_report(report::type type, const std::span<const uint8_t>& data)
 {
-    uint16_t length = get_u16(data.data());
-    size_t report_length = length - sizeof(length);
-    auto& output_buffer = rx_buffers_[type];
-
-    // check length validity
-    if ((data.size() == length) and (report_length <= output_buffer.size()))
+    // the complete write is in buffer_, data starts with the report length field
+    if ((data.size() < REPORT_LENGTH_SIZE) or (get_u16(data.data()) != data.size()))
     {
-        // copy/move the output report into the requested buffer
-        size_t header_size = static_cast<size_t>(data.data() - buffer_.data()) + sizeof(length);
-        size_t offset = buffer_.size() - header_size;
-
-        // move the output buffer contents down by offset
-        if (offset < report_length)
-        {
-            std::move_backward(output_buffer.data(), output_buffer.data() + report_length - offset,
-                               output_buffer.data() + offset);
-        }
-
-        // copy first part from GP buffer into provided buffer
-        std::copy(data.begin() + sizeof(length), data.end(), output_buffer.begin());
-
-        auto report = output_buffer.subspan(0, report_length);
-
-        // clear the buffer before the callback, so it can set a new buffer
-        output_buffer = {};
-
-        // pass it to the app
-        if (session_ != nullptr)
-        {
-            session_->set_report(type, report);
-
-            return true;
-        }
+        // invalid length
+        return false;
     }
-    return false;
+    auto report_data = data.subspan(REPORT_LENGTH_SIZE);
+    auto& target_buffer = rx_buffers_[type];
+    if ((session_ == nullptr) or (report_data.size() > target_buffer.size()))
+    {
+        // no session, or no (sufficient) buffer was provided by the application for this type
+        return false;
+    }
+
+    // copy the report into the buffer provided for this report type
+    std::copy(report_data.begin(), report_data.end(), target_buffer.begin());
+    auto report = target_buffer.first(report_data.size());
+
+    // clear the buffer before the callback, so it can set a new buffer
+    target_buffer = {};
+
+    // pass it to the app
+    session_->set_report(type, report);
+    return true;
 }
 
 bool device::set_command(const std::span<const uint8_t>& command_data)

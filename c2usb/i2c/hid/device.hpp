@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 #pragma once
 
+#include <algorithm>
+#include <tuple>
 #include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
-#include <tuple>
 
 inline namespace utilities
 {
@@ -37,8 +38,33 @@ class device : public i2c::slave::module, public ::hid::transport
     };
 
   public:
+    /// @brief  The largest overhead of a host write before the report data:
+    ///         register (2) + extended command (3) + data register (2) + report length (2)
+    constexpr static size_t MAX_WRITE_OVERHEAD =
+        sizeof(uint16_t) + 3 + sizeof(uint16_t) + REPORT_LENGTH_SIZE;
+
+    /// @brief  Calculates the size of the transfer buffer needed for an application.
+    ///         The buffer receives the complete host writes (including OUTPUT and FEATURE
+    ///         reports), and holds the device's replies (e.g. HID descriptor).
+    /// @param  rp: the application's report protocol
+    /// @return the minimal buffer size in bytes
+    constexpr static size_t buffer_size(const ::hid::report_protocol& rp)
+    {
+        return std::max(sizeof(descriptor),
+                        MAX_WRITE_OVERHEAD +
+                            std::max<size_t>(rp.max_output_size, rp.max_feature_size));
+    }
+
+    /// @brief  Creates the I2C HID device, and starts listening on the I2C bus.
+    /// @param  app: the HID application
+    /// @param  pinfo: product information, reported in the HID descriptor
+    /// @param  slave: the I2C slave driver
+    /// @param  address: the I2C address of the device
+    /// @param  hid_descriptor_reg_address: the register address of the HID descriptor
+    /// @param  buffer: the transfer buffer, at least @ref buffer_size() large for the application
     device(::hid::application& app, const hid::product_info& pinfo, i2c::slave& slave,
-           i2c::address address, uint16_t hid_descriptor_reg_address);
+           i2c::address address, uint16_t hid_descriptor_reg_address,
+           const std::span<uint8_t>& buffer);
     ~device() override;
 
     device(const device&) = delete;
@@ -68,7 +94,7 @@ class device : public i2c::slave::module, public ::hid::transport
         return reinterpret_cast<T*>(buffer_.data());
     }
 
-    bool queue_input_report(const std::span<const uint8_t>& data);
+    void queue_reset_response();
 
     void send_short_data(uint16_t value);
     bool get_report(::hid::report::selector select);
@@ -81,6 +107,7 @@ class device : public i2c::slave::module, public ::hid::transport
     {
         NONE,
         SENDING,    // the host is reading it (I2C ISR context)
+        QUEUEING,   // it's being queued (application context)
         CANCELLING, // it's being withdrawn (application context)
     };
 
@@ -115,7 +142,7 @@ class device : public i2c::slave::module, public ::hid::transport
     bool powered_{};
     std::optional<std::span<const uint8_t>> in_queue_;
     std::atomic<in_owner> in_owner_{};
-    std::array<uint8_t, sizeof(descriptor)> buffer_{};
+    std::span<uint8_t> buffer_;
 };
 
 } // namespace i2c::hid

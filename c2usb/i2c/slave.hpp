@@ -2,6 +2,7 @@
 #pragma once
 
 #include "i2c/base.hpp"
+#include <cassert>
 
 namespace i2c
 {

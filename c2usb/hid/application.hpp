@@ -5,6 +5,13 @@
 #include <hid/report.hpp>
 #include <hid/report_protocol.hpp>
 
+// vendor headers (e.g. STM32 CMSIS) may define these as peripheral instance macros
+#pragma push_macro("I2C")
+#pragma push_macro("SPI")
+#pragma push_macro("USB")
+#undef I2C
+#undef SPI
+#undef USB
 namespace hid
 {
 enum class channel : uint8_t
@@ -16,6 +23,9 @@ enum class channel : uint8_t
     BT_GATT,
     APPLE_IAP2, // only makes sense when iAP2 itself is over UART
 };
+#pragma pop_macro("USB")
+#pragma pop_macro("SPI")
+#pragma pop_macro("I2C")
 
 class transport;
 
@@ -51,6 +61,11 @@ class session : public c2usb::polymorphic
     virtual void suspend_callback([[maybe_unused]] bool suspended) {}
 
     /// @brief  Send an INPUT report to the host. This is the only device-initiated data transfer.
+    ///         The report data must remain valid until @ref send_report_callback is invoked.
+    /// @return ok: the report is queued for sending
+    ///         device_or_resource_busy: a previous report is still pending, wait for its
+    ///         @ref send_report_callback, or withdraw it with @ref cancel_report_send
+    ///         connection_reset: the session is no longer active
     c2usb::result send_report(const std::span<const uint8_t>& data);
 
     template <report::Data T>

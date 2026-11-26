@@ -2,10 +2,12 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <tuple>
 #include "hid/transport.hpp"
 #include "i2c/hid/standard.hpp"
 #include "i2c/slave.hpp"
+#include <type_traits>
 
 inline namespace utilities
 {
@@ -53,6 +55,26 @@ class device : public i2c::slave::module, public ::hid::transport
         return std::max(sizeof(descriptor),
                         MAX_WRITE_OVERHEAD +
                             std::max<size_t>(rp.max_output_size, rp.max_feature_size));
+    }
+
+    /// @brief  Creates a transfer buffer that is correctly sized for an application, e.g.:
+    ///         static auto buffer = make_buffer<my_app::report_protocol>();
+    /// @tparam REPORT_INFO: either a constexpr function returning the application's
+    ///         @ref ::hid::report_protocol (as the report protocol itself can't be a template
+    ///         argument), or the application's report descriptor
+    /// @return a zero-initialized byte array of @ref buffer_size()
+    template <auto REPORT_INFO>
+    constexpr static auto make_buffer()
+    {
+        if constexpr (std::is_invocable_r_v<::hid::report_protocol, decltype(REPORT_INFO)>)
+        {
+            return std::array<uint8_t, buffer_size(REPORT_INFO())>{};
+        }
+        else
+        {
+            return std::array<
+                uint8_t, buffer_size(::hid::report_protocol::from_descriptor<REPORT_INFO>())>{};
+        }
     }
 
     /// @brief  Creates the I2C HID device, and starts listening on the I2C bus.

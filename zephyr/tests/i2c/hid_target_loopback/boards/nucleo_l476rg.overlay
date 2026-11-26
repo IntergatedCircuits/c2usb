@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* I2C bus pins are exposed on the Arduino connector.
+ *
+ *  Bus        SDA              SCL
+ *          Pin   Hdr        Pin   Hdr
+ *  i2c3    PC1   A4         PC0   A5      controller (Zephyr I2C driver, DMA)
+ *  i2c1    PB9   D14        PB8   D15     target (c2usb HAL I2C driver, DMA)
+ *
+ * Short Pin PC1 to PB9, and PC0 to PB8, for the test to pass.
+ * The internal pull-ups of the pins are enabled, external 4.7k pull-ups are recommended.
+ * The I2C HID interrupt line (PA8) is read back by the test, it needs no wiring.
+ */
+
+/* the controller and target must use compatible bus timing */
+#define I2C_TEST_TIMINGS <80000000 I2C_BITRATE_STANDARD 0x10909CEC>
+
+i2c_test_controller: &i2c3 {
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	timings = I2C_TEST_TIMINGS;
+	/* I2C3 requests: DMA1 channel 2 (TX) and 3 (RX), request 3 */
+	dmas = <&dma1 2 3 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&dma1 3 3 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+};
+
+&i2c1 {
+	compatible = "c2usb,stm32-i2c-v2-target";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	timings = I2C_TEST_TIMINGS;
+	/* I2C1 requests: DMA1 channel 6 (TX) and 7 (RX), request 3 */
+	dmas = <&dma1 6 3 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&dma1 7 3 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+	status = "okay";
+
+	i2c_hid: hid@2c {
+		compatible = "hid-over-i2c";
+		reg = <0x2c>;
+		hid-descr-addr = <0x0020>;
+		int-gpios = <&gpioa 8 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&dma1 {
+	status = "okay";
+};

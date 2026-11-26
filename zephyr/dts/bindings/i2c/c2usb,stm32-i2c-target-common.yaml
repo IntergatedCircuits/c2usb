@@ -1,0 +1,55 @@
+# Common properties of the c2usb STM32 I2C target controller bindings.
+# Not a binding by itself, included by c2usb,stm32-i2c-v1-target.yaml and
+# c2usb,stm32-i2c-v2-target.yaml.
+
+include: [base.yaml, pinctrl-device.yaml]
+
+bus: i2c-target
+
+properties:
+  "#address-cells":
+    required: true
+    const: 1
+
+  "#size-cells":
+    required: true
+    const: 0
+
+  clock-frequency:
+    type: int
+    description: |
+      I2C bus frequency in Hz. On the v2 IP it selects the timings entry,
+      on the v1 IP it's passed to the HAL. Defaults to I2C_BITRATE_STANDARD.
+
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clocks:
+    required: true
+
+  pinctrl-0:
+    required: true
+
+  pinctrl-names:
+    required: true
+
+  dmas:
+    required: true
+    description: |
+      DMA channels used by the I2C peripheral, for TX and RX transfers.
+
+  dma-names:
+    required: true
+    description: |
+      Names of the DMA channels, must be "tx" and "rx".
+
+  scl-gpios:
+    type: phandle-array
+    description: Unused, accepted for compatibility with the st,stm32-i2c-v1/v2 bindings.
+
+  sda-gpios:
+    type: phandle-array
+    description: Unused, accepted for compatibility with the st,stm32-i2c-v1/v2 bindings.

@@ -5,3 +5,9 @@ manifest:
     import:
       - west.yml
       - zephyr/import_zephyr.yml
+
+  projects:
+    - name: stm32header
+      url: https://github.com/IntergatedCircuits/stm32header
+      revision: 6c3d30b9332bca15a2df4dceff13db626eea6ff3
+      path: modules/hal/stm32header

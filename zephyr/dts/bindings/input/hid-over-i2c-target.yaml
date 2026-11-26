@@ -1,0 +1,28 @@
+description: |
+  HID over I2C device function, target side.
+  Describes the local device under an I2C target controller node
+  (e.g. c2usb,stm32-i2c-v2-target), using the same compatible and properties
+  as the Linux kernel binding for the remote device on the controller side.
+
+compatible: "hid-over-i2c"
+
+include: base.yaml
+
+on-bus: i2c-target
+
+properties:
+  reg:
+    required: true
+    description: The device's own target address on the I2C bus.
+
+  hid-descr-addr:
+    type: int
+    required: true
+    description: The I2C register address of the HID descriptor.
+
+  int-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      The interrupt line output, signalling pending input reports to the host.
+      Typically active low.

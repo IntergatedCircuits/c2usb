@@ -22,6 +22,10 @@ cd c2usb-workspace
 west update && west patch
 ```
 
+This manifest is based on the nRF Connect SDK. For STM32 targets (such as the
+[i2c-hid-keyboard](examples/i2c-hid-keyboard) example), use `west4zephyr.yml` instead,
+which is based on mainline Zephyr, and includes the `hal_stm32` and `stm32header` modules.
+
 Building an example project is similarly done by the corresponding west command:
 
 ```shell

@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * I2C1 on PB8 (SCL, Arduino D15) / PB9 (SDA, Arduino D14), interrupt line on PA8 (Arduino D7).
+ * Matching host (Linux) devicetree configuration:
+ *
+ *   i2c-hid-device@a {
+ *     compatible = "hid-over-i2c";
+ *     reg = <0x0a>;
+ *     hid-descr-addr = <0x0001>;
+ *     interrupts-extended = <&gpio 27 IRQ_TYPE_LEVEL_LOW>;
+ *   };
+ */
+
+&dma1 {
+	status = "okay";
+};
+
+&i2c1 {
+	compatible = "c2usb,stm32-i2c-v2-target";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	/* STM32CubeMX computed value for 80 MHz PCLK1 */
+	timings = <80000000 I2C_BITRATE_STANDARD 0x10909CEC>;
+	/* I2C1 requests: DMA1 channel 6 (TX) and 7 (RX), request 3 */
+	dmas = <&dma1 6 3 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&dma1 7 3 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+	status = "okay";
+
+	i2c_hid: hid@a {
+		compatible = "hid-over-i2c";
+		reg = <0x0a>;
+		hid-descr-addr = <0x0001>;
+		int-gpios = <&gpioa 8 GPIO_ACTIVE_LOW>;
+	};
+};

@@ -1,0 +1,42 @@
+description: |
+  HID over I2C device, controller side.
+  Describes a remote HID over I2C device attached to an I2C controller,
+  following the Linux kernel binding (Documentation/devicetree/bindings/input/hid-over-i2c.yaml).
+  No driver is provided for it in c2usb, the binding reserves the controller side meaning
+  of the compatible, see hid-over-i2c-target.yaml for the target side.
+
+compatible: "hid-over-i2c"
+
+include: i2c-device.yaml
+
+properties:
+  hid-descr-addr:
+    type: int
+    required: true
+    description: The I2C register address of the HID descriptor.
+
+  int-gpios:
+    type: phandle-array
+    description: |
+      The interrupt line input, signalling pending input reports from the device.
+      Alternative to the interrupts property.
+
+  reset-gpios:
+    type: phandle-array
+    description: GPIO specifier for the device's reset pin (active low).
+
+  vdd-supply:
+    type: phandle
+    description: Regulator for the device's VDD supply.
+
+  post-power-on-delay-ms:
+    type: int
+    description: Time required by the device after enabling its regulators or powering it on.
+
+  post-reset-deassert-delay-ms:
+    type: int
+    description: Time required by the device after the reset line is deasserted.
+
+  wakeup-source:
+    type: boolean
+    description: The device can wake up the system.

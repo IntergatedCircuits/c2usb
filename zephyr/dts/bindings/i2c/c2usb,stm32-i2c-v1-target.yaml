@@ -1,0 +1,43 @@
+description: |
+  STM32 I2C v1 IP (st,stm32-i2c-v1) controller operated in I2C target mode by c2usb,
+  using the STM32Cube HAL I2C driver with DMA transfers.
+
+  Override the compatible of the SoC's I2C node to use this driver instead of
+  the Zephyr STM32 I2C driver. The target function is described by a child node,
+  in the same way as the Linux kernel describes the device on the controller side.
+  Only a single child node is supported.
+
+  The node provides the "i2c-target" bus (instead of "i2c"), so that the child nodes
+  are matched with their target side bindings, even when the same compatible
+  also has a controller side binding (e.g. "hid-over-i2c").
+
+  Both the I2C and the DMA channel interrupts drive the HAL state machine,
+  so their interrupt priorities must be identical.
+
+  The v1 IP has no timing register, the HAL derives the peripheral configuration
+  from the APB1 clock rate and clock-frequency.
+
+  Example:
+    &dma1 {
+      status = "okay";
+    };
+
+    &i2c3 {
+      compatible = "c2usb,stm32-i2c-v1-target";
+      clock-frequency = <I2C_BITRATE_STANDARD>;
+      dmas = <&dma1 4 3 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH) 0>,
+             <&dma1 2 3 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH) 0>;
+      dma-names = "tx", "rx";
+      status = "okay";
+
+      hid@a {
+        compatible = "hid-over-i2c";
+        reg = <0x0a>;
+        hid-descr-addr = <0x0001>;
+        int-gpios = <&gpioc 6 GPIO_ACTIVE_LOW>;
+      };
+    };
+
+compatible: "c2usb,stm32-i2c-v1-target"
+
+include: c2usb,stm32-i2c-target-common.yaml

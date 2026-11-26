@@ -1,0 +1,53 @@
+description: |
+  STM32 I2C v2 IP (st,stm32-i2c-v2) controller operated in I2C target mode by c2usb,
+  using the STM32Cube HAL I2C driver with DMA transfers.
+
+  Override the compatible of the SoC's I2C node to use this driver instead of
+  the Zephyr STM32 I2C driver. The target function is described by a child node,
+  in the same way as the Linux kernel describes the device on the controller side.
+  Only a single child node is supported.
+
+  The node provides the "i2c-target" bus (instead of "i2c"), so that the child nodes
+  are matched with their target side bindings, even when the same compatible
+  also has a controller side binding (e.g. "hid-over-i2c").
+
+  Both the I2C and the DMA channel interrupts drive the HAL state machine,
+  so their interrupt priorities must be identical.
+
+  Example:
+    &dma1 {
+      status = "okay";
+    };
+
+    &i2c2 {
+      compatible = "c2usb,stm32-i2c-v2-target";
+      clock-frequency = <I2C_BITRATE_STANDARD>;
+      timings = <48000000 I2C_BITRATE_STANDARD 0x10A35D83>;
+      dmas = <&dma1 4 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+             <&dma1 5 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+      dma-names = "tx", "rx";
+      status = "okay";
+
+      hid@a {
+        compatible = "hid-over-i2c";
+        reg = <0x0a>;
+        hid-descr-addr = <0x0001>;
+        int-gpios = <&gpioc 5 GPIO_ACTIVE_LOW>;
+      };
+    };
+
+compatible: "c2usb,stm32-i2c-v2-target"
+
+include: c2usb,stm32-i2c-target-common.yaml
+
+properties:
+  timings:
+    type: array
+    required: true
+    description: |
+      Table of pre-computed I2C_TIMINGR register values with the matching clock
+      configuration, in the format of <periph_clock clock-frequency timing>,
+      identical to the st,stm32-i2c-v2 binding. The entry matching the I2C
+      peripheral clock rate and clock-frequency is applied.
+      Even in target mode, the data setup and hold times (SCLDEL, SDADEL) are
+      applied from this register. Compute the values with STM32CubeMX.

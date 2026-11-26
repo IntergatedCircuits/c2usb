@@ -1,0 +1,18 @@
+sample:
+  description: HID over I2C keyboard sample
+  name: I2C HID keyboard
+tests:
+  c2usb.i2c-hid-keyboard:
+    integration_platforms:
+      - stm32f072b_disco
+      - stm32f4_disco
+      - nucleo_l476rg
+    platform_allow:
+      - stm32f072b_disco
+      - stm32f4_disco
+      - nucleo_l476rg
+    tags:
+      - stm32
+      - i2c
+      - hid
+    harness: build

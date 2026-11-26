@@ -1,0 +1,22 @@
+common:
+  tags:
+    - stm32
+    - i2c
+    - hid
+    - c2usb
+  harness: ztest
+  harness_config:
+    # the two I2C buses of the chip are shorted, see boards/<board>.overlay
+    fixture: i2c_bus_short
+  platform_allow:
+    - nucleo_l476rg
+  integration_platforms:
+    - nucleo_l476rg
+
+tests:
+  c2usb.i2c.hid_target_loopback.keyboard:
+    extra_configs:
+      - CONFIG_TEST_I2C_HID_APP_KEYBOARD=y
+  c2usb.i2c.hid_target_loopback.recording_app:
+    extra_configs:
+      - CONFIG_TEST_I2C_HID_APP_RECORDING=y

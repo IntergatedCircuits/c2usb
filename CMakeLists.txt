@@ -17,6 +17,8 @@ set(CONFIG_C2USB_HID_BOOT_PROTOCOL ON)
 set(CONFIG_C2USB_NTB_IN_MAX_DG ON)
 
 add_subdirectory(${PROJECT_NAME})
+# vendor specific drivers, available as separate libraries
+add_subdirectory(${PROJECT_NAME}/i2c/vendor/stm32)
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC
     CONFIG_C2USB=1

@@ -37,7 +37,8 @@ and so this library also provides alternative transports for HID applications,
 which interact with the same high-level application API.
 The additional transport layers supported are:
 * BLE (HID over GATT Protocol, including SCI support) - Zephyr backend
-* I2C
+* I2C (HID over I2C Protocol) - with an [STM32 target driver](c2usb/i2c/vendor/stm32)
+  for Zephyr and STM32Cube projects
 
 #### 🔌 CDC-ACM - Serial Port
 

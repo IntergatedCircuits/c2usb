@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+choice TEST_I2C_HID_APP
+    prompt "HID application under test"
+    default TEST_I2C_HID_APP_KEYBOARD
+
+config TEST_I2C_HID_APP_KEYBOARD
+    bool "simple_keyboard: typical use, Linux i2c-hid boot sequence"
+
+config TEST_I2C_HID_APP_RECORDING
+    bool "recording test application: session and transport interactions"
+
+endchoice
+
+source "Kconfig.zephyr"

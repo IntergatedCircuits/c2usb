@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * I2C3 on PA8 (SCL) / PC9 (SDA), interrupt line on PC6.
+ * Matching host (Linux) devicetree configuration:
+ *
+ *   i2c-hid-device@a {
+ *     compatible = "hid-over-i2c";
+ *     reg = <0x0a>;
+ *     hid-descr-addr = <0x0001>;
+ *     interrupts-extended = <&gpio 27 IRQ_TYPE_LEVEL_LOW>;
+ *   };
+ */
+
+&dma1 {
+	status = "okay";
+};
+
+&i2c3 {
+	compatible = "c2usb,stm32-i2c-v1-target";
+	pinctrl-0 = <&i2c3_scl_pa8 &i2c3_sda_pc9>;
+	pinctrl-names = "default";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	/* I2C3 requests: DMA1 stream 4 (TX) and stream 2 (RX), channel 3 */
+	dmas = <&dma1 4 3 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH) 0>,
+	       <&dma1 2 3 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH) 0>;
+	dma-names = "tx", "rx";
+	status = "okay";
+
+	i2c_hid: hid@a {
+		compatible = "hid-over-i2c";
+		reg = <0x0a>;
+		hid-descr-addr = <0x0001>;
+		int-gpios = <&gpioc 6 GPIO_ACTIVE_LOW>;
+	};
+};

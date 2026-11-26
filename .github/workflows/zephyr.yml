@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # Nordic targets and native_sim tests, with the nRF Connect SDK
+  build-ncs:
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +50,7 @@ jobs:
         run: |
           west twister -T . -O build/twister-coverage \
             --integration \
+            --exclude-tag stm32 \
             --coverage --coverage-platform native_sim/native/64 \
             --gcov-tool "$(gcc -print-prog-name=gcov)" \
             --coverage-basedir ../c2usb \
@@ -64,3 +66,46 @@ jobs:
             zephyr/build/twister-coverage/coverage.json
             zephyr/build/twister-coverage/coverage_summary.json
           if-no-files-found: warn
+
+  # STM32 targets (tagged stm32), with mainline Zephyr and hal_stm32.
+  # The hardware tests need the i2c_bus_short fixture, so they are only built here.
+  build-zephyr:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Setup Zephyr project
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: .
+          manifest-file-name: west4zephyr.yml
+          toolchains: arm-zephyr-eabi
+
+      - name: Workspace setup
+        uses: ./.github/template/west-update
+        with:
+          manifest: west4zephyr.yml
+
+      - name: Generate HID usage tables
+        run: |
+          cmake -S ../modules/lib/hid-rp -B build/hid-rp-codegen \
+            -DHID_RP_TESTS=OFF
+          cmake --build build/hid-rp-codegen --target hid-usage-tables
+
+      - name: Run twister build
+        working-directory: zephyr
+        shell: bash
+        # only the STM32 directories are scanned, as twister rejects the
+        # NCS-only boards of the other tests on mainline Zephyr
+        run: |
+          west twister -T examples/i2c-hid-keyboard -T tests/i2c -O build/twister-stm32 \
+            --tag stm32 \
+            --integration \
+            --build-only \
+            --inline-logs -v

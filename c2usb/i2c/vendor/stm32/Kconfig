@@ -1,0 +1,49 @@
+menuconfig C2USB_I2C_STM32
+    bool "c2usb STM32 HAL I2C target driver"
+    default y
+    depends on DT_HAS_C2USB_STM32_I2C_V1_TARGET_ENABLED || DT_HAS_C2USB_STM32_I2C_V2_TARGET_ENABLED
+    select DMA
+    select GPIO
+    select PINCTRL
+    select USE_STM32_HAL_I2C if !C2USB_I2C_STM32_V1 && !C2USB_I2C_STM32_HAL_TARGET_ONLY
+    select USE_STM32_HAL_DMA
+    help
+      I2C target (slave) driver for the STM32 I2C v1 and v2 IPs, using the STM32Cube
+      HAL I2C driver with DMA transfers. The DMA channels are reserved in the Zephyr
+      DMA driver, which routes their interrupts to the HAL DMA driver.
+
+if C2USB_I2C_STM32
+
+config C2USB_I2C_STM32_V1
+    bool
+    default y if DT_HAS_C2USB_STM32_I2C_V1_TARGET_ENABLED
+    help
+      The SoC has the I2C v1 IP. The HAL I2C module of these series is disabled
+      in hal_stm32 (due to macro name collisions with <zephyr/drivers/i2c.h>),
+      so the HAL I2C driver is built as part of c2usb.
+
+config C2USB_I2C_STM32_HAL_TARGET_ONLY
+    bool "Build the HAL I2C driver without controller mode code"
+    default n
+    depends on DT_HAS_C2USB_STM32_I2C_V2_TARGET_ENABLED
+    help
+      The HAL I2C driver keeps references to its controller (master) mode DMA ISRs
+      from the code shared with target mode, so the controller mode code is linked
+      even if unused. This option builds a private copy of the HAL I2C driver with
+      those references removed, saving about 1 kB of code.
+      Has no effect if the HAL I2C driver is enabled by other users
+      (USE_STM32_HAL_I2C), as the controller mode DMA APIs aren't functional
+      in the private copy.
+      Only applies to the I2C v2 IP, the v1 IP HAL doesn't have this issue.
+
+config C2USB_I2C_STM32_INIT_PRIORITY
+    int "c2usb STM32 I2C target driver init priority"
+    default KERNEL_INIT_PRIORITY_DEVICE
+    help
+      Must be initialized after the DMA driver (DMA_INIT_PRIORITY).
+
+module = C2USB_I2C_STM32
+module-str = c2usb STM32 I2C target
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # C2USB_I2C_STM32

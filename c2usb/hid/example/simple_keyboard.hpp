@@ -126,8 +126,18 @@ class simple_keyboard : public hid::application
     {
         return hid::app::keyboard::app_report_descriptor<0>(attributes_report::descriptor());
     }
+
+  public:
+    /// @brief  The report protocol of the application, available at compile time,
+    ///         e.g. for sizing transport buffers.
+    static constexpr hid::report_protocol report_protocol()
+    {
+        return hid::report_protocol::from_descriptor<report_descriptor()>();
+    }
+
+  private:
     simple_keyboard()
-        : hid::application(hid::report_protocol::from_descriptor<report_descriptor()>())
+        : hid::application(report_protocol())
     {}
     void (*leds_cbk_)(keyboard_leds_data){};
     std::optional<session> session_{};

@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * I2C2 on PB10 (SCL) / PB11 (SDA), interrupt line on PC5.
+ * Matching host (Linux) devicetree configuration:
+ *
+ *   i2c-hid-device@a {
+ *     compatible = "hid-over-i2c";
+ *     reg = <0x0a>;
+ *     hid-descr-addr = <0x0001>;
+ *     interrupts-extended = <&gpio 27 IRQ_TYPE_LEVEL_LOW>;
+ *   };
+ */
+
+&dma1 {
+	status = "okay";
+};
+
+&i2c2 {
+	compatible = "c2usb,stm32-i2c-v2-target";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	/* STM32CubeMX computed value for 48 MHz PCLK1 */
+	timings = <48000000 I2C_BITRATE_STANDARD 0x10A35D83>;
+	/* I2C2 requests are hardwired to DMA1 channel 4 (TX) and 5 (RX) */
+	dmas = <&dma1 4 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&dma1 5 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+	status = "okay";
+
+	i2c_hid: hid@a {
+		compatible = "hid-over-i2c";
+		reg = <0x0a>;
+		hid-descr-addr = <0x0001>;
+		int-gpios = <&gpioc 5 GPIO_ACTIVE_LOW>;
+	};
+};

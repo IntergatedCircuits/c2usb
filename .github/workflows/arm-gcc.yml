@@ -50,7 +50,7 @@ jobs:
         run: |
           for BOARD in $BOARDS; do
             echo "=== Building for $BOARD ==="
-            west build -d build_$BOARD -- -DBOARD=$BOARD --preset $PRESET
+            west build -d build_$BOARD -b $BOARD -- --preset $PRESET
           done
 
       - name: Build usb-ncm-lwip example for all boards
@@ -58,5 +58,5 @@ jobs:
         run: |
           for BOARD in $BOARDS; do
             echo "=== Building for $BOARD ==="
-            west build -d build_$BOARD -- -DBOARD=$BOARD --preset $PRESET
+            west build -d build_$BOARD -b $BOARD -- --preset $PRESET
           done
